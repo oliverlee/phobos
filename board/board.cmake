@@ -1,0 +1,8 @@
+set(CHIBIOS_BOARD_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR})
+set(CHIBIOS_BOARD_SRC ${CHIBIOS_ROOT_DIR}/hal/boards/OLIMEX_STM32_H405/board.c)
+
+# Include STM32F4xx platform files.
+include(${CHIBIOS_ROOT_DIR}/hal/ports/STM32/STM32F4xx/platform.cmake)
+
+# Set linker script
+set(CHIBIOS_LINKER_SCRIPT ${CHIBIOS_STARTUP_LINKER_DIR}/STM32F405xG.ld)
