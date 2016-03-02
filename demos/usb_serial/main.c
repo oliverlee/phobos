@@ -55,12 +55,6 @@ int main(void) {
   chSysInit();
 
   /*
-   * Set pin mode for USB
-   */
-  palSetLineMode(LINE_USB_DM, PAL_MODE_ALTERNATE(10) | PAL_STM32_PUPDR_FLOATING);
-  palSetLineMode(LINE_USB_DP, PAL_MODE_ALTERNATE(10) | PAL_STM32_PUPDR_FLOATING);
-
-  /*
    * Initializes a serial-over-USB CDC driver.
    */
   sduObjectInit(&SDU1);
