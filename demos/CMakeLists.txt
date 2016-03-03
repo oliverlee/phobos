@@ -28,6 +28,11 @@ if(PHOBOS_BUILD_DEMO_EIGEN)
     add_subdirectory(eigen)
 endif()
 
+option(PHOBOS_BUILD_DEMO_BICYCLE "Build bicycle demo" TRUE)
+if(PHOBOS_BUILD_DEMO_BICYCLE)
+    add_subdirectory(bicycle)
+endif()
+
 option(PHOBOS_BUILD_DEMO_USB_SERIAL "Build USB over serial demo" TRUE)
 if(PHOBOS_BUILD_DEMO_USB_SERIAL)
     add_subdirectory(usb_serial)
