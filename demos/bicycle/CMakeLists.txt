@@ -13,3 +13,4 @@ add_definitions("-DEIGEN_NO_MALLOC")
 add_chibios_executable(bicycle
     chconf.h halconf.h mcuconf.h
     main.cc ${BICYCLE_SOURCE})
+target_compile_options(bicycle PUBLIC "-Wno-undef") # suppress boost undef warnings
