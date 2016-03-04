@@ -7,6 +7,9 @@ include_directories(${BICYCLE_INCLUDE_DIR})
 include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories(${Boost_INCLUDE_DIR})
 
+# Any request from Eigen to allocate memory from heap results in an assertion failure
+add_definitions("-DEIGEN_NO_MALLOC")
+
 add_chibios_executable(bicycle
     chconf.h halconf.h mcuconf.h
     main.cc ${BICYCLE_SOURCE})
