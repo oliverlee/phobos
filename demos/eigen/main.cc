@@ -31,6 +31,8 @@ namespace {
                 0.6f, 0.5f, 0.4f, 0.3f,
                 0.2f, 0.1f, 0.09f, 0.08f,
                 0.07f, 0.06f, 0.05f, 0.04f).finished());
+
+    const systime_t loop_time = MS2ST(1); // loop at 1 kHz
 } // namespace
 
 /*
@@ -91,14 +93,20 @@ int main(void) {
     /*
      * Normal main() thread activity. In this demo it simulates multiplies a matrix.
      */
-    matrix_t B = matrix_t::Identity();
     uint32_t i = 0;
+    matrix_t B = matrix_t::Identity();
+    rtcnt_t start = 0;
+    rtcnt_t dt = 0;
+    systime_t deadline = chVTGetSystemTimeX();
+
     while (true) {
+        // Use RTC directly due to a bug in last time computation in TM module.
+        start = chSysGetRealtimeCounterX(); // measure computation/transmit time
+        deadline += loop_time; // next deadline
         B = A * B;
 
         /*
-         * Rescale matrix entries if too large or too small. This prevents exceptions
-         * in chprintf for invalid float values.
+         * Rescale matrix entries if too large or too small.
          */
         real_t* data_A = const_cast<real_t*>(A.data());
         real_t* data_B = const_cast<real_t*>(B.data());
@@ -110,8 +118,12 @@ int main(void) {
             }
         }
 
+        /*
+         * Transmit loop time and matrix values.
+         */
         if (SDU1.config->usbp->state == USB_ACTIVE || SDU1.state == SDU_READY) {
-            chprintf((BaseSequentialStream*)&SDU1, "iteration %d\r\n", ++i);
+            chprintf((BaseSequentialStream*)&SDU1,
+                    "iteration %d: %d us\r\n", ++i, RTC2US(STM32_SYSCLK, dt));
             real_t* data = B.data();
             for (int i = 0; i < B.size(); ++i) {
                 chprintf((BaseSequentialStream*)&SDU1, "%0.2f", *data++);
@@ -123,6 +135,32 @@ int main(void) {
             }
             chprintf((BaseSequentialStream*)&SDU1, "\r\n");
         }
-        chThdSleepMilliseconds(1);
+        dt = chSysGetRealtimeCounterX() - start;
+
+        /*
+         * Sleep thread until next deadline if it hasn't already been missed.
+         */
+        bool miss = false;
+        chSysLock();
+        systime_t sleep_time = deadline - chVTGetSystemTimeX();
+        if ((sleep_time > (systime_t)0) and (sleep_time < loop_time)) {
+            chThdSleepS(sleep_time);
+        } else {
+            miss = true;
+        }
+        chSysUnlock();
+
+        /*
+         * If deadline missed, wait until button is pressed before continuing.
+         */
+        if (miss) {
+            chprintf((BaseSequentialStream*)&SDU1,
+                    "loop time was: %d us\r\n", RTC2US(STM32_SYSCLK, dt));
+            chprintf((BaseSequentialStream*)&SDU1, "Press button to continue.\r\n");
+            while (palReadLine(LINE_BUTTON)) { /* Button is active LOW. */
+                chThdSleepMilliseconds(10);
+            }
+            deadline = chVTGetSystemTimeX();
+        }
     }
 }
