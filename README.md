@@ -5,9 +5,16 @@ embedded system that controls the gyroscopic balance assistance system.
 ## Toolchain
 To compile the code, use [GNU ARM Embedded
 toolchain](https://launchpad.net/gcc-arm-embedded).
-The version used is 4.9-2015-q3. There is a [known
-issue](https://answers.launchpad.net/gcc-arm-embedded/+question/280242) in GCC 5
-and Link Time Optimization.
+The version used is 4.9-2015-q3.]
+
+There is a [known
+issue](https://answers.launchpad.net/gcc-arm-embedded/+question/280242) in GCC
+5.2 2015q4 with Link Time Optimization. Either use GCC 4.9 or disable LTO.
+
+Some examples may not build as the option `-fsingle-precision-constant` is not
+standard compliant. The issue is documented
+[here](https://bugs.launchpad.net/gcc-arm-embedded/+bug/1452470) and contains a
+fix.
 
 As most computers will be running a 64-bit kernel, libraries for ia32/i386
 architecture will need to be installed if not already. For recent versions of
