@@ -91,14 +91,18 @@ int main(void) {
     /*
      * Normal main() thread activity. In this demo it simulates multiplies a matrix.
      */
-    matrix_t B = matrix_t::Identity();
     uint32_t i = 0;
+    matrix_t B = matrix_t::Identity();
+    rtcnt_t start = 0;
+    rtcnt_t dt = 0;
+
     while (true) {
+        // Use RTC directly due to a bug in last time computation in TM module.
+        start = chSysGetRealtimeCounterX();
         B = A * B;
 
         /*
-         * Rescale matrix entries if too large or too small. This prevents exceptions
-         * in chprintf for invalid float values.
+         * Rescale matrix entries if too large or too small.
          */
         real_t* data_A = const_cast<real_t*>(A.data());
         real_t* data_B = const_cast<real_t*>(B.data());
@@ -111,7 +115,8 @@ int main(void) {
         }
 
         if (SDU1.config->usbp->state == USB_ACTIVE || SDU1.state == SDU_READY) {
-            chprintf((BaseSequentialStream*)&SDU1, "iteration %d\r\n", ++i);
+            chprintf((BaseSequentialStream*)&SDU1,
+                    "iteration %d: %d us\r\n", ++i, RTC2US(STM32_SYSCLK, dt));
             real_t* data = B.data();
             for (int i = 0; i < B.size(); ++i) {
                 chprintf((BaseSequentialStream*)&SDU1, "%0.2f", *data++);
@@ -123,6 +128,8 @@ int main(void) {
             }
             chprintf((BaseSequentialStream*)&SDU1, "\r\n");
         }
+        dt = chSysGetRealtimeCounterX() - start;
+
         chThdSleepMilliseconds(1);
     }
 }
