@@ -44,13 +44,17 @@ namespace {
     void adcerrorcallback(ADCDriver* adcp, adcerror_t err) {
         (void)adcp;
         (void)err;
+        chSysLockFromISR();
         chEvtBroadcastFlagsI(&adc_event_source, evt_adc_error);
+        chSysUnlockFromISR();
     }
     void adccallback(ADCDriver* adcp, adcsample_t* buffer, size_t n) {
         (void)adcp;
         (void)buffer;
         (void)n;
+        chSysLockFromISR();
         chEvtBroadcastFlagsI(&adc_event_source, evt_adc_complete);
+        chSysUnlockFromISR();
     }
 
     std::array<adcsample_t, 3> adc_buffer;
@@ -73,9 +77,6 @@ namespace {
     };
 
     const systime_t loop_time = MS2ST(1); // loop at 1 kHz
-
-    //auto print = std::bind(chprintf,
-    //        (BaseSequentialStream*)&SDU1, std::placeholders_1);
 } // namespace
 
 /*
