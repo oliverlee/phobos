@@ -1,3 +1,8 @@
+option(PHOBOS_BUILD_DEMO_ADC "Build ADC demo" TRUE)
+if(PHOBOS_BUILD_DEMO_ADC)
+    add_subdirectory(adc)
+endif()
+
 option(PHOBOS_BUILD_DEMO_EIGEN "Build Eigen demo" TRUE)
 if(PHOBOS_BUILD_DEMO_EIGEN)
     add_subdirectory(eigen)
