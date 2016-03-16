@@ -37,15 +37,15 @@
  */
 
 namespace {
-    const eventmask_t evt_adc_complete = EVENT_MASK(0);
-    const eventmask_t evt_adc_error = EVENT_MASK(1);
+    const eventflags_t adc_eventflag_complete = EVENT_MASK(0);
+    const eventflags_t adc_eventflag_error = EVENT_MASK(1);
     event_source_t adc_event_source;
 
     void adcerrorcallback(ADCDriver* adcp, adcerror_t err) {
         (void)adcp;
         (void)err;
         chSysLockFromISR();
-        chEvtBroadcastFlagsI(&adc_event_source, evt_adc_error);
+        chEvtBroadcastFlagsI(&adc_event_source, adc_eventflag_error);
         chSysUnlockFromISR();
     }
     void adccallback(ADCDriver* adcp, adcsample_t* buffer, size_t n) {
@@ -53,7 +53,7 @@ namespace {
         (void)buffer;
         (void)n;
         chSysLockFromISR();
-        chEvtBroadcastFlagsI(&adc_event_source, evt_adc_complete);
+        chEvtBroadcastFlagsI(&adc_event_source, adc_eventflag_complete);
         chSysUnlockFromISR();
     }
 
@@ -119,23 +119,25 @@ static THD_FUNCTION(SerialThread, arg) {
     board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
     event_listener_t adc_listener;
-    chEvtRegisterMask(&adc_event_source, &adc_listener,
-            evt_adc_error | evt_adc_complete);
+    chEvtRegisterMaskWithFlags(&adc_event_source, &adc_listener, EVENT_MASK(0),
+            adc_eventflag_error | adc_eventflag_complete);
 
     while (true) {
-        eventmask_t evt = chEvtWaitAny(ALL_EVENTS);
+        chEvtWaitAny(ALL_EVENTS);
+        eventflags_t flags = chEvtGetAndClearFlags(&adc_listener);
 
-        if (SDU1.config->usbp->state == USB_ACTIVE || SDU1.state == SDU_READY) {
-            if (evt & evt_adc_error) {
+        if (SDU1.config->usbp->state == USB_ACTIVE) {
+            if (flags & adc_eventflag_error) {
                 chprintf((BaseSequentialStream*)&SDU1,
                         "ERROR in ADC conversion.\r\n");
             }
-            if (evt & evt_adc_complete) {
+            if (flags & adc_eventflag_complete) {
                 chprintf((BaseSequentialStream*)&SDU1,
-                        "%d\t%d\t%d\r\n",
-                        adc_buffer[0],
-                        adc_buffer[1],
-                        adc_buffer[2]);
+                        "ADC Conversion OK.\r\n");
+                        //"%d\t%d\t%d\r\n",
+                        //adc_buffer[0],
+                        //adc_buffer[1],
+                        //adc_buffer[2]);
             }
         }
     }
@@ -175,42 +177,10 @@ int main(void) {
             SerialThread, nullptr);
 
     /*
-     * Normal main() thread activity. In this demo it sends ADC values over serial.
+     * Normal main() thread activity. In this demo it starts ADC conversion at roughly 1 kHz.
      */
-    rtcnt_t start = 0;
-    rtcnt_t dt = 0;
-    systime_t deadline = chVTGetSystemTimeX();
     while (true) {
-        // Use RTC directly due to a bug in last time computation in TM module.
-        start = chSysGetRealtimeCounterX();
-        deadline += loop_time;
         adcStartConversion(&ADCD1, &adcgrpcfg1, adc_buffer.data(), 1);
-        dt = chSysGetRealtimeCounterX() - start;
-
-        /*
-         * Sleep thread until next deadline if it hasn't already been missed.
-         */
-        bool miss = false;
-        chSysLock();
-        systime_t sleep_time = deadline - chVTGetSystemTimeX();
-        if ((sleep_time > (systime_t)0) and (sleep_time < loop_time)) {
-            chThdSleepS(sleep_time);
-        } else {
-            miss = true;
-        }
-        chSysUnlock();
-
-        /*
-         * If deadline missed, wait until button is pressed before continuing.
-         */
-        if (miss) {
-            chprintf((BaseSequentialStream*)&SDU1,
-                    "loop time was: %d us\r\n", RTC2US(STM32_SYSCLK, dt));
-            chprintf((BaseSequentialStream*)&SDU1, "Press button to continue.\r\n");
-            while (palReadLine(LINE_BUTTON)) { /* Button is active LOW. */
-                chThdSleepMilliseconds(10);
-            }
-            deadline = chVTGetSystemTimeX();
-        }
+        chThdSleep(loop_time);
     }
 }
