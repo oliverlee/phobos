@@ -97,7 +97,7 @@ static THD_FUNCTION(LEDThread, arg) {
     }
 }
 
-static THD_WORKING_AREA(waSerialThread, 128);
+static THD_WORKING_AREA(waSerialThread, 256);
 static THD_FUNCTION(SerialThread, arg) {
     (void)arg;
     chRegSetThreadName("serial");
@@ -133,11 +133,10 @@ static THD_FUNCTION(SerialThread, arg) {
             }
             if (flags & adc_eventflag_complete) {
                 chprintf((BaseSequentialStream*)&SDU1,
-                        "ADC Conversion OK.\r\n");
-                        //"%d\t%d\t%d\r\n",
-                        //adc_buffer[0],
-                        //adc_buffer[1],
-                        //adc_buffer[2]);
+                        "%d\t%d\t%d\r\n",
+                        adc_buffer[0],
+                        adc_buffer[1],
+                        adc_buffer[2]);
             }
         }
     }
