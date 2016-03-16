@@ -70,3 +70,5 @@ Additionally, the ELF can be flashed
 
     (gdb) load
     (gdb) mon reset init
+
+To debug with thread support, the hardware FPU must be disabled.
