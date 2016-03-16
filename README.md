@@ -53,22 +53,27 @@ In 'Security & Privacy', verify that the option 'Automatically allow signed
 software to receive incoming connections' is enabled.
 
 ## Debugging
-The microcontroller can be debugged with OpenOCD and gdb.
+The microcontroller can be debugged with OpenOCD and GDB.
 
     oliverlee@canopus:~/repos/phobos$ openocd -f openocd_olimex-arm-usb-tiny-h_stm32f4.cfg
 
-In another shell instance, pass gdb the ELF as an argument
+In another shell instance, pass GDB the ELF as an argument
 
     oliverlee@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-4_9-2015q3/bin/arm-none-eabi-gdb demos/usb_serial/ch.elf
 
 To connect to target
 
-    (gdb) target remote localhost:3333
-    (gdb) mon reset init
+    (gdb) target extended-remote localhost:3333
 
 Additionally, the ELF can be flashed
 
     (gdb) load
     (gdb) mon reset init
 
-To debug with thread support, the hardware FPU must be disabled.
+To debug with thread support, the hardware FPU must be disabled. There is an
+example `gdbinit` file in the root directory that defines a command to connect
+to the remote and set hardware break/watch point limits in addition to disabling
+IRQs while stepping. This can be used by renaming the file to `.gdbinit` and
+placing in your home or project directory or by starting GDB with
+
+    gdb -x <filename>
