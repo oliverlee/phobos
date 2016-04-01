@@ -55,7 +55,7 @@
 #define GPIOA_BUTTON                0U
 #define GPIOA_TIM5_CH1              0U /* cut trace at R19 for GPIOA_BUTTON to enable */
 #define GPIOA_TIM5_CH2              1U
-#define GPIOA_SPI1_ENC1_STATUS      2U
+#define GPIOA_PIN2                  2U
 #define GPIOA_SPI1_ENC2_NSS         3U
 #define GPIOA_SPI1_ENC1_NSS         4U
 #define GPIOA_SPI1_SCK              5U
@@ -71,15 +71,17 @@
 #define GPIOA_JTAG_TDI              15U
 
 #define GPIOB_SPI1_IMU_NSS          0U
-#define GPIOB_SPI1_ENC2_STATUS      1U
+#define GPIOB_SDIO_CD               1U
 #define GPIOB_BOOT1                 2U
 #define GPIOB_JTAG_TDO              3U
 #define GPIOB_JTAG_TRST             4U
-#define GPIOB_PIN5                  5U
+#define GPIOB_IMU_EXTI              5U
 #define GPIOB_USART1_TX             6U
+#define GPIOB_TIM4_CH1              6U /* set PCB S3 to enable */
 #define GPIOB_USART1_RX             7U
-#define GPIOB_USART1_DE             8U
-#define GPIOB_USART3_DE             9U
+#define GPIOB_TIM4_CH2              7U /* set PCB S3 to enable */
+#define GPIOB_USART3_DE             8U
+#define GPIOB_USART3_NRE            9U
 #define GPIOB_USART3_TX             10U
 #define GPIOB_USART3_RX             11U
 #define GPIOB_MOTOR1_EN             12U
@@ -89,15 +91,13 @@
 
 #define GPIOC_ADC10                 0U
 #define GPIOC_ADC11                 1U
-#define GPIOC_SPI1_ENC3_NSS         2U
-#define GPIOC_ADC12                 2U /* set PCB JP1 to enable */
-#define GPIOC_SPI1_ENC3_STATUS      3U
-#define GPIOC_ADC13                 3U /* set PCB JP2 to enable */
-#define GPIOC_USP_P                 4U
-#define GPIOC_SPI1_ENC4_NSS         4U /* open H405 SJ USBP_E to enable */
-#define GPIOC_ADC14                 4U /* open H405 SJ USBP_E AND set PCB JP3 to enable */
-#define GPIOC_SPI1_ENC4_STATUS      5U
-#define GPIOC_ADC15                 5U /* set PCB JP4 to enable */
+#define GPIOC_ADC12                 2U
+#define GPIOC_ADC13                 3U
+#define GPIOC_USB_P                 4U
+#define GPIOC_USART1_DE             4U /* open H405 SJ USBP_E to enable */
+#define GPIOC_ADC14                 4U /* open H405 SJ USBP_E AND set PCB S1 to enable */
+#define GPIOC_USART1_NRE            5U
+#define GPIOC_ADC15                 5U /* set PCB S2 to enable */
 #define GPIOC_TIM3_CH1              6U
 #define GPIOC_TIM3_CH2              7U
 #define GPIOC_SDIO_D0               8U
@@ -107,7 +107,7 @@
 #define GPIOC_SDIO_D3               11U /* cut trace at R27 for GPIOC_USB_DISC to enable */
 #define GPIOC_LED                   12U
 #define GPIOC_SDIO_SCK              12U /* open H405 SJ LED_E to enable */
-#define GPIOC_TORQUE_MEAS_EN        13U
+#define GPIOC_TORQUE_MEAS_NEN       13U
 #define GPIOC_OSC32_IN              14U
 #define GPIOC_OSC32_OUT             15U
 
@@ -219,7 +219,6 @@
 #define LINE_BUTTON                 PAL_LINE(GPIOA, 0U)
 #define LINE_TIM5_CH1               PAL_LINE(GPIOA, 0U) /* cut trace at R19 for GPIOA_BUTTON to enable */
 #define LINE_TIM5_CH2               PAL_LINE(GPIOA, 1U)
-#define LINE_SPI1_ENC1_STATUS       PAL_LINE(GPIOA, 2U)
 #define LINE_SPI1_ENC2_NSS          PAL_LINE(GPIOA, 3U)
 #define LINE_SPI1_ENC1_NSS          PAL_LINE(GPIOA, 4U)
 #define LINE_SPI1_SCK               PAL_LINE(GPIOA, 5U)
@@ -235,14 +234,17 @@
 #define LINE_JTAG_TDI               PAL_LINE(GPIOA, 15U)
 
 #define LINE_SPI1_IMU_NSS           PAL_LINE(GPIOB, 0U)
-#define LINE_SPI1_ENC2_STATUS       PAL_LINE(GPIOB, 1U)
+#define LINE_SDIO_CD                PAL_LINE(GPIOB, 1U)
 #define LINE_BOOT1                  PAL_LINE(GPIOB, 2U)
 #define LINE_JTAG_TDO               PAL_LINE(GPIOB, 3U)
 #define LINE_JTAG_TRST              PAL_LINE(GPIOB, 4U)
+#define LINE_IMU_EXTI               PAL_LINE(GPIOB, 4U)
 #define LINE_USART1_TX              PAL_LINE(GPIOB, 6U)
+#define LINE_TIM4_CH1               PAL_LINE(GPIOB, 6U) /* set PCB S3 to enable */
 #define LINE_USART1_RX              PAL_LINE(GPIOB, 7U)
-#define LINE_USART1_DE              PAL_LINE(GPIOB, 8U)
-#define LINE_USART3_DE              PAL_LINE(GPIOB, 9U)
+#define LINE_TIM4_CH2               PAL_LINE(GPIOB, 7U) /* set PCB S3 to enable */
+#define LINE_USART3_DE              PAL_LINE(GPIOB, 8U)
+#define LINE_USART3_NRE             PAL_LINE(GPIOB, 9U)
 #define LINE_USART3_TX              PAL_LINE(GPIOB, 10U)
 #define LINE_USART3_RX              PAL_LINE(GPIOB, 11U)
 #define LINE_MOTOR1_EN              PAL_LINE(GPIOB, 12U)
@@ -252,15 +254,13 @@
 
 #define LINE_ADC10                  PAL_LINE(GPIOC, 0U)
 #define LINE_ADC11                  PAL_LINE(GPIOC, 1U)
-#define LINE_SPI1_ENC3_NSS          PAL_LINE(GPIOC, 2U)
-#define LINE_ADC12                  PAL_LINE(GPIOC, 2U) /* set PCB JP1 to enable */
-#define LINE_SPI1_ENC3_STATUS       PAL_LINE(GPIOC, 3U)
-#define LINE_ADC13                  PAL_LINE(GPIOC, 3U) /* set PCB JP2 to enable */
+#define LINE_ADC12                  PAL_LINE(GPIOC, 2U)
+#define LINE_ADC13                  PAL_LINE(GPIOC, 3U)
 #define LINE_USB_P                  PAL_LINE(GPIOC, 4U)
-#define LINE_SPI1_ENC4_NSS          PAL_LINE(GPIOC, 4U) /* open H405 SJ USBP_E to enable */
-#define LINE_ADC14                  PAL_LINE(GPIOC, 4U) /* open H405 SJ USBP_E AND set PCB JP3 to enable */
-#define LINE_SPI1_ENC4_STATUS       PAL_LINE(GPIOC, 5U)
-#define LINE_ADC15                  PAL_LINE(GPIOC, 5U) /* set PCB JP4 to enable */
+#define LINE_USART1_DE              PAL_LINE(GPIOC, 4U) /* open H405 SJ USBP_E to enable */
+#define LINE_ADC14                  PAL_LINE(GPIOC, 4U) /* open H405 SJ USBP_E AND set PCB S1 to enable */
+#define LINE_USART3_NRE             PAL_LINE(GPIOC, 5U)
+#define LINE_ADC15                  PAL_LINE(GPIOC, 5U) /* set PCB S2 to enable */
 #define LINE_TIM3_CH1               PAL_LINE(GPIOC, 6U)
 #define LINE_TIM3_CH2               PAL_LINE(GPIOC, 7U)
 #define LINE_SDIO_D0                PAL_LINE(GPIOC, 8U)
@@ -270,7 +270,7 @@
 #define LINE_SDIO_D3                PAL_LINE(GPIOC, 11U) /* cut trace at R27 for GPIOC_USB_DISC to enable */
 #define LINE_LED                    PAL_LINE(GPIOC, 12U)
 #define LINE_SDIO_SCK               PAL_LINE(GPIOC, 12U) /* open H405 SJ LED_E to enable */
-#define LINE_TORQUE_MEAS_EN         PAL_LINE(GPIOC, 13U)
+#define LINE_TORQUE_MEAS_NEN        PAL_LINE(GPIOC, 13U)
 #define LINE_OSC32_IN               PAL_LINE(GPIOC, 14U)
 #define LINE_OSC32_OUT              PAL_LINE(GPIOC, 15U)
 
