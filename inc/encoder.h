@@ -31,7 +31,6 @@ class Encoder {
         };
 
         Encoder(GPTDriver* gptp, const EncoderConfig& config);
-        /* TODO: configure reset on external interrupt from index channel */
         void start();
         void stop();
         void set_count(enccnt_t count);
@@ -39,12 +38,12 @@ class Encoder {
         bool direction() volatile;
         const EncoderConfig& config();
         state_t state();
-        index_t index();
+        index_t index() volatile;
 
     private:
         GPTDriver* m_gptp;
         const GPTConfig m_gptconfig;
         const EncoderConfig m_config;
         state_t m_state;
-        index_t m_index;
+        volatile index_t m_index;
 };
