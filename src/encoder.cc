@@ -2,12 +2,16 @@
 #include <array>
 #include "osal.h"
 #include "encoder.h"
+#if HAL_USE_EXT
 #include "extcfg.h"
+#endif
 
+#if HAL_USE_EXT
 namespace {
     EXTDriver* extp = &EXTD1;
     std::array<stm32_tim_t*, EXT_MAX_CHANNELS> exttim_map{{}}; /* initialized to nullptr */
 } // namespace
+#endif
 
 Encoder::Encoder(GPTDriver* gptp, const EncoderConfig& config) :
     m_gptp(gptp),
@@ -40,6 +44,7 @@ void Encoder::start() {
         m_index = index_t::NONE;
     } else {
         m_index = index_t::NOTFOUND;
+#if HAL_USE_EXT
         uint32_t pad = PAL_PAD(m_config.z);
         stm32_gpio_t* port = PAL_PORT(m_config.z);
         osalDbgAssert((extp->state == EXT_STOP) || (extp->state == EXT_ACTIVE),
@@ -89,6 +94,7 @@ void Encoder::start() {
         extconfig.channels[pad] = EXTChannelConfig{EXT_CH_MODE_RISING_EDGE | ext_mode_port, callback};
         extSetChannelModeI(extp, pad, &extconfig.channels[pad]);
         extChannelEnableI(extp, pad);
+#endif
     }
     osalSysUnlock();
 }
@@ -103,6 +109,7 @@ void Encoder::stop() {
     m_gptp->state = GPT_STOP;
     m_state = state_t::STOP;
     m_index = index_t::NONE;
+#if HAL_USE_EXT
     if (m_config.z != PAL_NOLINE) {
         uint32_t pad = PAL_PAD(m_config.z);
         exttim_map[pad] = nullptr;
@@ -117,6 +124,7 @@ void Encoder::stop() {
             extp->state = EXT_STOP;
         }
     }
+#endif
     osalSysUnlock();
 }
 
