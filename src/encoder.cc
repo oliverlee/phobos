@@ -3,7 +3,7 @@
 #include "osal.h"
 #include "encoder.h"
 #if HAL_USE_EXT
-#include "extcfg.h"
+#include "extconfig.h"
 #endif
 
 #if HAL_USE_EXT
@@ -86,7 +86,7 @@ void Encoder::start() {
 
         if (extp->state == EXT_STOP) {
             /* execute same steps as extStart() as extStartI() does not exist */
-            extp->config = extconfig;
+            extp->config = &extconfig;
             ext_lld_start(extp);
             extp->state = EXT_ACTIVE;
         }
