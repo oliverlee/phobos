@@ -5,11 +5,7 @@ embedded system that controls the gyroscopic balance assistance system.
 ## Toolchain
 To compile the code, use [GNU ARM Embedded
 toolchain](https://launchpad.net/gcc-arm-embedded).
-The version used is 4.9-2015-q3.
-
-There is a [known
-issue](https://answers.launchpad.net/gcc-arm-embedded/+question/280242) in GCC
-5.2 2015q4 with Link Time Optimization. Either use GCC 4.9 or disable LTO.
+The version used is 5.3-2016-q1.
 
 Some examples may not build as the option `-fsingle-precision-constant` is not
 standard compliant. The issue is documented
@@ -31,7 +27,7 @@ directory.
 
     oliver@canopus:~/repos/phobos$ mkdir build
     oliver@canopus:~/repos/phobos$ cd build/
-    oliver@canopus:~/repos/phobos/build$ cmake -DCMAKE_TOOLCHAIN_FILE=~/toolchain/toolchain-gcc-arm-none-eabi-4_9-2015q3.cmake ..
+    oliver@canopus:~/repos/phobos/build$ cmake -DCMAKE_TOOLCHAIN_FILE=~/toolchain/toolchain-gcc-arm-none-eabi-5_3-2016q1.cmake ..
     oliver@canopus:~/repos/phobos/build$ make -j8
 
 Build options can be passed as arguments to `cmake` or set with `ccmake` after
@@ -59,7 +55,7 @@ The microcontroller can be debugged with OpenOCD and GDB.
 
 In another shell instance, pass GDB the ELF as an argument
 
-    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-4_9-2015q3/bin/arm-none-eabi-gdb demos/usb_serial/ch.elf
+    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_3-2016q1/bin/arm-none-eabi-gdb demos/usb_serial/usb-serial.elf
 
 To connect to target
 
@@ -76,5 +72,5 @@ to disabling IRQs while stepping. This can be used by renaming the file to
 `.gdbinit` and placing in your home or project directory or by executing GDB
 commands from a file when starting GDB
 
-    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-4_9-2015q3/bin/arm-none-eabi-gdb -x ../gdbinit demos/usb_serial/ch.elf
+    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_3-2016q1/bin/arm-none-eabi-gdb -x ../gdbinit demos/usb_serial/usb-serial.elf
 
