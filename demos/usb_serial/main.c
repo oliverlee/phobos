@@ -18,7 +18,7 @@
 #include "hal.h"
 #include "test.h"
 
-#include "usbcfg.h"
+#include "usbconfig.h"
 
 /*
  * This is a periodic thread that does absolutely nothing except flashing
