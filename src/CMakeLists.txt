@@ -1,5 +1,6 @@
 set(PHOBOS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/encoder.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/extconfig.cc)
+    ${CMAKE_CURRENT_SOURCE_DIR}/extconfig.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/usbconfig.c)
 
 set(PHOBOS_SRC ${PHOBOS_SRC} PARENT_SCOPE)

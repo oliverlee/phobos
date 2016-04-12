@@ -2,16 +2,17 @@
 #include <array>
 #include "osal.h"
 #include "encoder.h"
+#if HAL_USE_GPT
 #if HAL_USE_EXT
 #include "extconfig.h"
-#endif
+#endif /* HAL_USE_EXT */
 
 #if HAL_USE_EXT
 namespace {
     EXTDriver* extp = &EXTD1;
     std::array<stm32_tim_t*, EXT_MAX_CHANNELS> exttim_map{{}}; /* initialized to nullptr */
 } // namespace
-#endif
+#endif /* HAL_USE_EXT */
 
 Encoder::Encoder(GPTDriver* gptp, const EncoderConfig& config) :
     m_gptp(gptp),
@@ -178,3 +179,4 @@ Encoder::state_t Encoder::state() {
 Encoder::index_t Encoder::index() volatile {
     return m_index;
 }
+#endif /* HAL_USE_GPT */

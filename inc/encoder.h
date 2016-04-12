@@ -1,6 +1,7 @@
 #pragma once
 #include "hal.h"
 
+#if HAL_USE_GPT
 using enccnt_t = gptcnt_t;
 
 struct EncoderConfig {
@@ -47,3 +48,4 @@ class Encoder {
         state_t m_state;
         volatile index_t m_index;
 };
+#endif /* HAL_USE_GPT */

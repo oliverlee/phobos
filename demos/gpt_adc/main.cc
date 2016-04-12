@@ -19,7 +19,7 @@
 #include "hal.h"
 #include "chprintf.h"
 
-#include "usbcfg.h"
+#include "usbconfig.h"
 
 namespace {
     thread_t* main_thread;

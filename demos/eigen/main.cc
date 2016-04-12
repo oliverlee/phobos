@@ -19,7 +19,7 @@
 #include "hal.h"
 #include "chprintf.h"
 
-#include "usbcfg.h"
+#include "usbconfig.h"
 
 namespace {
     using real_t = float;

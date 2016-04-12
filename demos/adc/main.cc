@@ -19,7 +19,7 @@
 #include "hal.h"
 #include "chprintf.h"
 
-#include "usbcfg.h"
+#include "usbconfig.h"
 
 /*
  * ADC configuration options (set in halconf.h)
