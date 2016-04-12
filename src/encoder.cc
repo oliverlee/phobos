@@ -10,7 +10,7 @@
 #if HAL_USE_EXT
 namespace {
     EXTDriver* extp = &EXTD1;
-    std::array<stm32_tim_t*, EXT_MAX_CHANNELS> exttim_map{{}}; /* initialized to nullptr */
+    std::array<Encoder*, EXT_MAX_CHANNELS> extenc_map{{}}; /* initialized to nullptr */
 } // namespace
 #endif /* HAL_USE_EXT */
 
@@ -71,8 +71,8 @@ void Encoder::start() {
         stm32_gpio_t* port = PAL_PORT(m_config.z);
         osalDbgAssert((extp->state == EXT_STOP) || (extp->state == EXT_ACTIVE),
                 "invalid state");
-        osalDbgAssert(((extp->config->channels[pad].mode & EXT_CH_MODE_EDGES_MASK)
-                    == EXT_CH_MODE_DISABLED),
+        osalDbgAssert(((extp->state == EXT_STOP) || /* check if channel is disabled only when EXT_ACTIVE */
+                    ((extp->config->channels[pad].mode & EXT_CH_MODE_EDGES_MASK) == EXT_CH_MODE_DISABLED)),
                 "channel already in use");
         osalDbgAssert(((port == GPIOA) || (port == GPIOB) || (port == GPIOC) ||
                     (port == GPIOD) || (port == GPIOE) || (port == GPIOF) ||
@@ -82,7 +82,9 @@ void Encoder::start() {
         auto callback = [](EXTDriver* extp, expchannel_t channel)->void {
             (void)extp;
             osalSysLockFromISR();
-            exttim_map[channel]->CNT = 0U;
+            Encoder* enc = extenc_map[channel];
+            enc->m_gptp->tim->CNT = 0U;
+            enc->m_index = index_t::FOUND;
             osalSysUnlockFromISR();
         };
         uint32_t ext_mode_port;
@@ -112,7 +114,7 @@ void Encoder::start() {
             ext_lld_start(extp);
             extp->state = EXT_ACTIVE;
         }
-        exttim_map[pad] = m_gptp->tim;
+        extenc_map[pad] = this;
         extconfig.channels[pad] = EXTChannelConfig{EXT_CH_MODE_RISING_EDGE | ext_mode_port, callback};
         extSetChannelModeI(extp, pad, &extconfig.channels[pad]);
         extChannelEnableI(extp, pad);
@@ -134,7 +136,7 @@ void Encoder::stop() {
 #if HAL_USE_EXT
     if (m_config.z != PAL_NOLINE) {
         uint32_t pad = PAL_PAD(m_config.z);
-        exttim_map[pad] = nullptr;
+        extenc_map[pad] = nullptr;
         extconfig.channels[pad] = EXTChannelConfig{EXT_CH_MODE_DISABLED, nullptr};
         extSetChannelModeI(extp, pad, &extconfig.channels[pad]);
         extChannelDisableI(extp, pad);
