@@ -13,6 +13,11 @@ if(PHOBOS_BUILD_DEMO_PWM_ENCODER)
     add_subdirectory(pwm_encoder)
 endif()
 
+option(PHOBOS_BUILD_DEMO_ENCODER_INDEX "Build Encoder with index demo" TRUE)
+if(PHOBOS_BUILD_DEMO_ENCODER_INDEX)
+    add_subdirectory(encoder_index)
+endif()
+
 option(PHOBOS_BUILD_DEMO_GPT_ADC "Build GPT-ADC demo" TRUE)
 if(PHOBOS_BUILD_DEMO_GPT_ADC)
     add_subdirectory(gpt_adc)
