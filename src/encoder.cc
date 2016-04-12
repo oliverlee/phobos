@@ -15,10 +15,31 @@ namespace {
 
 Encoder::Encoder(GPTDriver* gptp, const EncoderConfig& config) :
     m_gptp(gptp),
-    m_gptconfig{gptp->clock, nullptr, 0U, 0U},
+    m_gptconfig{STM32_TIMCLK1, nullptr, 0U, 0U},
     m_config(config),
     m_state(state_t::STOP),
-    m_index(index_t::NONE) { }
+    m_index(index_t::NONE) {
+#if defined(GPTD1)
+    if (gptp == &GPTD1) {
+        m_gptconfig.frequency = STM32_TIMCLK2;
+    }
+#endif
+#if defined(GPTD8)
+    if (gptp == &GPTD8) {
+        m_gptconfig.frequency = STM32_TIMCLK2;
+    }
+#endif
+#if defined(GPTD9)
+    if (gptp == &GPTD9) {
+        m_gptconfig.frequency = STM32_TIMCLK2;
+    }
+#endif
+#if defined(GPTD11)
+    if (gptp == &GPTD11) {
+        m_gptconfig.frequency = STM32_TIMCLK2;
+    }
+#endif
+}
 
 void Encoder::start() {
     osalDbgCheck(m_gptp != nullptr);

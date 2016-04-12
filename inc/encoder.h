@@ -42,7 +42,7 @@ class Encoder {
 
     private:
         GPTDriver* m_gptp;
-        const GPTConfig m_gptconfig;
+        GPTConfig m_gptconfig;
         const EncoderConfig m_config;
         state_t m_state;
         volatile index_t m_index;
