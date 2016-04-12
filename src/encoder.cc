@@ -48,7 +48,7 @@ void Encoder::start() {
     osalSysLock();
     osalDbgAssert((m_gptp->state == GPT_STOP) || (m_gptp->state == GPT_READY), "invalid state");
     osalDbgAssert(((m_config.count <= TIM_CNT_CNT) ||
-                !IS_TIM_32B_COUNTER_INSTANCE(reinterpret_cast<TIM_TypeDef*>(m_gptp->tim))),
+                IS_TIM_32B_COUNTER_INSTANCE(reinterpret_cast<TIM_TypeDef*>(m_gptp->tim))),
             "invalid count");
 
     m_gptp->config = &m_gptconfig;
