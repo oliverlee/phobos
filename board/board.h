@@ -53,7 +53,7 @@
  * IO pins assignments.
  */
 #define GPIOA_BUTTON                0U
-#define GPIOA_TIM5_CH1              0U /* cut trace at R19 for GPIOA_BUTTON to enable */
+#define GPIOA_TIM5_CH1              0U /* cut trace at R19 for GPIOA_BUTTON if necessary */
 #define GPIOA_TIM5_CH2              1U
 #define GPIOA_PIN2                  2U
 #define GPIOA_SPI1_ENC2_NSS         3U
@@ -217,7 +217,7 @@
  * IO lines assignments.
  */
 #define LINE_BUTTON                 PAL_LINE(GPIOA, 0U)
-#define LINE_TIM5_CH1               PAL_LINE(GPIOA, 0U) /* cut trace at R19 for GPIOA_BUTTON to enable */
+#define LINE_TIM5_CH1               PAL_LINE(GPIOA, 0U) /* cut trace at R19 for GPIOA_BUTTON if necessary */
 #define LINE_TIM5_CH2               PAL_LINE(GPIOA, 1U)
 #define LINE_SPI1_ENC2_NSS          PAL_LINE(GPIOA, 3U)
 #define LINE_SPI1_ENC1_NSS          PAL_LINE(GPIOA, 4U)
