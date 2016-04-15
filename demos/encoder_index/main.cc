@@ -23,7 +23,7 @@
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
-    Encoder encoder(&GPTD3, /* CH1, CH2 connected to PC6, PC7 and enabled by board.h */
+    Encoder encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
             {PAL_LINE(GPIOA, GPIOA_PIN2), /* GPIOA_PIN2 is available */
              152000, /* counts per revolution */
              EncoderConfig::filter_t::CAPTURE_128}); /* 128 * 84 MHz (TIM3 on APB1) = 1.52 us for valid edge */
@@ -96,12 +96,14 @@ int main(void) {
     halInit();
     chSysInit();
 
-    /* configure index gpio */
+    /*
+     * Initializes the encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
+     * Remove R19 to disable button functionality if necessary.
+     * Configure index gpio PA2 (EXT2-7).
+     */
+    palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
+    palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(encoder.config().z, PAL_STM32_MODE_INPUT | PAL_STM32_PUPDR_FLOATING);
-
-    /* configure GPIOA1 to simulate index signal */
-    palSetPadMode(GPIOA, 1, PAL_MODE_OUTPUT_PUSHPULL);
-    palClearPad(GPIOA, 1);
 
     encoder.start();
 
@@ -114,12 +116,9 @@ int main(void) {
             SerialThread, nullptr);
 
     /*
-     * Normal main() thread activity. In this demo, the push button controls the value of GPIOA1.
+     * Normal main() thread activity.
      */
     while (true) {
         chThdSleep(MS2ST(50));
-        if (!palReadLine(LINE_BUTTON)) { /* Button is active LOW. */
-            palSetPad(GPIOA, 1);
-        }
     }
 }
