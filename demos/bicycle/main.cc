@@ -95,9 +95,6 @@ int main(void) {
      * Normal main() thread activity, in this demo it simulates the bicycle dynamics in real-time.
      */
     while (true) {
-        //if (!palReadLine(LINE_BUTTON)) { /* Button is active LOW. */
-        //    TestThread(&SDU1);
-        //}
         x = bicycle.x_next(x);
         chprintf((BaseSequentialStream*)&SDU1, "%d\t%d\t%d\t%d\t%d\t%d\t\n",
                 x[0], x[1], x[2], x[3], x[4]);

@@ -10,6 +10,16 @@ include_directories(${Boost_INCLUDE_DIR})
 # Any request from Eigen to allocate memory from heap results in an assertion failure
 add_definitions("-DEIGEN_NO_MALLOC")
 
+# The required stacksize is not the exact amount but large enough such that the
+# main thread does not overflow.
+set(DEMO_BICYCLE_REQUIRED_STACKSIZE "0x2000")
+if(${CHIBIOS_USE_PROCESS_STACKSIZE} LESS ${DEMO_BICYCLE_REQUIRED_STACKSIZE})
+    message(SEND_ERROR "\
+Increase process stacksize to ${DEMO_BICYCLE_REQUIRED_STACKSIZE} \
+prevent stack overflow in this project.")
+endif()
+
+
 add_chibios_executable(bicycle
     chconf.h halconf.h mcuconf.h
     main.cc ${PHOBOS_SRC} ${BICYCLE_SOURCE})
