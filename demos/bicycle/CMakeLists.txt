@@ -9,6 +9,8 @@ include_directories(${Boost_INCLUDE_DIR})
 
 # Any request from Eigen to allocate memory from heap results in an assertion failure
 add_definitions("-DEIGEN_NO_MALLOC")
+# Allow printing of float types
+add_definitions("-DCHPRINTF_USE_FLOAT")
 
 # The required stacksize is not the exact amount but large enough such that the
 # main thread does not overflow.

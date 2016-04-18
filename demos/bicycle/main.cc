@@ -25,7 +25,7 @@
 namespace {
     const float fs = 200; // sample rate [Hz]
     const float dt = 1.0/fs; // sample time [s]
-    const float v0 = 4.0; // forward speed [m/s]
+    const float v0 = 5.0; // forward speed [m/s]
 } // namespace
 
 /*
@@ -96,7 +96,8 @@ int main(void) {
      */
     while (true) {
         x = bicycle.x_next(x);
-        chprintf((BaseSequentialStream*)&SDU1, "%d\t%d\t%d\t%d\t%d\t%d\t\n",
+        chprintf((BaseSequentialStream*)&SDU1,
+                "%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 x[0], x[1], x[2], x[3], x[4]);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
