@@ -18,7 +18,7 @@
 #include "hal.h"
 #include "chprintf.h"
 
-#include "usbcfg.h"
+#include "usbconfig.h"
 #include "bicycle.h"
 #include "parameters.h"
 
