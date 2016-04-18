@@ -1,3 +1,6 @@
 [submodule "external/ChibiOS"]
 	path = external/ChibiOS
 	url = https://github.com/oliverlee/ChibiOS.git
+[submodule "external/bicycle"]
+	path = external/bicycle
+	url = https://github.com/oliverlee/bicycle.git

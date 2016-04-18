@@ -11,8 +11,15 @@ set(OPENOCD_INTERFACE_CFG "${PROJECT_SOURCE_DIR}/openocd_olimex-arm-usb-tiny-h_s
 # WARNING: this script clears all compile and link flags that have been set
 include(external/ChibiOS/chibios.cmake)
 
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
+set(CMAKE_MODULE_PATH
+    ${PROJECT_SOURCE_DIR}/cmake/modules
+    ${PROJECT_SOURCE_DIR}/external/bicycle/cmake/modules)
 message("Using CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
+set(BICYCLE_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/src)
+set(BICYCLE_SOURCE
+    ${BICYCLE_SOURCE_DIR}/bicycle.cc
+    ${BICYCLE_SOURCE_DIR}/parameters.cc)
+set(BICYCLE_INCLUDE_DIR ${BICYCLE_SOURCE_DIR} ${BICYCLE_SOURCE_DIR}/../inc)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated") # suppress deprecated warnings from Eigen
