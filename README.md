@@ -74,3 +74,22 @@ commands from a file when starting GDB
 
     oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_3-2016q1/bin/arm-none-eabi-gdb -x ../gdbinit demos/usb_serial/usb-serial.elf
 
+## Debugging with Eclipse
+Eclipse can also be used for debugging and can be downloaded
+[here](https://www.eclipse.org/downloads/). With the use of
+plugins, it is much easier to read register values and view thread status and
+stack usage. The following steps provide a guideline in setting up Eclipse:
+
+- Install the Eclipse IDE for C/C++ Developers. You probably need the JDK which
+  can be found
+  [here](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
+- Create an Eclipse project with CMake: (don't include the linebreak)  
+  `oliver@canopus:~/repos/phobos/build-eclipse$ cmake -G"Eclipse CDT4 - Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=../toolchain-gcc-arm-none-eabi-5_3-2016q1.cmake ..`  
+  Don't forget to set build type to 'Debug' and enable ChibiOS debug options.
+- In Eclipse, import the project using 'File->Import'.  
+  Select 'General->Existing Projects into Workspace'.  
+  Set 'Select root directory:' to the previously used build directory and select the project.
+
+For further instructions refer to the ChibiOS/Eclipse guides [part
+1](http://www.chibios.org/dokuwiki/doku.php?id=chibios:guides:eclipse1) and
+[part 2](http://www.chibios.org/dokuwiki/doku.php?id=chibios:guides:eclipse2).
