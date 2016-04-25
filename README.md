@@ -105,3 +105,6 @@ For general instructions refer to the ChibiOS/Eclipse guides [part
 - 'C/C++ GDB Hardware Debugging' can be found in the 'Mobile and Device
   Development' category of available software.
 - 'EmbSysRegView' can be found in 'Help->Eclipse Marketplace'.
+- Copy ChibiOS jar files found in eclipse/dropins to the Eclipse dropins
+  directory. For OSX, this is located at
+  `/Applications/Eclipse.app/Contents/Eclipse/dropins/`
