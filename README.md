@@ -78,8 +78,13 @@ commands from a file when starting GDB
 Eclipse can also be used for debugging and can be downloaded
 [here](https://www.eclipse.org/downloads/). With the use of
 plugins, it is much easier to read register values and view thread status and
-stack usage. The following steps provide a guideline in setting up Eclipse:
+stack usage.
 
+For general instructions refer to the ChibiOS/Eclipse guides [part
+1](http://www.chibios.org/dokuwiki/doku.php?id=chibios:guides:eclipse1) and
+[part 2](http://www.chibios.org/dokuwiki/doku.php?id=chibios:guides:eclipse2).
+
+### Project Setup
 - Install the Eclipse IDE for C/C++ Developers. You probably need the JDK which
   can be found
   [here](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
@@ -89,7 +94,14 @@ stack usage. The following steps provide a guideline in setting up Eclipse:
 - In Eclipse, import the project using 'File->Import'.  
   Select 'General->Existing Projects into Workspace'.  
   Set 'Select root directory:' to the previously used build directory and select the project.
+- In 'Project->Properties', 'C/C++ Make Project->Binary Parser', select 'GNU Elf
+  Parser'.
+- OpenOCD can be configured as an external tool.  
+  Provide the location of the binary, set the working directory to be  
+  `${workspace_loc:/PHOBOS-Debug@build-eclipse}` and set arguments to  
+  `-f ../openocd_olimex-arm-usb-tiny-h_stm32f4.cfg`
 
-For further instructions refer to the ChibiOS/Eclipse guides [part
-1](http://www.chibios.org/dokuwiki/doku.php?id=chibios:guides:eclipse1) and
-[part 2](http://www.chibios.org/dokuwiki/doku.php?id=chibios:guides:eclipse2).
+### Plugin Setup
+- 'C/C++ GDB Hardware Debugging' can be found in the 'Mobile and Device
+  Development' category of available software.
+- 'EmbSysRegView' can be found in 'Help->Eclipse Marketplace'.
