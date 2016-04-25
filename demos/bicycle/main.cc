@@ -23,29 +23,34 @@
 #include "parameters.h"
 
 namespace {
+    using bicycle_t = model::Bicycle;
+
     const float fs = 200; // sample rate [Hz]
     const float dt = 1.0/fs; // sample time [s]
     const float v0 = 5.0; // forward speed [m/s]
-} // namespace
 
-/*
- * This is a periodic thread that does absolutely nothing except flashing
- * a LED.
- */
-static THD_WORKING_AREA(waThread1, 128);
-static THD_FUNCTION(Thread1, arg) {
+    bicycle_t::state_t x; /* yaw angle, roll angle, steer angle, roll rate, steer rate */
+    bicycle_t::auxiliary_state_t aux; /* rear contact x, rear contact y, pitch angle */
 
-  (void)arg;
-  chRegSetThreadName("blinker");
-  while (true) {
-    palToggleLine(LINE_LED);
-    if (SDU1.config->usbp->state == USB_ACTIVE) {
-        chThdSleepMilliseconds(100);
-    } else {
-        chThdSleepMilliseconds(1000);
+    /*
+     * This is a periodic thread that does absolutely nothing except flashing
+     * a LED.
+     */
+    THD_WORKING_AREA(waThread1, 128);
+    THD_FUNCTION(Thread1, arg) {
+        (void)arg;
+
+        chRegSetThreadName("blinker");
+        while (true) {
+            palToggleLine(LINE_LED);
+            if (SDU1.config->usbp->state == USB_ACTIVE) {
+                chThdSleepMilliseconds(100);
+            } else {
+                chThdSleepMilliseconds(1000);
+            }
+        }
     }
-  }
-}
+} // namespace
 
 /*
  * Application entry point.
@@ -84,21 +89,23 @@ int main(void) {
     chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
     /*
-     * Initialize bicycle model and state
+     * Initialize bicycle model and states
      */
     model::Bicycle bicycle(v0, dt);
-    model::Bicycle::state_t x;
-    x << 0, 0, 10, 10, 0; // define in degrees
-    x *= constants::as_radians;
+    x << 0, 0, 10, 10, 0; /* define in degrees */
+    x *= constants::as_radians; /* convert degrees to radians */
+    aux.setZero();
+    aux[2] = bicycle.solve_constraint_pitch(x, 0); /* solve for initial pitch angle */
 
     /*
-     * Normal main() thread activity, in this demo it simulates the bicycle dynamics in real-time.
+     * Normal main() thread activity, in this demo it simulates the bicycle dynamics in real-time (roughly).
      */
     while (true) {
         x = bicycle.x_next(x);
+        aux = bicycle.x_aux_next(x, aux);
         chprintf((BaseSequentialStream*)&SDU1,
-                "%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
-                x[0], x[1], x[2], x[3], x[4]);
+                "%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
+                aux[0], aux[1], aux[2], x[0], x[1], x[2], x[3], x[4]);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
 }
