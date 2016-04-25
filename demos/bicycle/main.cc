@@ -29,6 +29,12 @@ namespace {
     const float dt = 1.0/fs; // sample time [s]
     const float v0 = 5.0; // forward speed [m/s]
 
+    /* create a periodic steer torque pulse disturbance */
+    const float disturbance_period = 5.0; // [s]
+    const float disturbance_duty_cycle = 1.0; // [s]
+    const float disturbance_magnitude = 2.0; // [N-m]
+
+    bicycle_t::input_t u; /* roll torque, steer torque */
     bicycle_t::state_t x; /* yaw angle, roll angle, steer angle, roll rate, steer rate */
     bicycle_t::auxiliary_state_t aux; /* rear contact x, rear contact y, pitch angle */
 
@@ -100,8 +106,17 @@ int main(void) {
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle dynamics in real-time (roughly).
      */
+    uint32_t disturbance_counter = static_cast<uint32_t>(disturbance_period * fs);
     while (true) {
-        x = bicycle.x_next(x);
+        u.setZero();
+        if (--disturbance_counter < static_cast<uint32_t>(disturbance_duty_cycle * fs)) {
+            u[1] = disturbance_magnitude; /* N-m, steer torque */
+        }
+        if (disturbance_counter <= 0) {
+            disturbance_counter = static_cast<uint32_t>(disturbance_period * fs);
+        }
+
+        x = bicycle.x_next(x, u);
         aux = bicycle.x_aux_next(x, aux);
         chprintf((BaseSequentialStream*)&SDU1,
                 "%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
