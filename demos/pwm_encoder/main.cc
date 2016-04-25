@@ -26,7 +26,7 @@ namespace {
     Encoder encoder(&GPTD3, /* CH1, CH2 connected to PC6, PC7 and enabled by board.h */
             {PAL_NOLINE, /* no index channel */
              1024, /* counts per revolution */
-             EncoderConfig::filter_t::CAPTURE_128}); /* 128 * 84 MHz (TIM3 on APB1) = 1.52 us for valid edge */
+             EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us for valid edge */
 
     const uint32_t pwm_freq = 1000000; /* 1 MHz PWM clock frequency */
     const pwmcnt_t pwm_period = 1000; /* period is 10000 ticks (1 kHz) */
