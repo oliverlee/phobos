@@ -108,3 +108,16 @@ For general instructions refer to the ChibiOS/Eclipse guides [part
 - Copy ChibiOS jar files found in eclipse/dropins to the Eclipse dropins
   directory. For OSX, this is located at
   `/Applications/Eclipse.app/Contents/Eclipse/dropins/`
+
+## De-bricking
+In case the JTAG lines get overwritten, then the program needs to be erased from Flash:
+1) Run OpenOCD. It will complain that the JTAG can't get an acknowledgement.
+2) Open terminal to connect with a telnet client. Enter:
+	telnet 127.0.0.1 4444
+3) Press and hold reset button on board.
+4) Enter in telnet prompt:
+	reset halt
+5) Release the reset button.
+6) Erase bad firmware stored in flash:
+	flash erase_sector 0 0 11
+7) Reflash with good code.
