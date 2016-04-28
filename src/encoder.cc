@@ -1,16 +1,8 @@
 #include "encoder.h"
-#include <array>
 #include "osal.h"
 #if HAL_USE_GPT
 #if HAL_USE_EXT
 #include "extconfig.h"
-#endif /* HAL_USE_EXT */
-
-#if HAL_USE_EXT
-namespace {
-    EXTDriver* extp = &EXTD1;
-    std::array<Encoder*, EXT_MAX_CHANNELS> extenc_map{{}}; /* initialized to nullptr */
-} // namespace
 #endif /* HAL_USE_EXT */
 
 Encoder::Encoder(GPTDriver* gptp, const EncoderConfig& config) :
@@ -104,7 +96,7 @@ void Encoder::start() {
             ext_lld_start(extp);
             extp->state = EXT_ACTIVE;
         }
-        extenc_map[pad] = this;
+        ext_map[pad] = reinterpret_cast<void*>(this);
         extconfig.channels[pad] = EXTChannelConfig{EXT_CH_MODE_RISING_EDGE | ext_mode_port, callback};
         extSetChannelModeI(extp, pad, &extconfig.channels[pad]);
         extChannelEnableI(extp, pad);
@@ -166,7 +158,7 @@ Encoder::index_t Encoder::index() const volatile {
 void Encoder::callback(EXTDriver* extp, expchannel_t channel) {
     (void)extp;
     osalSysLockFromISR();
-    Encoder* enc = extenc_map[channel];
+    Encoder* enc = reinterpret_cast<Encoder*>(ext_map[channel]);
     enc->m_gptp->tim->CNT = 0U;
     enc->m_index = index_t::FOUND;
     extChannelDisableClearModeI(extp, PAL_PAD(enc->m_config.z));

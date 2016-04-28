@@ -3,6 +3,8 @@
 
 #if HAL_USE_EXT
 EXTConfig extconfig = EXTConfig(); /* value initialization sets EXT_CH_MODE to zero for all channels */
+EXTDriver* extp = &EXTD1;
+std::array<void*, EXT_MAX_CHANNELS> ext_map = std::array<void*, EXT_MAX_CHANNELS>();
 
 void extChannelDisableClearModeI(EXTDriver* extp, uint32_t pad) {
         extenc_map[pad] = nullptr;
