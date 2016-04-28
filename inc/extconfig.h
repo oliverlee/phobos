@@ -1,11 +1,13 @@
 #pragma once
 #include "hal.h"
-#include <array>
 
 #if HAL_USE_EXT
-extern EXTConfig extconfig;
 extern EXTDriver* extp;
-extern std::array<void*, EXT_MAX_CHANNELS> ext_map;
+
+void extStartI(EXTDriver* extp);
+void extChannelEnableSetModeI(EXTDriver* extp, ioline_t line, uint32_t edge_mode,
+        extcallback_t callback, void* callback_object);
 void extChannelDisableClearModeI(EXTDriver* extp, uint32_t pad);
 void extStopIfChannelsDisabledI(EXTDriver* extp);
+void* extGetChannelCallbackObject(expchannel_t channel);
 #endif

@@ -58,48 +58,12 @@ void Encoder::start() {
     } else {
         m_index = index_t::NOTFOUND;
 #if HAL_USE_EXT
-        uint32_t pad = PAL_PAD(m_config.z);
-        stm32_gpio_t* port = PAL_PORT(m_config.z);
         osalDbgAssert((extp->state == EXT_STOP) || (extp->state == EXT_ACTIVE),
                 "invalid state");
-        osalDbgAssert(((extp->state == EXT_STOP) || /* check if channel is disabled only when EXT_ACTIVE */
-                    ((extp->config->channels[pad].mode & EXT_CH_MODE_EDGES_MASK) == EXT_CH_MODE_DISABLED)),
-                "channel already in use");
-        osalDbgAssert(((port == GPIOA) || (port == GPIOB) || (port == GPIOC) ||
-                    (port == GPIOD) || (port == GPIOE) || (port == GPIOF) ||
-                    (port == GPIOG) || (port == GPIOH) || (port == GPIOI)),
-                "invalid port"); /* port is available in STM32/LLD/EXTIv1 driver */
-        uint32_t ext_mode_port;
-        if (port == GPIOA) {
-            ext_mode_port = EXT_MODE_GPIOA;
-        } else if (port == GPIOB) {
-            ext_mode_port = EXT_MODE_GPIOB;
-        } else if (port == GPIOC) {
-            ext_mode_port = EXT_MODE_GPIOC;
-        } else if (port == GPIOD) {
-            ext_mode_port = EXT_MODE_GPIOD;
-        } else if (port == GPIOE) {
-            ext_mode_port = EXT_MODE_GPIOE;
-        } else if (port == GPIOF) {
-            ext_mode_port = EXT_MODE_GPIOF;
-        } else if (port == GPIOG) {
-            ext_mode_port = EXT_MODE_GPIOG;
-        } else if (port == GPIOH) {
-            ext_mode_port = EXT_MODE_GPIOH;
-        } else { /* port == GPIOI */
-            ext_mode_port = EXT_MODE_GPIOI;
-        }
-
         if (extp->state == EXT_STOP) {
-            /* execute same steps as extStart() as extStartI() does not exist */
-            extp->config = &extconfig;
-            ext_lld_start(extp);
-            extp->state = EXT_ACTIVE;
+            extStartI(extp);
         }
-        ext_map[pad] = reinterpret_cast<void*>(this);
-        extconfig.channels[pad] = EXTChannelConfig{EXT_CH_MODE_RISING_EDGE | ext_mode_port, callback};
-        extSetChannelModeI(extp, pad, &extconfig.channels[pad]);
-        extChannelEnableI(extp, pad);
+        extChannelEnableSetModeI(extp, m_config.z, EXT_CH_MODE_RISING_EDGE, callback, this);
 #endif
     }
     osalSysUnlock();
@@ -158,7 +122,7 @@ Encoder::index_t Encoder::index() const volatile {
 void Encoder::callback(EXTDriver* extp, expchannel_t channel) {
     (void)extp;
     osalSysLockFromISR();
-    Encoder* enc = reinterpret_cast<Encoder*>(ext_map[channel]);
+    Encoder* enc = reinterpret_cast<Encoder*>(extGetChannelCallbackObject(channel));
     enc->m_gptp->tim->CNT = 0U;
     enc->m_index = index_t::FOUND;
     extChannelDisableClearModeI(extp, PAL_PAD(enc->m_config.z));
