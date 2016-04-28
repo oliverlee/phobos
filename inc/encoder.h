@@ -17,7 +17,7 @@ struct EncoderConfig {
      * ioline_t b; IO line for encoder B channel
      */
     ioline_t z; /* IO line for encoder index (Z) channel or PAL_NOLINE if not used */
-    enccnt_t count; /* encoder counts per revolution */
+    enccnt_t counts_per_rev; /* encoder counts per revolution */
     filter_t filter; /* minimum consecutive clock cycles for a valid transition */
 };
 
@@ -35,11 +35,11 @@ class Encoder {
         void start();
         void stop();
         void set_count(enccnt_t count);
-        enccnt_t count() volatile;
-        bool direction() volatile;
-        const EncoderConfig& config();
-        state_t state();
-        index_t index() volatile;
+        enccnt_t count() const volatile;
+        bool direction() const volatile;
+        const EncoderConfig& config() const;
+        state_t state() const;
+        index_t index() const volatile;
 
     private:
         GPTDriver* m_gptp;
@@ -47,5 +47,9 @@ class Encoder {
         const EncoderConfig m_config;
         state_t m_state;
         volatile index_t m_index;
+
+#if HAL_USE_EXT
+        static void callback(EXTDriver* extp, expchannel_t channel);
+#endif /* HAL_USE_EXT */
 };
 #endif /* HAL_USE_GPT */
