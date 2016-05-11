@@ -20,14 +20,20 @@
 
 #include "usbconfig.h"
 #include "bicycle.h"
+#include "kalman.h"
 #include "parameters.h"
 
 namespace {
     using bicycle_t = model::Bicycle;
+    using kalman_t = observer::Kalman<bicycle_t>;
 
     const float fs = 200; // sample rate [Hz]
     const float dt = 1.0/fs; // sample time [s]
     const float v0 = 5.0; // forward speed [m/s]
+
+    /* Kalman filter variance values */
+    const float sigma0 = 1 * constants::as_radians; // yaw angle measurement noise variance
+    const float sigma1 = 0.008 * constants::as_radians; // steer angle measurement noise variance
 
     /* create a periodic steer torque pulse disturbance */
     const float disturbance_period = 5.0; // [s]
@@ -36,7 +42,9 @@ namespace {
 
     bicycle_t::input_t u; /* roll torque, steer torque */
     bicycle_t::state_t x; /* yaw angle, roll angle, steer angle, roll rate, steer rate */
+    bicycle_t::state_t x_hat; /* state estimate */
     bicycle_t::auxiliary_state_t aux; /* rear contact x, rear contact y, pitch angle */
+    bicycle_t::auxiliary_state_t aux_hat; /* auxiliary state estimate */
 
     /*
      * This is a periodic thread that does absolutely nothing except flashing
@@ -89,22 +97,29 @@ int main(void) {
     usbStart(serusbcfg.usbp, &usbcfg);
     board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
-    /*
-     * Creates the example thread.
-     */
+    /* create the example thread */
     chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
-    /*
-     * Initialize bicycle model and states
-     */
+    /* initialize bicycle model and states */
     model::Bicycle bicycle(v0, dt);
     x << 0, 0, 10, 10, 0; /* define in degrees */
     x *= constants::as_radians; /* convert degrees to radians */
     aux.setZero();
     aux[2] = bicycle.solve_constraint_pitch(x, 0); /* solve for initial pitch angle */
+    aux_hat = aux;
+
+    /* initialize Kalman filter */
+    kalman_t kalman(bicycle,
+            parameters::defaultvalue::kalman::Q(dt), /* process noise cov */
+            (kalman_t::measurement_noise_covariance_t() <<
+             sigma0,      0,
+                  0, sigma1).finished(),
+            bicycle_t::state_t::Zero(), /* set initial state estimate to zero */
+            std::pow(x[1]/2, 2) * bicycle_t::state_matrix_t::Identity()); /* error cov */
 
     /*
-     * Normal main() thread activity, in this demo it simulates the bicycle dynamics in real-time (roughly).
+     * Normal main() thread activity, in this demo it simulates the bicycle
+     * dynamics in real-time (roughly).
      */
     uint32_t disturbance_counter = static_cast<uint32_t>(disturbance_period * fs);
     while (true) {
@@ -116,11 +131,25 @@ int main(void) {
             disturbance_counter = static_cast<uint32_t>(disturbance_period * fs);
         }
 
+        /* advance bicycle model */
         x = bicycle.x_next(x, u);
+
+        /* observer time/measurement update */
+        kalman.time_update(u);
+        kalman.measurement_update(bicycle.y(x)); /* use noiseless bicycle system output */
+        x_hat = kalman.x();
+
+        /* update auxiliary state and auxiliary state estimate */
         aux = bicycle.x_aux_next(x, aux);
+        aux_hat = bicycle.x_aux_next(x_hat, aux_hat);
+
         chprintf((BaseSequentialStream*)&SDU1,
                 "%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 aux[0], aux[1], aux[2], x[0], x[1], x[2], x[3], x[4]);
+        chprintf((BaseSequentialStream*)&SDU1,
+                "%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
+                aux_hat[0], aux_hat[1], aux_hat[2], x_hat[0],
+                x_hat[1], x_hat[2], x_hat[3], x_hat[4]);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
 }
