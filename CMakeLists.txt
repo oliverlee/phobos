@@ -26,6 +26,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated") # suppress deprecated warnings from Eigen
 
 include_directories(inc)
+include_directories(src) # definitions for template classes are placed in src directory
 
 add_subdirectory(src)
 add_subdirectory(demos)

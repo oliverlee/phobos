@@ -20,14 +20,17 @@
 
 #include "blink.h"
 #include "usbconfig.h"
-#include "encoder.h"
+#include "tsencoder.h"
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
-    Encoder encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
-            {PAL_LINE(GPIOA, GPIOA_PIN2), /* GPIOA_PIN2 is available */
-             152000, /* counts per revolution */
-             EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us for valid edge */
+    using Encoder = TSEncoder<5, 4, 3>;
+    Encoder encoder({
+            LINE_TIM5_CH1,
+            LINE_TIM5_CH2,
+            PAL_LINE(GPIOA, GPIOA_PIN2), /* GPIOA_PIN2 is unused */
+            152000, /* counts per revolution */
+             });
 } // namespace
 
 static THD_WORKING_AREA(waSerialThread, 256);
@@ -53,7 +56,9 @@ static THD_FUNCTION(SerialThread, arg) {
 
     while (true) {
         if (SDU1.config->usbp->state == USB_ACTIVE) {
-            chprintf((BaseSequentialStream*)&SDU1, "%d\tindex: ", encoder.count());
+            encoder.update_polynomial_fit();
+            encoder.update_estimate_time(chSysGetRealtimeCounterX());
+            chprintf((BaseSequentialStream*)&SDU1, "%d\tindex: ", encoder.position());
             if (encoder.index() == Encoder::index_t::FOUND) {
                 chprintf((BaseSequentialStream*)&SDU1, "FOUND\r\n");
             } else {
@@ -84,10 +89,9 @@ int main(void) {
      * Remove R19 to disable button functionality if necessary.
      * Configure index gpio PA2 (EXT2-7).
      */
-    palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
-    palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
-    palSetLineMode(encoder.config().z, PAL_STM32_MODE_INPUT | PAL_STM32_PUPDR_FLOATING);
-
+    palSetLineMode(LINE_TIM5_CH1, PAL_STM32_MODE_INPUT | PAL_STM32_PUPDR_FLOATING);
+    palSetLineMode(LINE_TIM5_CH2, PAL_STM32_MODE_INPUT | PAL_STM32_PUPDR_FLOATING);
+    palSetLineMode(PAL_LINE(GPIOA, GPIOA_PIN2), PAL_STM32_MODE_INPUT | PAL_STM32_PUPDR_FLOATING);
     encoder.start();
 
     /*
