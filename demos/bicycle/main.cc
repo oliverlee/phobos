@@ -122,7 +122,9 @@ int main(void) {
      * dynamics in real-time (roughly).
      */
     uint32_t disturbance_counter = static_cast<uint32_t>(disturbance_period * fs);
+    rtcnt_t dt = 0;
     while (true) {
+        dt = chSysGetRealtimeCounterX(); // measure computation/transmit time
         u.setZero();
         if (--disturbance_counter < static_cast<uint32_t>(disturbance_duty_cycle * fs)) {
             u[1] = disturbance_magnitude; /* N-m, steer torque */
@@ -143,6 +145,8 @@ int main(void) {
         aux = bicycle.x_aux_next(x, aux);
         aux_hat = bicycle.x_aux_next(x_hat, aux_hat);
 
+        dt = chSysGetRealtimeCounterX() - start;
+
         chprintf((BaseSequentialStream*)&SDU1,
                 "%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 aux[0], aux[1], aux[2], x[0], x[1], x[2], x[3], x[4]);
@@ -150,6 +154,8 @@ int main(void) {
                 "%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 aux_hat[0], aux_hat[1], aux_hat[2], x_hat[0],
                 x_hat[1], x_hat[2], x_hat[3], x_hat[4]);
+        chprintf((BaseSequentialStream*)&SDU1,
+                "loop time was: %d us\r\n", RTC2US(STM32_SYSCLK, dt));
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
 }
