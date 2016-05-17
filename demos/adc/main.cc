@@ -19,6 +19,7 @@
 #include "hal.h"
 #include "chprintf.h"
 
+#include "blink.h"
 #include "usbconfig.h"
 
 /*
@@ -78,24 +79,6 @@ namespace {
 
     const systime_t loop_time = MS2ST(1); // loop at 1 kHz
 } // namespace
-
-/*
- * This is a periodic thread that simply flashes an LED and allows visual
- * inspection to see that the code has not halted.
- */
-static THD_WORKING_AREA(waLEDThread, 128);
-static THD_FUNCTION(LEDThread, arg) {
-    (void)arg;
-    chRegSetThreadName("led");
-    while (true) {
-        palToggleLine(LINE_LED);
-        if (SDU1.config->usbp->state == USB_ACTIVE) {
-            chThdSleepMilliseconds(100);
-        } else {
-            chThdSleepMilliseconds(1000);
-        }
-    }
-}
 
 static THD_WORKING_AREA(waSerialThread, 256);
 static THD_FUNCTION(SerialThread, arg) {
@@ -170,8 +153,7 @@ int main(void) {
     /*
      * Creates the LED blink and USB serial threads.
      */
-    chThdCreateStatic(waLEDThread, sizeof(waLEDThread), NORMALPRIO-1,
-            LEDThread, nullptr);
+    chBlinkThreadCreateStatic(NORMALPRIO-1);
     chThdCreateStatic(waSerialThread, sizeof(waSerialThread), NORMALPRIO+1,
             SerialThread, nullptr);
 
