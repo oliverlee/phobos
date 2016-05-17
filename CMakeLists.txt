@@ -28,3 +28,4 @@ include_directories(inc)
 
 add_subdirectory(src)
 add_subdirectory(demos)
+add_subdirectory(projects)
