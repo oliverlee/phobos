@@ -19,6 +19,7 @@
 #include "hal.h"
 #include "chprintf.h"
 
+#include "blink.h"
 #include "usbconfig.h"
 
 namespace {
@@ -74,24 +75,6 @@ namespace {
       cr2:          TIM_CR2_MMS_1,  /* MMS = 010 = TRGO on Update Event. */
       dier:         0U
     };
-
-    /*
-     * This is a periodic thread that simply flashes an LED and allows visual
-     * inspection to see that the program has not halted.
-     */
-    THD_WORKING_AREA(wa_thread_led, 128);
-    THD_FUNCTION(thread_led, arg) {
-        (void)arg;
-        chRegSetThreadName("led");
-        while (true) {
-            palToggleLine(LINE_LED);
-            if (SDU1.config->usbp->state == USB_ACTIVE) {
-                chThdSleepMilliseconds(100);
-            } else {
-                chThdSleepMilliseconds(1000);
-            }
-        }
-    }
 } // namespace
 
 
@@ -141,8 +124,7 @@ int main(void) {
     /*
      * Creates the LED blink thread.
      */
-    chThdCreateStatic(wa_thread_led, sizeof(wa_thread_led), NORMALPRIO,
-            thread_led, nullptr);
+    chBlinkThreadCreateStatic();
 
     /*
      * Starts an ADC continuous conversion triggered at a frequency of 1 kHz

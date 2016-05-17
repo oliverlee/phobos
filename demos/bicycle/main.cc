@@ -19,6 +19,8 @@
 #include "chprintf.h"
 
 #include "usbconfig.h"
+#include "blink.h"
+
 #include "bicycle.h"
 #include "kalman.h"
 #include "parameters.h"
@@ -45,25 +47,6 @@ namespace {
     bicycle_t::state_t x_hat; /* state estimate */
     bicycle_t::auxiliary_state_t aux; /* rear contact x, rear contact y, pitch angle */
     bicycle_t::auxiliary_state_t aux_hat; /* auxiliary state estimate */
-
-    /*
-     * This is a periodic thread that does absolutely nothing except flashing
-     * a LED.
-     */
-    THD_WORKING_AREA(waThread1, 128);
-    THD_FUNCTION(Thread1, arg) {
-        (void)arg;
-
-        chRegSetThreadName("blinker");
-        while (true) {
-            palToggleLine(LINE_LED);
-            if (SDU1.config->usbp->state == USB_ACTIVE) {
-                chThdSleepMilliseconds(100);
-            } else {
-                chThdSleepMilliseconds(1000);
-            }
-        }
-    }
 } // namespace
 
 /*
@@ -97,8 +80,8 @@ int main(void) {
     usbStart(serusbcfg.usbp, &usbcfg);
     board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
-    /* create the example thread */
-    chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
+    /* create the blink thread */
+    chBlinkThreadCreateStatic();
 
     /* initialize bicycle model and states */
     model::Bicycle bicycle(v0, dt);
