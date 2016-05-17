@@ -102,8 +102,9 @@ int main(void) {
 
     /* initialize bicycle model and states */
     model::Bicycle bicycle(v0, dt);
-    x << 0, 0, 10, 10, 0; /* define in degrees */
-    x *= constants::as_radians; /* convert degrees to radians */
+    //x << 0, 0, 0, 0, 0; /* define in degrees */
+    //x *= constants::as_radians; /* convert degrees to radians */
+    x.setZero();
     aux.setZero();
     aux[2] = bicycle.solve_constraint_pitch(x, 0); /* solve for initial pitch angle */
     aux_hat = aux;
@@ -120,11 +121,17 @@ int main(void) {
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
+     *
+     * The boost integrator requires variable computation time and also results in
+     * the loop computation exceeding 1 ms. Furthermore, as the auxiliary states are
+     * not included in the Kalman filter, initial error in auxiliary states will not
+     * converge to zero.
      */
     uint32_t disturbance_counter = static_cast<uint32_t>(disturbance_period * fs);
-    rtcnt_t dt = 0;
+    rtcnt_t state_update_time = 0;
+    rtcnt_t kalman_update_time = 0;
+    rtcnt_t aux_update_time = 0;
     while (true) {
-        dt = chSysGetRealtimeCounterX(); // measure computation/transmit time
         u.setZero();
         if (--disturbance_counter < static_cast<uint32_t>(disturbance_duty_cycle * fs)) {
             u[1] = disturbance_magnitude; /* N-m, steer torque */
@@ -133,29 +140,43 @@ int main(void) {
             disturbance_counter = static_cast<uint32_t>(disturbance_period * fs);
         }
 
-        /* advance bicycle model */
+        /* advance bicycle model (~30 us) */
+        state_update_time = chSysGetRealtimeCounterX();
         x = bicycle.x_next(x, u);
+        state_update_time = chSysGetRealtimeCounterX() - state_update_time;
 
-        /* observer time/measurement update */
+        /* observer time/measurement update (~512 us) */
+        kalman_update_time = chSysGetRealtimeCounterX();
         kalman.time_update(u);
         kalman.measurement_update(bicycle.y(x)); /* use noiseless bicycle system output */
         x_hat = kalman.x();
+        kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
 
-        /* update auxiliary state and auxiliary state estimate */
+        /* update auxiliary state and auxiliary state estimate (~2.4 ms - ~9.5 ms) */
+        aux_update_time = chSysGetRealtimeCounterX();
         aux = bicycle.x_aux_next(x, aux);
         aux_hat = bicycle.x_aux_next(x_hat, aux_hat);
+        aux_update_time = chSysGetRealtimeCounterX() - aux_update_time;
 
-        dt = chSysGetRealtimeCounterX() - start;
-
         chprintf((BaseSequentialStream*)&SDU1,
-                "%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
-                aux[0], aux[1], aux[2], x[0], x[1], x[2], x[3], x[4]);
+                "error:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
+                aux_hat[0] - aux[0],
+                aux_hat[1] - aux[1],
+                aux_hat[2] - aux[2],
+                x_hat[0] - x[0],
+                x_hat[1] - x[1],
+                x_hat[2] - x[2],
+                x_hat[3] - x[3],
+                x_hat[4] - x[4]);
         chprintf((BaseSequentialStream*)&SDU1,
-                "%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
-                aux_hat[0], aux_hat[1], aux_hat[2], x_hat[0],
-                x_hat[1], x_hat[2], x_hat[3], x_hat[4]);
+                "state update time: %d us\r\n",
+                RTC2US(STM32_SYSCLK, state_update_time));
         chprintf((BaseSequentialStream*)&SDU1,
-                "loop time was: %d us\r\n", RTC2US(STM32_SYSCLK, dt));
+                "kalman update time: %d us\r\n",
+                RTC2US(STM32_SYSCLK, kalman_update_time));
+        chprintf((BaseSequentialStream*)&SDU1,
+                "aux update time: %d us\r\n",
+                RTC2US(STM32_SYSCLK, aux_update_time));
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
 }
