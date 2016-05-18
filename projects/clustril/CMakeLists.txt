@@ -10,6 +10,11 @@ include_directories(${Boost_INCLUDE_DIR})
 # Any request from Eigen to allocate memory from heap results in an assertion failure
 add_definitions("-DEIGEN_NO_MALLOC")
 
+# Disable narrowing warning ('int' to 'uint32_t') as the original datatype for
+# input to ADC_SQR1_NUM_CH() macro is 'uint16_t' and is cast to 'int'.
+set_source_files_properties(${PROJECT_SOURCE_DIR}/src/analog.cc
+    PROPERTIES COMPILE_FLAGS -Wno-narrowing)
+
 # The required stacksize is not the exact amount but large enough such that the
 # main thread does not overflow.
 set(PROJECT_CLUSTRIL_REQUIRED_STACKSIZE "0x3000")

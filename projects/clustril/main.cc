@@ -24,6 +24,7 @@
 #include "kalman.h"
 #include "parameters.h"
 
+#include "analog.h"
 #include "encoder.h"
 #include <boost/math/constants/constants.hpp>
 
@@ -44,11 +45,13 @@ namespace {
     bicycle_t::output_t z; /* yaw angle, steer angle */
 
     /* sensors */
+    Analog analog;
     Encoder encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
             {PAL_NOLINE, /* no index channel */
              152000, /* counts per revolution */
              EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
                                                      * for valid edge */
+     const float max_kistler_torque = 25.0f; /* maximum measured steer torque */
 } // namespace
 
 /*
@@ -98,6 +101,9 @@ int main(void) {
             bicycle_t::state_t::Zero(), /* set initial state estimate to zero */
             std::pow(x[1]/2, 2) * bicycle_t::state_matrix_t::Identity()); /* error cov */
 
+    /* start analog sensors */
+    analog.start();
+
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
@@ -105,7 +111,8 @@ int main(void) {
     rtcnt_t kalman_update_time = 0;
     while (true) {
         u.setZero();
-        u[1] = 0; /* steer torque, read from torque sensor */
+        u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/3.3f -
+                max_kistler_torque); /* steer torque, read from torque sensor */
 
         /* set measurement vector */
         z[0] = x[0]; /* yaw angle, just use previous state value */
