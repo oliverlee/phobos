@@ -121,7 +121,10 @@ int main(void) {
         z[1] = static_cast<float>(encoder.count() /
                 boost::math::constants::two_pi<float>());
         if (z[1] >= boost::math::constants::pi<float>()) {
-            z[1] -= boost::math::constants::pi<float>();
+            z[1] -= boost::math::constants::two_pi<float>();
+        }
+        if (z[1] < -boost::math::constants::pi<float>()) {
+            z[1] += boost::math::constants::two_pi<float>();
         }
 
         /* observer time/measurement update (~512 us) */
