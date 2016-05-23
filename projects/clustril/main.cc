@@ -101,8 +101,9 @@ int main(void) {
             bicycle_t::state_t::Zero(), /* set initial state estimate to zero */
             std::pow(x[1]/2, 2) * bicycle_t::state_matrix_t::Identity()); /* error cov */
 
-    /* start analog sensors */
+    /* start sensors */
     analog.start();
+    encoder.start();
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle

@@ -40,11 +40,29 @@ namespace {
         chSysUnlockFromISR();
     }
 
-    static const ADCConversionGroup adcgrpcfg1 = {
+    static const ADCConversionGroup adcgrpcfg_events = {
         false,
         Analog::buffer_size(),
         adccallback,
         adcerrorcallback,
+        0,                        /* CR1 */
+        ADC_CR2_SWSTART,          /* CR2 */
+        ADC_SMPR1_SMP_AN12(ADC_SAMPLE_3) |
+        ADC_SMPR1_SMP_AN11(ADC_SAMPLE_3) |
+        ADC_SMPR1_SMP_AN10(ADC_SAMPLE_3),
+        0,                        /* SMPR2 */
+        ADC_SQR1_NUM_CH(Analog::buffer_size()),
+        0,                        /* SQR2 */
+        ADC_SQR3_SQ3_N(ADC_CHANNEL_IN12) |
+        ADC_SQR3_SQ2_N(ADC_CHANNEL_IN11) |
+        ADC_SQR3_SQ1_N(ADC_CHANNEL_IN10)
+    };
+
+    static const ADCConversionGroup adcgrpcfg = {
+        false,
+        Analog::buffer_size(),
+        nullptr,
+        nullptr,
         0,                        /* CR1 */
         ADC_CR2_SWSTART,          /* CR2 */
         ADC_SMPR1_SMP_AN12(ADC_SAMPLE_3) |
@@ -62,9 +80,13 @@ namespace {
 
 Analog::Analog() : m_adc_buffer() { }
 
-void Analog::start() {
+void Analog::start(bool use_events) {
     adcStart(&ADCD1, nullptr);
-    adcStartConversion(&ADCD1, &adcgrpcfg1, m_adc_buffer.data(), 1);
+    if (use_events) {
+        adcStartConversion(&ADCD1, &adcgrpcfg_events, m_adc_buffer.data(), 1);
+    } else {
+        adcStartConversion(&ADCD1, &adcgrpcfg, m_adc_buffer.data(), 1);
+    }
 }
 
 adcsample_t Analog::get_adc10() const {
