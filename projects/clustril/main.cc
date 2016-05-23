@@ -52,6 +52,20 @@ namespace {
              EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
                                                      * for valid edge */
      const float max_kistler_torque = 25.0f; /* maximum measured steer torque */
+
+     model::real_t wrap_angle(model::real_t angle) {
+         /*
+          * Angle magnitude is assumed to small enough to NOT require multiple
+          * additions/subtractions of 2pi.
+          */
+        if (angle >= boost::math::constants::pi<float>()) {
+            angle -= boost::math::constants::two_pi<float>();
+        }
+        if (angle < -boost::math::constants::pi<float>()) {
+            angle += boost::math::constants::two_pi<float>();
+        }
+        return angle;
+     }
 } // namespace
 
 /*
@@ -121,22 +135,19 @@ int main(void) {
         /* steer angle, read from encoder (enccnt_t is uint32_t) */
         z[1] = static_cast<float>(encoder.count() /
                 boost::math::constants::two_pi<float>());
-        if (z[1] >= boost::math::constants::pi<float>()) {
-            z[1] -= boost::math::constants::two_pi<float>();
-        }
-        if (z[1] < -boost::math::constants::pi<float>()) {
-            z[1] += boost::math::constants::two_pi<float>();
-        }
 
-        /* observer time/measurement update (~512 us) */
+        /* observer time/measurement update (~80 us with real_t = float) */
         kalman_update_time = chSysGetRealtimeCounterX();
         kalman.time_update(u);
         kalman.measurement_update(z);
         x = kalman.x();
+        x[0] = wrap_angle(x[0]);
+        x[1] = wrap_angle(x[1]);
+        x[2] = wrap_angle(x[2]);
         kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
 
         chprintf((BaseSequentialStream*)&SDU1,
-                "error:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
+                "state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 x[0], x[1], x[2], x[3], x[4]);
         chprintf((BaseSequentialStream*)&SDU1,
                 "kalman update time: %d us\r\n",

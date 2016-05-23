@@ -9,6 +9,8 @@ include_directories(${Boost_INCLUDE_DIR})
 
 # Any request from Eigen to allocate memory from heap results in an assertion failure
 add_definitions("-DEIGEN_NO_MALLOC")
+# Allow printing of float types
+add_definitions("-DCHPRINTF_USE_FLOAT")
 
 # Disable narrowing warning ('int' to 'uint32_t') as the original datatype for
 # input to ADC_SQR1_NUM_CH() macro is 'uint16_t' and is cast to 'int'.
