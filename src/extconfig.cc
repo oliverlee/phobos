@@ -3,7 +3,6 @@
 #include <array>
 #include "osal.h"
 
-#if HAL_USE_EXT
 EXTDriver* extp = &EXTD1;
 
 namespace {
@@ -87,4 +86,3 @@ void extStopIfChannelsDisabledI(EXTDriver* extp) {
 void* extGetChannelCallbackObject(expchannel_t channel) {
     return ext_map[channel];
 }
-#endif /* HAL_USE_EXT */

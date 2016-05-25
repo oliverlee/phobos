@@ -1,6 +1,5 @@
 #include "encoder.h"
 #include "osal.h"
-#if HAL_USE_GPT
 #if HAL_USE_EXT
 #include "extconfig.h"
 #endif /* HAL_USE_EXT */
@@ -129,4 +128,3 @@ void Encoder::callback(EXTDriver* extp, expchannel_t channel) {
     osalSysUnlockFromISR();
 };
 #endif /* HAL_USE_EXT */
-#endif /* HAL_USE_GPT */

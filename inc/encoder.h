@@ -1,7 +1,6 @@
 #pragma once
 #include "hal.h"
 
-#if HAL_USE_GPT
 using enccnt_t = gptcnt_t;
 
 struct EncoderConfig {
@@ -52,4 +51,3 @@ class Encoder {
         static void callback(EXTDriver* extp, expchannel_t channel);
 #endif /* HAL_USE_EXT */
 };
-#endif /* HAL_USE_GPT */
