@@ -12,5 +12,5 @@ add_chibios_executable(encoder-index
     mcuconf.h
     main.cc
     ${PHOBOS_COMMON_SRC}
-    ${PHOBOS_SOURCE_DIR}/src/encoder.cc
+    #${PHOBOS_SOURCE_DIR}/src/encoder.cc # uses tsencoder.hh
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc)
