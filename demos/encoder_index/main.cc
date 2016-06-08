@@ -24,50 +24,50 @@
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
-    using Encoder = TSEncoder<5, 4, 3>;
-    Encoder encoder({
+    using encoder_t = TSEncoder<5, 4, 3>;
+    encoder_t encoder({
             LINE_TIM5_CH1,
             LINE_TIM5_CH2,
             PAL_LINE(GPIOA, GPIOA_PIN2), /* GPIOA_PIN2 is unused */
             152000, /* counts per revolution */
              });
-} // namespace
 
-static THD_WORKING_AREA(waSerialThread, 256);
-static THD_FUNCTION(SerialThread, arg) {
-    (void)arg;
-    chRegSetThreadName("serial");
+    THD_WORKING_AREA(waSerialThread, 2048);
+    THD_FUNCTION(SerialThread, arg) {
+        (void)arg;
+        chRegSetThreadName("serial");
 
-    /*
-     * Initializes a serial-over-USB CDC driver.
-     */
-    sduObjectInit(&SDU1);
-    sduStart(&SDU1, &serusbcfg);
+        /*
+         * Initializes a serial-over-USB CDC driver.
+         */
+        sduObjectInit(&SDU1);
+        sduStart(&SDU1, &serusbcfg);
 
-    /*
-     * Activates the USB driver and then the USB bus pull-up on D+.
-     * Note, a delay is inserted in order to not have to disconnect the cable
-     * after a reset.
-     */
-    board_usb_lld_disconnect_bus();   //usbDisconnectBus(serusbcfg.usbp);
-    chThdSleepMilliseconds(1500);
-    usbStart(serusbcfg.usbp, &usbcfg);
-    board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
+        /*
+         * Activates the USB driver and then the USB bus pull-up on D+.
+         * Note, a delay is inserted in order to not have to disconnect the cable
+         * after a reset.
+         */
+        board_usb_lld_disconnect_bus();   //usbDisconnectBus(serusbcfg.usbp);
+        chThdSleepMilliseconds(1500);
+        usbStart(serusbcfg.usbp, &usbcfg);
+        board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
-    while (true) {
-        if (SDU1.config->usbp->state == USB_ACTIVE) {
-            encoder.update_polynomial_fit();
-            encoder.update_estimate_time(chSysGetRealtimeCounterX());
-            chprintf((BaseSequentialStream*)&SDU1, "%d\tindex: ", encoder.position());
-            if (encoder.index() == Encoder::index_t::FOUND) {
-                chprintf((BaseSequentialStream*)&SDU1, "FOUND\r\n");
-            } else {
-                chprintf((BaseSequentialStream*)&SDU1, "NOTFOUND\r\n");
+        while (true) {
+            if (SDU1.config->usbp->state == USB_ACTIVE) {
+                encoder.update_polynomial_fit();
+                encoder.update_estimate_time(chSysGetRealtimeCounterX());
+                chprintf((BaseSequentialStream*)&SDU1, "%d\tindex: ", encoder.position());
+                if (encoder.index() == encoder_t::index_t::FOUND) {
+                    chprintf((BaseSequentialStream*)&SDU1, "FOUND\r\n");
+                } else {
+                    chprintf((BaseSequentialStream*)&SDU1, "NOTFOUND\r\n");
+                }
             }
+            chThdSleep(loop_time);
         }
-        chThdSleep(loop_time);
     }
-}
+} // namespace
 
 /*
  * Application entry point.
