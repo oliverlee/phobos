@@ -23,6 +23,10 @@ endif()
 
 
 add_chibios_executable(bicycle
-    chconf.h halconf.h mcuconf.h
-    main.cc ${PHOBOS_SRC} ${BICYCLE_SOURCE})
+    chconf.h
+    halconf.h
+    mcuconf.h
+    main.cc
+    ${PHOBOS_COMMON_SRC}
+    ${BICYCLE_SOURCE})
 target_compile_options(bicycle PUBLIC "-Wno-undef") # suppress boost undef warnings

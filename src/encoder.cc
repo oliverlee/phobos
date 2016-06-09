@@ -1,17 +1,7 @@
-#include <algorithm>
-#include <array>
-#include "osal.h"
 #include "encoder.h"
-#if HAL_USE_GPT
+#include "osal.h"
 #if HAL_USE_EXT
 #include "extconfig.h"
-#endif /* HAL_USE_EXT */
-
-#if HAL_USE_EXT
-namespace {
-    EXTDriver* extp = &EXTD1;
-    std::array<Encoder*, EXT_MAX_CHANNELS> extenc_map{{}}; /* initialized to nullptr */
-} // namespace
 #endif /* HAL_USE_EXT */
 
 Encoder::Encoder(GPTDriver* gptp, const EncoderConfig& config) :
@@ -47,7 +37,7 @@ void Encoder::start() {
 
     osalSysLock();
     osalDbgAssert((m_gptp->state == GPT_STOP) || (m_gptp->state == GPT_READY), "invalid state");
-    osalDbgAssert(((m_config.count <= TIM_CNT_CNT) ||
+    osalDbgAssert(((m_config.counts_per_rev <= TIM_CNT_CNT) ||
                 IS_TIM_32B_COUNTER_INSTANCE(reinterpret_cast<TIM_TypeDef*>(m_gptp->tim))),
             "invalid count");
 
@@ -58,7 +48,7 @@ void Encoder::start() {
     m_gptp->tim->CCMR1 = TIM_CCMR1_CC2S_0 | TIM_CCMR1_CC1S_0; /* no prescaler, IC2 -> TI2, IC1 -> TI1 */
     uint16_t filter = static_cast<uint16_t>(m_config.filter);
     m_gptp->tim->CCMR1 |= (filter << 12) | (filter << 4); /* set input capture filters */
-    gpt_lld_start_timer(m_gptp, m_config.count); /* set ARR and start counting */
+    gpt_lld_start_timer(m_gptp, m_config.counts_per_rev); /* set ARR and start counting */
 
     m_gptp->state = GPT_READY;
     m_state = state_t::READY;
@@ -67,57 +57,12 @@ void Encoder::start() {
     } else {
         m_index = index_t::NOTFOUND;
 #if HAL_USE_EXT
-        uint32_t pad = PAL_PAD(m_config.z);
-        stm32_gpio_t* port = PAL_PORT(m_config.z);
         osalDbgAssert((extp->state == EXT_STOP) || (extp->state == EXT_ACTIVE),
                 "invalid state");
-        osalDbgAssert(((extp->state == EXT_STOP) || /* check if channel is disabled only when EXT_ACTIVE */
-                    ((extp->config->channels[pad].mode & EXT_CH_MODE_EDGES_MASK) == EXT_CH_MODE_DISABLED)),
-                "channel already in use");
-        osalDbgAssert(((port == GPIOA) || (port == GPIOB) || (port == GPIOC) ||
-                    (port == GPIOD) || (port == GPIOE) || (port == GPIOF) ||
-                    (port == GPIOG) || (port == GPIOH) || (port == GPIOI)),
-                "invalid port"); /* port is available in STM32/LLD/EXTIv1 driver */
-
-        auto callback = [](EXTDriver* extp, expchannel_t channel)->void {
-            (void)extp;
-            osalSysLockFromISR();
-            Encoder* enc = extenc_map[channel];
-            enc->m_gptp->tim->CNT = 0U;
-            enc->m_index = index_t::FOUND;
-            osalSysUnlockFromISR();
-        };
-        uint32_t ext_mode_port;
-        if (port == GPIOA) {
-            ext_mode_port = EXT_MODE_GPIOA;
-        } else if (port == GPIOB) {
-            ext_mode_port = EXT_MODE_GPIOB;
-        } else if (port == GPIOC) {
-            ext_mode_port = EXT_MODE_GPIOC;
-        } else if (port == GPIOD) {
-            ext_mode_port = EXT_MODE_GPIOD;
-        } else if (port == GPIOE) {
-            ext_mode_port = EXT_MODE_GPIOE;
-        } else if (port == GPIOF) {
-            ext_mode_port = EXT_MODE_GPIOF;
-        } else if (port == GPIOG) {
-            ext_mode_port = EXT_MODE_GPIOG;
-        } else if (port == GPIOH) {
-            ext_mode_port = EXT_MODE_GPIOH;
-        } else { /* port == GPIOI */
-            ext_mode_port = EXT_MODE_GPIOI;
-        }
-
         if (extp->state == EXT_STOP) {
-            /* execute same steps as extStart() as extStartI() does not exist */
-            extp->config = &extconfig;
-            ext_lld_start(extp);
-            extp->state = EXT_ACTIVE;
+            extStartI(extp);
         }
-        extenc_map[pad] = this;
-        extconfig.channels[pad] = EXTChannelConfig{EXT_CH_MODE_RISING_EDGE | ext_mode_port, callback};
-        extSetChannelModeI(extp, pad, &extconfig.channels[pad]);
-        extChannelEnableI(extp, pad);
+        extChannelEnableSetModeI(extp, m_config.z, EXT_CH_MODE_RISING_EDGE, callback, this);
 #endif
     }
     osalSysUnlock();
@@ -135,18 +80,8 @@ void Encoder::stop() {
     m_index = index_t::NONE;
 #if HAL_USE_EXT
     if (m_config.z != PAL_NOLINE) {
-        uint32_t pad = PAL_PAD(m_config.z);
-        extenc_map[pad] = nullptr;
-        extconfig.channels[pad] = EXTChannelConfig{EXT_CH_MODE_DISABLED, nullptr};
-        extSetChannelModeI(extp, pad, &extconfig.channels[pad]);
-        extChannelDisableI(extp, pad);
-        if (std::all_of(std::begin(extp->config->channels), std::end(extp->config->channels),
-                    [](EXTChannelConfig config)->bool {
-                        return ((config.mode & EXT_CH_MODE_EDGES_MASK) == EXT_CH_MODE_DISABLED);
-                    })) {
-            ext_lld_stop(extp);
-            extp->state = EXT_STOP;
-        }
+        extChannelDisableClearModeI(extp, PAL_PAD(m_config.z));
+        extStopIfChannelsDisabledI(extp);
     }
 #endif
     osalSysUnlock();
@@ -160,25 +95,36 @@ void Encoder::set_count(gptcnt_t count) {
     m_gptp->tim->CNT = count;
 }
 
-gptcnt_t Encoder::count() volatile {
+gptcnt_t Encoder::count() const volatile {
     osalDbgCheck(m_state == state_t::READY);
     return static_cast<gptcnt_t>(m_gptp->tim->CNT);
 }
 
-bool Encoder::direction() volatile {
+bool Encoder::direction() const volatile {
     osalDbgCheck(m_state == state_t::READY);
     return static_cast<bool>(m_gptp->tim->CR1 & TIM_CR1_DIR);
 }
 
-const EncoderConfig& Encoder::config() {
+const EncoderConfig& Encoder::config() const {
     return m_config;
 }
 
-Encoder::state_t Encoder::state() {
+Encoder::state_t Encoder::state() const {
     return m_state;
 }
 
-Encoder::index_t Encoder::index() volatile {
+Encoder::index_t Encoder::index() const volatile {
     return m_index;
 }
-#endif /* HAL_USE_GPT */
+
+#if HAL_USE_EXT
+void Encoder::callback(EXTDriver* extp, expchannel_t channel) {
+    (void)extp;
+    osalSysLockFromISR();
+    Encoder* enc = reinterpret_cast<Encoder*>(extGetChannelCallbackObject(channel));
+    enc->m_gptp->tim->CNT = 0U;
+    enc->m_index = index_t::FOUND;
+    extChannelDisableClearModeI(extp, PAL_PAD(enc->m_config.z));
+    osalSysUnlockFromISR();
+};
+#endif /* HAL_USE_EXT */
