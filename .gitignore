@@ -1,6 +1,9 @@
 # vim swap files
 *.swp
 
+# python compiled code
+*.pyc
+
 # build directories
 *build/
 *build*/
