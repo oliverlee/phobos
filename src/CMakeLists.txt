@@ -1,4 +1,5 @@
 set(PHOBOS_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/analog.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/blink.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/encoder.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/extconfig.cc
