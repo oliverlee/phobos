@@ -17,6 +17,7 @@ TSEncoder<M, N, O>::TSEncoder(const TSEncoderConfig& config) :
     m_B(decltype(m_B)::Zero()),
     m_T(decltype(m_T)::Ones()), /* last element of time vector is always 1 */
     m_t0(0),
+    m_alpha(0.0f),
     m_config(config),
     m_count(0),
     m_state(state_t::STOP),
@@ -70,8 +71,8 @@ typename TSEncoder<M, N, O>::index_t TSEncoder<M, N, O>::index() const volatile 
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::update_polynomial_fit() {
     /*
-     * Redefine oldest event to be at time zero. The scaling step is skipped as
-     * we keep time units in RTC counts.
+     * Redefine oldest event to be at time zero. Scale time so that difference
+     * in time is equal to 1.
      *
      * If the difference A(N - 1, 1) - A(0, 1) is too large, the value will be
      * nonsensical due to uint rolling back to zero. The difference must also
@@ -79,22 +80,24 @@ void TSEncoder<M, N, O>::update_polynomial_fit() {
      * int32_t.
      */
     m_t0 = m_events[(m_event_index + 1) % N].first;
+    m_alpha = 1.0f / (m_events[m_event_index].first - m_t0);
     for (unsigned int i = 0; i < N; ++i) {
-        m_A(i, 1) = m_events[(m_event_index + i + 1) % N].first - m_t0;
+        m_A(i, M - 1) = m_alpha * (m_events[(m_event_index + i + 1) % N].first - m_t0);
         m_B(i) = m_events[(m_event_index + i + 1) % N].second;
     }
     for (unsigned int i = 0; i < M - 1; ++i) {
         m_A.col(M - 2 - i) = m_A.col(M - 1 - i).cwiseProduct(m_A.col(M - 1));
     }
-    m_P.noalias() = (m_A.transpose() * m_A).template cast<polycoeff_t>().ldlt().solve(
-            (m_A.transpose() * m_B).template cast<polycoeff_t>());
+    m_P.noalias() = (m_A.transpose() * m_A).ldlt().solve(
+            (m_A.transpose() * m_B.template cast<polycoeff_t>()));
 }
 
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::update_estimate_time(rtcnt_t tc) {
-    m_T(M - 1) = static_cast<polycoeff_t>(tc - m_t0);
+    polycoeff_t tcf = m_alpha * static_cast<polycoeff_t>(tc - m_t0);
+    m_T(M - 1) = tcf;
     for (unsigned int i = 0; i < M - 1; ++i) {
-        m_T(M - 2 - i) = m_T(M - 1 - i) * tc;
+        m_T(M - 2 - i) = m_T(M - 1 - i) * tcf;
     }
 }
 
