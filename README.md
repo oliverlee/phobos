@@ -55,7 +55,7 @@ The microcontroller can be debugged with OpenOCD and GDB.
 
 In another shell instance, pass GDB the ELF as an argument
 
-    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_3-2016q1/bin/arm-none-eabi-gdb demos/usb_serial/usb-serial.elf
+    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_3-2016q1/bin/arm-none-eabi-gdb-py demos/usb_serial/usb-serial.elf
 
 To connect to target
 
@@ -72,7 +72,14 @@ to disabling IRQs while stepping. This can be used by renaming the file to
 `.gdbinit` and placing in your home or project directory or by executing GDB
 commands from a file when starting GDB
 
-    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_3-2016q1/bin/arm-none-eabi-gdb -x ../gdbinit demos/usb_serial/usb-serial.elf
+    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_3-2016q1/bin/arm-none-eabi-gdb-py -x ../gdbinit demos/usb_serial/usb-serial.elf
+
+If the sample gdbinit file is used, the gdb binary `arm-none-eabi-gdb-py` (with
+python scripting enabled) must also be used.
+
+In some cases when debugging, Link Time Optimization will remove necessary debug
+information (such as Eigen Matrix template arguments). You may wish to disable
+LTO (CMake option `CHIBIOS_USE_LTO`) in these cases.
 
 ## Debugging with Eclipse
 Eclipse can also be used for debugging and can be downloaded
