@@ -4,3 +4,6 @@
 [submodule "external/bicycle"]
 	path = external/bicycle
 	url = https://github.com/oliverlee/bicycle.git
+[submodule "external/gdb-regview"]
+	path = external/gdb-regview
+	url = https://github.com/fnoble/gdb-regview.git
