@@ -28,5 +28,13 @@ set trace-commands on
 set logging on
 set print pretty
 
+python
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.expanduser('~'), 'repos/phobos/debug'))
+from printers import register_eigen_printers
+register_eigen_printers(None)
+end
+
 source /Users/oliver/repos/phobos/external/gdb-regview/gdb-regview.py
 regview load /Users/oliver/repos/phobos/external/gdb-regview/defs/stm32f40x.xml
