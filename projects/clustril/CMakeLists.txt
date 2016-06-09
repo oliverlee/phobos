@@ -27,6 +27,12 @@ prevent stack overflow in this project.")
 endif()
 
 add_chibios_executable(clustril
-    chconf.h halconf.h mcuconf.h
-    main.cc ${PHOBOS_SRC} ${BICYCLE_SOURCE})
+    chconf.h
+    halconf.h
+    mcuconf.h
+    main.cc
+    ${PHOBOS_COMMON_SRC}
+    ${PHOBOS_SOURCE_DIR}/src/analog.cc
+    ${PHOBOS_SOURCE_DIR}/src/encoder.cc
+    ${BICYCLE_SOURCE})
 target_compile_options(clustril PUBLIC "-Wno-undef") # suppress boost undef warnings

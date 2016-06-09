@@ -9,5 +9,8 @@ add_definitions("-DEIGEN_NO_MALLOC")
 add_definitions("-DCHPRINTF_USE_FLOAT")
 
 add_chibios_executable(eigen
-    chconf.h halconf.h mcuconf.h
-    main.cc ${PHOBOS_SRC})
+    chconf.h
+    halconf.h
+    mcuconf.h
+    main.cc
+    ${PHOBOS_COMMON_SRC})
