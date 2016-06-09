@@ -22,6 +22,8 @@ load
 monitor reset halt
 end
 
+tui enable
+
 set trace-commands on
 set logging on
 set print pretty
