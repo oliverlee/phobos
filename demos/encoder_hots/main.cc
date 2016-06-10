@@ -57,7 +57,7 @@ namespace {
             if (SDU1.config->usbp->state == USB_ACTIVE) {
                 encoder.update_polynomial_fit();
                 encoder.update_estimate_time(chSysGetRealtimeCounterX());
-                chprintf((BaseSequentialStream*)&SDU1, "%d\tindex: ", encoder.position());
+                chprintf((BaseSequentialStream*)&SDU1, "%0.2f\tindex: ", encoder.position());
                 if (encoder.index() == encoder_t::index_t::FOUND) {
                     chprintf((BaseSequentialStream*)&SDU1, "FOUND\r\n");
                 } else {
