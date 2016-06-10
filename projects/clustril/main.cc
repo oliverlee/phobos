@@ -117,9 +117,15 @@ int main(void) {
             bicycle_t::state_t::Zero(), /* set initial state estimate to zero */
             std::pow(x[1]/2, 2) * bicycle_t::state_matrix_t::Identity()); /* error cov */
 
-    /* start sensors */
-    analog.start();
+    /*
+     * Start sensors.
+     * Encoder:
+     *   Initialize encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
+     */
+    palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
+    palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder.start();
+    analog.start();
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
