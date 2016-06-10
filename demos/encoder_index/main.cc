@@ -20,54 +20,49 @@
 
 #include "blink.h"
 #include "usbconfig.h"
-#include "tsencoder.h"
+#include "encoder.h"
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
-    using encoder_t = TSEncoder<5, 4, 3>;
-    encoder_t encoder({
-            LINE_TIM5_CH1,
-            LINE_TIM5_CH2,
-            PAL_LINE(GPIOA, GPIOA_PIN2), /* GPIOA_PIN2 is unused */
-            152000, /* counts per revolution */
-             });
-
-    THD_WORKING_AREA(waSerialThread, 2048);
-    THD_FUNCTION(SerialThread, arg) {
-        (void)arg;
-        chRegSetThreadName("serial");
-
-        /*
-         * Initializes a serial-over-USB CDC driver.
-         */
-        sduObjectInit(&SDU1);
-        sduStart(&SDU1, &serusbcfg);
-
-        /*
-         * Activates the USB driver and then the USB bus pull-up on D+.
-         * Note, a delay is inserted in order to not have to disconnect the cable
-         * after a reset.
-         */
-        board_usb_lld_disconnect_bus();   //usbDisconnectBus(serusbcfg.usbp);
-        chThdSleepMilliseconds(1500);
-        usbStart(serusbcfg.usbp, &usbcfg);
-        board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
-
-        while (true) {
-            if (SDU1.config->usbp->state == USB_ACTIVE) {
-                encoder.update_polynomial_fit();
-                encoder.update_estimate_time(chSysGetRealtimeCounterX());
-                chprintf((BaseSequentialStream*)&SDU1, "%d\tindex: ", encoder.position());
-                if (encoder.index() == encoder_t::index_t::FOUND) {
-                    chprintf((BaseSequentialStream*)&SDU1, "FOUND\r\n");
-                } else {
-                    chprintf((BaseSequentialStream*)&SDU1, "NOTFOUND\r\n");
-                }
-            }
-            chThdSleep(loop_time);
-        }
-    }
+    Encoder encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
+            {PAL_LINE(GPIOA, GPIOA_PIN2), /* GPIOA_PIN2 is available */
+             152000, /* counts per revolution */
+             EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us for valid edge */
 } // namespace
+
+static THD_WORKING_AREA(waSerialThread, 256);
+static THD_FUNCTION(SerialThread, arg) {
+    (void)arg;
+    chRegSetThreadName("serial");
+
+    /*
+     * Initializes a serial-over-USB CDC driver.
+     */
+    sduObjectInit(&SDU1);
+    sduStart(&SDU1, &serusbcfg);
+
+    /*
+     * Activates the USB driver and then the USB bus pull-up on D+.
+     * Note, a delay is inserted in order to not have to disconnect the cable
+     * after a reset.
+     */
+    board_usb_lld_disconnect_bus();   //usbDisconnectBus(serusbcfg.usbp);
+    chThdSleepMilliseconds(1500);
+    usbStart(serusbcfg.usbp, &usbcfg);
+    board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
+
+    while (true) {
+        if (SDU1.config->usbp->state == USB_ACTIVE) {
+            chprintf((BaseSequentialStream*)&SDU1, "%d\tindex: ", encoder.count());
+            if (encoder.index() == Encoder::index_t::FOUND) {
+                chprintf((BaseSequentialStream*)&SDU1, "FOUND\r\n");
+            } else {
+                chprintf((BaseSequentialStream*)&SDU1, "NOTFOUND\r\n");
+            }
+        }
+        chThdSleep(loop_time);
+    }
+}
 
 /*
  * Application entry point.
@@ -89,9 +84,10 @@ int main(void) {
      * Remove R19 to disable button functionality if necessary.
      * Configure index gpio PA2 (EXT2-7).
      */
-    palSetLineMode(LINE_TIM5_CH1, PAL_STM32_MODE_INPUT | PAL_STM32_PUPDR_FLOATING);
-    palSetLineMode(LINE_TIM5_CH2, PAL_STM32_MODE_INPUT | PAL_STM32_PUPDR_FLOATING);
-    palSetLineMode(PAL_LINE(GPIOA, GPIOA_PIN2), PAL_STM32_MODE_INPUT | PAL_STM32_PUPDR_FLOATING);
+    palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
+    palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
+    palSetLineMode(encoder.config().z, PAL_STM32_MODE_INPUT | PAL_STM32_PUPDR_FLOATING);
+
     encoder.start();
 
     /*

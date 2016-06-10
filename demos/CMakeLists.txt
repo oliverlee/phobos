@@ -18,6 +18,11 @@ if(PHOBOS_BUILD_DEMO_ENCODER_INDEX)
     add_subdirectory(encoder_index)
 endif()
 
+option(PHOBOS_BUILD_DEMO_ENCODER_HOTS "Build Encoder with higher-order time-stamping demo" TRUE)
+if(PHOBOS_BUILD_DEMO_ENCODER_HOTS)
+    add_subdirectory(encoder_hots)
+endif()
+
 option(PHOBOS_BUILD_DEMO_GPT_ADC "Build GPT-ADC demo" TRUE)
 if(PHOBOS_BUILD_DEMO_GPT_ADC)
     add_subdirectory(gpt_adc)
