@@ -48,6 +48,17 @@ signing the application:
 In 'Security & Privacy', verify that the option 'Automatically allow signed
 software to receive incoming connections' is enabled.
 
+## Running
+All of the demos blink the board LED when running. All demos also send ASCII
+over serial and increase the blink rate of the LED when a USB connection is
+established. The transmitted characters can be viewed using any serial terminal
+program. Here's an example using screen
+
+    oliver@canopus:~$ screen /dev/tty.usbmodem311
+
+As a virtual serial port is established, baud rate is ignored and has no impact
+on USB transfer speed.
+
 ## Debugging
 The microcontroller can be debugged with OpenOCD and GDB.
 
