@@ -1,6 +1,7 @@
 #include "extconfig.h"
 #include <utility>
 #include <Eigen/Cholesky>
+#include <cmath>
 
 /*
  * Member function definitions of TSEncoder template class.
@@ -72,7 +73,7 @@ template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::update_polynomial_fit() {
     /*
      * Redefine oldest event to be at time zero. Scale time so that difference
-     * in time is equal to 1.
+     * in time from oldest to newest event is equal to 1.
      *
      * If the difference A(N - 1, 1) - A(0, 1) is too large, the value will be
      * nonsensical due to uint rolling back to zero. The difference must also
@@ -103,9 +104,17 @@ void TSEncoder<M, N, O>::update_estimate_time(rtcnt_t tc) {
 
 template <size_t M, size_t N, size_t O>
 polycoeff_t TSEncoder<M, N, O>::position() const {
-    return m_P.transpose() * m_T;
+    polycoeff_t x = m_P.transpose() * m_T;
+    polycoeff_t count = static_cast<polycoeff_t>(m_count);
+    if (std::abs(x - count) > 1.0f) {
+        return count;
+    }
+    return x;
 }
 
+// TODO: Validity of velocity and acceleration for large error in estimated
+// position (i.e. position is adjusted due to a large amount of time without
+// an encoder event).
 template <size_t M, size_t N, size_t O>
 polycoeff_t TSEncoder<M, N, O>::velocity() const {
     Eigen::Matrix<tsenccnt_t, M, 1> velocity_coefficients;
