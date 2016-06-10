@@ -59,6 +59,13 @@ program. Here's an example using screen
 As a virtual serial port is established, baud rate is ignored and has no impact
 on USB transfer speed.
 
+The projects in this repository are designed to run on an [Olimex
+STM32-H405](https://www.olimex.com/Products/ARM/ST/STM32-H405/) microcontroller
+together with a set of [PCBs](https://github.com/oliverlee/gyropcb)
+([v0.1](https://github.com/oliverlee/gyropcb/releases)) in order to interface
+with a number of sensors and actuators. When using the PCBs, please make sure to
+check the errata in the project README.
+
 ## Debugging
 The microcontroller can be debugged with OpenOCD and GDB.
 
