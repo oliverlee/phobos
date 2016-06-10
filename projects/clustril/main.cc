@@ -28,6 +28,8 @@
 #include "encoder.h"
 #include <boost/math/constants/constants.hpp>
 
+#include <type_traits>
+
 namespace {
     using bicycle_t = model::Bicycle;
     using kalman_t = observer::Kalman<bicycle_t>;
@@ -132,9 +134,18 @@ int main(void) {
         /* set measurement vector */
         z[0] = x[0]; /* yaw angle, just use previous state value */
 
-        /* steer angle, read from encoder (enccnt_t is uint32_t) */
-        z[1] = static_cast<float>(encoder.count() /
-                boost::math::constants::two_pi<float>());
+        /*
+         * Steer angle, read from encoder (enccnt_t is uint32_t)
+         * Convert angle from enccnt_t (unsigned) to corresponding signed type and use negative
+         * values for any count over half a revolution.
+         */
+        auto position = static_cast<std::make_signed<enccnt_t>::type>(encoder.count());
+        auto rev = static_cast<std::make_signed<enccnt_t>::type>(encoder.config().counts_per_rev);
+        if (position > rev / 2) {
+            position -= rev;
+        }
+        z[1] = static_cast<float>(position) /
+                boost::math::constants::two_pi<float>();
 
         /* observer time/measurement update (~80 us with real_t = float) */
         kalman_update_time = chSysGetRealtimeCounterX();
