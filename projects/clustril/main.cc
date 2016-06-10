@@ -164,6 +164,9 @@ int main(void) {
         kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
 
         chprintf((BaseSequentialStream*)&SDU1,
+                "sensors:\t%0.2f\t%0.2f\r\n",
+                z[0], z[1]);
+        chprintf((BaseSequentialStream*)&SDU1,
                 "state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 x[0], x[1], x[2], x[3], x[4]);
         chprintf((BaseSequentialStream*)&SDU1,
