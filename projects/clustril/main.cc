@@ -28,6 +28,8 @@
 #include "encoder.h"
 #include <boost/math/constants/constants.hpp>
 
+#include <type_traits>
+
 namespace {
     using bicycle_t = model::Bicycle;
     using kalman_t = observer::Kalman<bicycle_t>;
@@ -115,9 +117,15 @@ int main(void) {
             bicycle_t::state_t::Zero(), /* set initial state estimate to zero */
             std::pow(x[1]/2, 2) * bicycle_t::state_matrix_t::Identity()); /* error cov */
 
-    /* start sensors */
-    analog.start();
+    /*
+     * Start sensors.
+     * Encoder:
+     *   Initialize encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
+     */
+    palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
+    palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder.start();
+    analog.start();
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -126,15 +134,24 @@ int main(void) {
     rtcnt_t kalman_update_time = 0;
     while (true) {
         u.setZero();
-        u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/3.3f -
+        u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
                 max_kistler_torque); /* steer torque, read from torque sensor */
 
         /* set measurement vector */
         z[0] = x[0]; /* yaw angle, just use previous state value */
 
-        /* steer angle, read from encoder (enccnt_t is uint32_t) */
-        z[1] = static_cast<float>(encoder.count() /
-                boost::math::constants::two_pi<float>());
+        /*
+         * Steer angle, read from encoder (enccnt_t is uint32_t)
+         * Convert angle from enccnt_t (unsigned) to corresponding signed type and use negative
+         * values for any count over half a revolution.
+         */
+        auto position = static_cast<std::make_signed<enccnt_t>::type>(encoder.count());
+        auto rev = static_cast<std::make_signed<enccnt_t>::type>(encoder.config().counts_per_rev);
+        if (position > rev / 2) {
+            position -= rev;
+        }
+        z[1] = static_cast<float>(position) /
+                boost::math::constants::two_pi<float>();
 
         /* observer time/measurement update (~80 us with real_t = float) */
         kalman_update_time = chSysGetRealtimeCounterX();
@@ -146,6 +163,9 @@ int main(void) {
         x[2] = wrap_angle(x[2]);
         kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
 
+        chprintf((BaseSequentialStream*)&SDU1,
+                "sensors:\t%0.2f\t%0.2f\t%0.2f\r\n",
+                u[1], z[0], z[1]);
         chprintf((BaseSequentialStream*)&SDU1,
                 "state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 x[0], x[1], x[2], x[3], x[4]);
