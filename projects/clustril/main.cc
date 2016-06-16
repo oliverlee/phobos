@@ -134,7 +134,7 @@ int main(void) {
     rtcnt_t kalman_update_time = 0;
     while (true) {
         u.setZero();
-        u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/3.3f -
+        u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
                 max_kistler_torque); /* steer torque, read from torque sensor */
 
         /* set measurement vector */
@@ -164,8 +164,8 @@ int main(void) {
         kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
 
         chprintf((BaseSequentialStream*)&SDU1,
-                "sensors:\t%0.2f\t%0.2f\r\n",
-                z[0], z[1]);
+                "sensors:\t%0.2f\t%0.2f\t%0.2f\r\n",
+                u[1], z[0], z[1]);
         chprintf((BaseSequentialStream*)&SDU1,
                 "state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 x[0], x[1], x[2], x[3], x[4]);
