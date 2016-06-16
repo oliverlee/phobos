@@ -107,6 +107,13 @@ void Analog::start(gptcnt_t sample_rate, bool use_events) {
     gptStartContinuous(&GPTD8, gpt8cfg1.frequency/sample_rate);
 }
 
+void Analog::stop() {
+    gptStopTimer(&GPTD8);
+    adcStopConversion(&ADCD1);
+    adcStop(&ADCD1);
+    gptStop(&GPTD8);
+}
+
 adcsample_t Analog::get_adc10() const {
     return m_adc_buffer[sensor_t::ADC10];
 }

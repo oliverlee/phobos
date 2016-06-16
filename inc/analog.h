@@ -6,6 +6,7 @@ class Analog {
     public:
         Analog();
         void start(gptcnt_t sample_rate, bool use_events=false);
+        void stop();
         adcsample_t get_adc10() const;
         adcsample_t get_adc11() const;
         adcsample_t get_adc12() const;
