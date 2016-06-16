@@ -125,7 +125,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder.start();
-    analog.start();
+    analog.start(1000);
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
