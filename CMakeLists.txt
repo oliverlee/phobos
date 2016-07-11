@@ -10,6 +10,8 @@ set(OPENOCD_INTERFACE_CFG "${PROJECT_SOURCE_DIR}/openocd_olimex-arm-usb-tiny-h_s
 # include ChibiOS CMake script
 # WARNING: this script clears all compile and link flags that have been set
 include(external/ChibiOS/chibios.cmake)
+set(CHIBIOS_USE_PROCESS_STACKSIZE "0x3000"
+    CACHE STRING "Stack size used by the main() thread." FORCE)
 
 set(CMAKE_MODULE_PATH
     ${PROJECT_SOURCE_DIR}/cmake/modules
