@@ -5,7 +5,7 @@ embedded system that controls the gyroscopic balance assistance system.
 ## Toolchain
 To compile the code, use [GNU ARM Embedded
 toolchain](https://launchpad.net/gcc-arm-embedded).
-The version used is 5.3-2016-q1.
+The version used is 5.4-2016-q2.
 
 Some examples may not build as the option `-fsingle-precision-constant` is not
 standard compliant. The issue is documented
@@ -27,7 +27,7 @@ directory.
 
     oliver@canopus:~/repos/phobos$ mkdir build
     oliver@canopus:~/repos/phobos$ cd build/
-    oliver@canopus:~/repos/phobos/build$ cmake -DCMAKE_TOOLCHAIN_FILE=~/toolchain/toolchain-gcc-arm-none-eabi-5_3-2016q1.cmake ..
+    oliver@canopus:~/repos/phobos/build$ cmake -DCMAKE_TOOLCHAIN_FILE=~/toolchain/toolchain-gcc-arm-none-eabi-5_4-2016q2.cmake ..
     oliver@canopus:~/repos/phobos/build$ make -j8
 
 Build options can be passed as arguments to `cmake` or set with `ccmake` after
@@ -73,7 +73,7 @@ The microcontroller can be debugged with OpenOCD and GDB.
 
 In another shell instance, pass GDB the ELF as an argument
 
-    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_3-2016q1/bin/arm-none-eabi-gdb-py demos/usb_serial/usb-serial.elf
+    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_4-2016q2/bin/arm-none-eabi-gdb-py demos/usb_serial/usb-serial.elf
 
 To connect to target
 
@@ -90,7 +90,7 @@ to disabling IRQs while stepping. This can be used by renaming the file to
 `.gdbinit` and placing in your home or project directory or by executing GDB
 commands from a file when starting GDB
 
-    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_3-2016q1/bin/arm-none-eabi-gdb-py -x ../gdbinit demos/usb_serial/usb-serial.elf
+    oliver@canopus:~/repos/phobos/build$ ~/toolchain/gcc-arm-none-eabi-5_4-2016q2/bin/arm-none-eabi-gdb-py -x ../gdbinit demos/usb_serial/usb-serial.elf
 
 If the sample gdbinit file is used, the gdb binary `arm-none-eabi-gdb-py` (with
 python scripting enabled) must also be used.
@@ -114,7 +114,7 @@ For general instructions refer to the ChibiOS/Eclipse guides [part
   can be found
   [here](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
 - Create an Eclipse project with CMake: (don't include the linebreak)  
-  `oliver@canopus:~/repos/phobos/build-eclipse$ cmake -G"Eclipse CDT4 - Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=../toolchain-gcc-arm-none-eabi-5_3-2016q1.cmake ..`  
+  `oliver@canopus:~/repos/phobos/build-eclipse$ cmake -G"Eclipse CDT4 - Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=../toolchain-gcc-arm-none-eabi-5_4-2016q2.cmake ..`  
   Don't forget to set build type to 'Debug' and enable ChibiOS debug options.
 - In Eclipse, import the project using 'File->Import'.  
   Select 'General->Existing Projects into Workspace'.  
