@@ -7,5 +7,5 @@ if [ ! -d "$HOME/toolchain/gcc-arm-none-eabi-5_3-2016q1" ]; then
     tar -xf gcc-arm-none-eabi-5_3-2016q1-20160330-linux.tar.bz2;
     cd $HOME;
 else
-    echo 'Using cached directory.';
+    echo 'Using cached toolchain directory.';
 fi
