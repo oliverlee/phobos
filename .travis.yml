@@ -7,11 +7,10 @@ git:
   depth: 3
 
 cache:
-  http:
-    resource:
-      - link: https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q1-update/+download/gcc-arm-none-eabi-5_3-2016q1-20160330-linux.tar.bz2
-      - file: ~/toolchain/gcc-arm-none-eabi-5_3-2016q1-20160330-linux.tar.bz2
-      - optional: false
+  directories:
+  - $HOME/toolchain
+
+sudo: false
 
 addons:
   apt_packages:
@@ -19,18 +18,15 @@ addons:
     - lib32ncurses5
     - lib32z1
   apt:
-    source:
+    sources:
       - george-edison55-precise-backports # cmake 3.2.3
     packages:
       - cmake
       - cmake-data
 
 install:
-  - mkdir toolchain
-  - cd toolchain
-  - wget https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q1-update/+download/gcc-arm-none-eabi-5_3-2016q1-20160330-linux.tar.bz2
-  - tar -xf gcc-arm-none-eabi-5_3-2016q1-20160330-linux.tar.bz2
-  - cd ..
+  - bash install-toolchain.sh
+  - ls $HOME/toolchain
 
 script:
   - mkdir build
