@@ -1,4 +1,4 @@
-language: cpp
+language: generic
 
 notifications:
   email: false
@@ -26,16 +26,21 @@ addons:
       - cmake
       - cmake-data
 
+env:
+  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Debug -DCHIBIOS_USE_LTO=0"
+  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Debug -DCHIBIOS_USE_LTO=1"
+  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Release -DCHIBIOS_USE_LTO=1"
+
 install:
-  - bash install-toolchain.sh
+  - bash travis/install-toolchain.sh
   - ls $HOME/toolchain
-  - bash install-eigen.sh
+  - bash travis/install-eigen.sh
   - ls $HOME/eigen
-  - bash install-boost.sh
+  - bash travis/install-boost.sh
   - ls $HOME/boost
 
 script:
   - mkdir build
   - cd build
-  - cmake -DBOOST_ROOT=$HOME/boost/boost_1_61_0 -DEIGEN3_INCLUDE_DIR=$HOME/eigen/eigen-eigen-07105f7124f9 -DTOOLCHAIN_DIR=$TRAVIS_BUILD_DIR/toolchain/gcc-arm-none-eabi-5_4-2016q2 -DCMAKE_TOOLCHAIN_FILE=../toolchain-gcc-arm-none-eabi-5_4-2016q2.cmake ..
+  - cmake $BUILD_TYPE -DBOOST_ROOT=$HOME/boost/boost_1_61_0 -DEIGEN3_INCLUDE_DIR=$HOME/eigen/eigen-eigen-07105f7124f9 -DTOOLCHAIN_DIR=$TRAVIS_BUILD_DIR/toolchain/gcc-arm-none-eabi-5_4-2016q2 -DCMAKE_TOOLCHAIN_FILE=../toolchain-gcc-arm-none-eabi-5_4-2016q2.cmake ..
   - make
