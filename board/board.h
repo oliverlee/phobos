@@ -58,6 +58,7 @@
 #define GPIOA_PIN2                  2U
 #define GPIOA_SPI1_ENC2_NSS         3U
 #define GPIOA_SPI1_ENC1_NSS         4U
+#define GPIOA_KOLLM_ACTL_TORQUE     4U
 #define GPIOA_SPI1_SCK              5U
 #define GPIOA_SPI1_MISO             6U
 #define GPIOA_SPI1_MOSI             7U
@@ -221,6 +222,7 @@
 #define LINE_TIM5_CH2               PAL_LINE(GPIOA, 1U)
 #define LINE_SPI1_ENC2_NSS          PAL_LINE(GPIOA, 3U)
 #define LINE_SPI1_ENC1_NSS          PAL_LINE(GPIOA, 4U)
+#define LINE_KOLLM_ACTL_TORQUE      PAL_LINE(GPIOA, 4U)
 #define LINE_SPI1_SCK               PAL_LINE(GPIOA, 5U)
 #define LINE_SPI1_MISO              PAL_LINE(GPIOA, 6U)
 #define LINE_SPI1_MOSI              PAL_LINE(GPIOA, 7U)

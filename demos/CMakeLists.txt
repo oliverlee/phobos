@@ -3,6 +3,11 @@ if(PHOBOS_BUILD_DEMO_ADC)
     add_subdirectory(adc)
 endif()
 
+option(PHOBOS_BUILD_DEMO_DAC "Build DAC demo" TRUE)
+if(PHOBOS_BUILD_DEMO_DAC)
+    add_subdirectory(dac)
+endif()
+
 option(PHOBOS_BUILD_DEMO_ENCODER "Build Encoder demo" TRUE)
 if(PHOBOS_BUILD_DEMO_ENCODER)
     add_subdirectory(encoder)
