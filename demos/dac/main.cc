@@ -92,7 +92,7 @@ int main(void) {
      */
     dacsample_t aout1 = 0;
     while (true) {
-        aout1 = (++aout1) % 4095;
+        aout1 = (aout1 + 1000) % 4095;
         dacPutChannelX(&DACD1, 0, aout1);
         if (SDU1.config->usbp->state == USB_ACTIVE) {
             chprintf((BaseSequentialStream*)&SDU1,
