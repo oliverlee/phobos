@@ -107,7 +107,7 @@
 #define GPIOC_SDIO_D3               11U /* cut trace at R27 for GPIOC_USB_DISC to enable */
 #define GPIOC_LED                   12U
 #define GPIOC_SDIO_SCK              12U /* open H405 SJ LED_E to enable */
-#define GPIOC_TORQUE_MEAS_NEN       13U
+#define GPIOC_TORQUE_MEAS_EN        13U
 #define GPIOC_OSC32_IN              14U
 #define GPIOC_OSC32_OUT             15U
 
@@ -270,7 +270,7 @@
 #define LINE_SDIO_D3                PAL_LINE(GPIOC, 11U) /* cut trace at R27 for GPIOC_USB_DISC to enable */
 #define LINE_LED                    PAL_LINE(GPIOC, 12U)
 #define LINE_SDIO_SCK               PAL_LINE(GPIOC, 12U) /* open H405 SJ LED_E to enable */
-#define LINE_TORQUE_MEAS_NEN        PAL_LINE(GPIOC, 13U)
+#define LINE_TORQUE_MEAS_EN         PAL_LINE(GPIOC, 13U)
 #define LINE_OSC32_IN               PAL_LINE(GPIOC, 14U)
 #define LINE_OSC32_OUT              PAL_LINE(GPIOC, 15U)
 
@@ -551,7 +551,7 @@
  * PC10 - SDIO_D2                   (input pullup - SDIO_D2 not enabled[alternate 12]).
  * PC11 - USB_DISC                  (output pushpull maximum - SDIO_D3 not enabled[alternate 12]).
  * PC12 - LED                       (output pushpull maximum - SDIO_SCK not enabled[alternate 12]).
- * PC13 - TORQUE_MEAS_NEN           (output pushpull maximum).
+ * PC13 - TORQUE_MEAS_EN            (output pushpull maximum).
  * PC14 - OSC32_IN                  (input floating).
  * PC15 - OSC32_OUT                 (input floating).
  */
@@ -568,7 +568,7 @@
                                      PIN_MODE_INPUT(GPIOC_SDIO_D2) |            \
                                      PIN_MODE_OUTPUT(GPIOC_USB_DISC) |          \
                                      PIN_MODE_OUTPUT(GPIOC_LED) |               \
-                                     PIN_MODE_OUTPUT(GPIOC_TORQUE_MEAS_NEN) |   \
+                                     PIN_MODE_OUTPUT(GPIOC_TORQUE_MEAS_EN) |    \
                                      PIN_MODE_INPUT(GPIOC_OSC32_IN) |           \
                                      PIN_MODE_INPUT(GPIOC_OSC32_OUT))
 #define VAL_GPIOC_OTYPER            (PIN_OTYPE_PUSHPULL(GPIOC_ADC10) |              \
@@ -584,7 +584,7 @@
                                      PIN_OTYPE_PUSHPULL(GPIOC_SDIO_D2) |            \
                                      PIN_OTYPE_PUSHPULL(GPIOC_USB_DISC) |           \
                                      PIN_OTYPE_PUSHPULL(GPIOC_LED) |                \
-                                     PIN_OTYPE_PUSHPULL(GPIOC_TORQUE_MEAS_NEN) |    \
+                                     PIN_OTYPE_PUSHPULL(GPIOC_TORQUE_MEAS_EN) |     \
                                      PIN_OTYPE_PUSHPULL(GPIOC_OSC32_IN) |           \
                                      PIN_OTYPE_PUSHPULL(GPIOC_OSC32_OUT))
 #define VAL_GPIOC_OSPEEDR           (PIN_OSPEED_HIGH(GPIOC_ADC10) |             \
@@ -600,7 +600,7 @@
                                      PIN_OSPEED_HIGH(GPIOC_SDIO_D2) |           \
                                      PIN_OSPEED_HIGH(GPIOC_USB_DISC) |          \
                                      PIN_OSPEED_HIGH(GPIOC_LED) |               \
-                                     PIN_OSPEED_HIGH(GPIOC_TORQUE_MEAS_NEN) |   \
+                                     PIN_OSPEED_HIGH(GPIOC_TORQUE_MEAS_EN) |    \
                                      PIN_OSPEED_HIGH(GPIOC_OSC32_IN) |          \
                                      PIN_OSPEED_HIGH(GPIOC_OSC32_OUT))
 #define VAL_GPIOC_PUPDR             (PIN_PUPDR_FLOATING(GPIOC_ADC10) |              \
@@ -616,7 +616,7 @@
                                      PIN_PUPDR_PULLUP(GPIOC_SDIO_D2) |              \
                                      PIN_PUPDR_FLOATING(GPIOC_USB_DISC) |           \
                                      PIN_PUPDR_FLOATING(GPIOC_LED) |                \
-                                     PIN_PUPDR_FLOATING(GPIOC_TORQUE_MEAS_NEN) |    \
+                                     PIN_PUPDR_FLOATING(GPIOC_TORQUE_MEAS_EN) |     \
                                      PIN_PUPDR_FLOATING(GPIOC_OSC32_IN) |           \
                                      PIN_PUPDR_FLOATING(GPIOC_OSC32_OUT))
 #define VAL_GPIOC_ODR               (PIN_ODR_HIGH(GPIOC_ADC10) |            \
@@ -632,7 +632,7 @@
                                      PIN_ODR_HIGH(GPIOC_SDIO_D2) |          \
                                      PIN_ODR_HIGH(GPIOC_USB_DISC) |         \
                                      PIN_ODR_HIGH(GPIOC_LED) |              \
-                                     PIN_ODR_HIGH(GPIOC_TORQUE_MEAS_NEN) |   \
+                                     PIN_ODR_HIGH(GPIOC_TORQUE_MEAS_EN) |   \
                                      PIN_ODR_HIGH(GPIOC_OSC32_IN) |         \
                                      PIN_ODR_HIGH(GPIOC_OSC32_OUT))
 #define VAL_GPIOC_AFRL              (PIN_AFIO_AF(GPIOC_ADC10, 0) |              \
@@ -648,7 +648,7 @@
                                      PIN_AFIO_AF(GPIOC_SDIO_D2, 0) |            \
                                      PIN_AFIO_AF(GPIOC_USB_DISC, 0) |           \
                                      PIN_AFIO_AF(GPIOC_LED, 0) |                \
-                                     PIN_AFIO_AF(GPIOC_TORQUE_MEAS_NEN, 0) |    \
+                                     PIN_AFIO_AF(GPIOC_TORQUE_MEAS_EN, 0) |     \
                                      PIN_AFIO_AF(GPIOC_OSC32_IN, 0) |           \
                                      PIN_AFIO_AF(GPIOC_OSC32_OUT, 0))
 
