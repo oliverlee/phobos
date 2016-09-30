@@ -128,14 +128,25 @@ int main(void) {
     analog.start(1000);
 
     /*
+     * Set torque measurement enable line low.
+     * The output of the Kistler torque sensor is not valid until after a falling edge
+     * on the measurement line and it is held low. The 'LINE_TORQUE_MEAS_EN' line is
+     * reversed due to NPN switch Q1.
+     */
+    palClearLine(LINE_TORQUE_MEAS_EN);
+    chThdSleepMilliseconds(1);
+    palSetLine(LINE_TORQUE_MEAS_EN);
+
+    /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
     rtcnt_t kalman_update_time = 0;
     while (true) {
-        u.setZero();
+        u.setZero(); /* set both roll and steer torques to zero */
+        /* pulse torque measure signal and read steer torque value */
         u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
-                max_kistler_torque); /* steer torque, read from torque sensor */
+                max_kistler_torque);
 
         /* set measurement vector */
         z[0] = x[0]; /* yaw angle, just use previous state value */
