@@ -130,7 +130,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder.start();
-    analog.start(1000);
+    analog.start(1000); /* trigger ADC conversion at 1 kHz */
 
     /*
      * Set torque measurement enable line low.
@@ -179,6 +179,8 @@ int main(void) {
         x[2] = wrap_angle(x[2]);
         kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
 
+        chprintf((BaseSequentialStream*)&SDU1,
+                "adc12 avg:\t%d\r\n", analog.get_adc12());
         chprintf((BaseSequentialStream*)&SDU1,
                 "sensors:\t%0.2f\t%0.2f\t%0.2f\r\n",
                 u[1], z[0], z[1]);
