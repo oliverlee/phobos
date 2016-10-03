@@ -59,6 +59,7 @@ namespace {
       * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
       * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
       */
+     const float max_kollmorgen_torque = 10.0f; /* maximum measured kollmorgen torque (1.00 Arms/V) */
 
      model::real_t wrap_angle(model::real_t angle) {
          /*
@@ -156,6 +157,9 @@ int main(void) {
         /* pulse torque measure signal and read steer torque value */
         u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
                 max_kistler_torque);
+        float motor_torque = static_cast<float>(
+                analog.get_adc13()*2.0f*max_kollmorgen_torque/4096 -
+                max_kollmorgen_torque);
 
         /* set measurement vector */
         z[0] = x[0]; /* yaw angle, just use previous state value */
@@ -186,8 +190,8 @@ int main(void) {
         chprintf((BaseSequentialStream*)&SDU1,
                 "encoder count:\t%d\r\n", encoder.count());
         chprintf((BaseSequentialStream*)&SDU1,
-                "sensors:\t%0.3f\t%0.3f\t%0.3f\r\n",
-                u[1], rad_to_deg(z[0]), rad_to_deg(z[1]));
+                "sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
+                u[1], motor_torque, rad_to_deg(z[0]), rad_to_deg(z[1]));
         chprintf((BaseSequentialStream*)&SDU1,
                 "state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 x[0], x[1], x[2], x[3], x[4]);
