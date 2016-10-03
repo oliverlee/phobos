@@ -53,7 +53,12 @@ namespace {
              152000, /* counts per revolution */
              EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
                                                      * for valid edge */
+
      const float max_kistler_torque = 25.0f; /* maximum measured steer torque */
+     /*
+      * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
+      * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
+      */
 
      model::real_t wrap_angle(model::real_t angle) {
          /*
