@@ -53,7 +53,12 @@ namespace {
              152000, /* counts per revolution */
              EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
                                                      * for valid edge */
+
      const float max_kistler_torque = 25.0f; /* maximum measured steer torque */
+     /*
+      * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
+      * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
+      */
 
      model::real_t wrap_angle(model::real_t angle) {
          /*
@@ -125,7 +130,17 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder.start();
-    analog.start(1000);
+    analog.start(1000); /* trigger ADC conversion at 1 kHz */
+
+    /*
+     * Set torque measurement enable line low.
+     * The output of the Kistler torque sensor is not valid until after a falling edge
+     * on the measurement line and it is held low. The 'LINE_TORQUE_MEAS_EN' line is
+     * reversed due to NPN switch Q1.
+     */
+    palClearLine(LINE_TORQUE_MEAS_EN);
+    chThdSleepMilliseconds(1);
+    palSetLine(LINE_TORQUE_MEAS_EN);
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -133,9 +148,10 @@ int main(void) {
      */
     rtcnt_t kalman_update_time = 0;
     while (true) {
-        u.setZero();
+        u.setZero(); /* set both roll and steer torques to zero */
+        /* pulse torque measure signal and read steer torque value */
         u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
-                max_kistler_torque); /* steer torque, read from torque sensor */
+                max_kistler_torque);
 
         /* set measurement vector */
         z[0] = x[0]; /* yaw angle, just use previous state value */
@@ -164,7 +180,9 @@ int main(void) {
         kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
 
         chprintf((BaseSequentialStream*)&SDU1,
-                "sensors:\t%0.2f\t%0.2f\t%0.2f\r\n",
+                "adc12 avg:\t%d\r\n", analog.get_adc12());
+        chprintf((BaseSequentialStream*)&SDU1,
+                "sensors:\t%0.3f\t%0.3f\t%0.3f\r\n",
                 u[1], z[0], z[1]);
         chprintf((BaseSequentialStream*)&SDU1,
                 "state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",

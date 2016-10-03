@@ -14,6 +14,10 @@ class Analog {
 
     private:
         enum sensor_t {ADC10=0, ADC11, ADC12};
-        static constexpr adc_channels_num_t m_adc_buffer_size = 3;
+        static constexpr adc_channels_num_t m_adc_num_channels = 3;
+        static constexpr adc_channels_num_t m_adc_buffer_depth = 5;
+        static constexpr adc_channels_num_t m_adc_buffer_size =
+            m_adc_num_channels * m_adc_buffer_depth;
         std::array<adcsample_t, m_adc_buffer_size> m_adc_buffer;
+        adcsample_t average_adc_conversion_value(sensor_t channel) const;
 };
