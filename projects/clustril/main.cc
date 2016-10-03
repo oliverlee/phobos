@@ -166,7 +166,7 @@ int main(void) {
         if (position > rev / 2) {
             position -= rev;
         }
-        z[1] = static_cast<float>(position) /
+        z[1] = static_cast<float>(position) / rev *
                 boost::math::constants::two_pi<float>();
 
         /* observer time/measurement update (~80 us with real_t = float) */
@@ -180,7 +180,7 @@ int main(void) {
         kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
 
         chprintf((BaseSequentialStream*)&SDU1,
-                "adc12 avg:\t%d\r\n", analog.get_adc12());
+                "encoder count:\t%d\r\n", encoder.count());
         chprintf((BaseSequentialStream*)&SDU1,
                 "sensors:\t%0.3f\t%0.3f\t%0.3f\r\n",
                 u[1], z[0], z[1]);
