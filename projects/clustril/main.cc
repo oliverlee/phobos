@@ -73,6 +73,10 @@ namespace {
         }
         return angle;
      }
+
+     float rad_to_deg(float angle) {
+         return angle * 360 / boost::math::constants::two_pi<float>();
+     }
 } // namespace
 
 /*
@@ -183,7 +187,7 @@ int main(void) {
                 "encoder count:\t%d\r\n", encoder.count());
         chprintf((BaseSequentialStream*)&SDU1,
                 "sensors:\t%0.3f\t%0.3f\t%0.3f\r\n",
-                u[1], z[0], z[1]);
+                u[1], rad_to_deg(z[0]), rad_to_deg(z[1]));
         chprintf((BaseSequentialStream*)&SDU1,
                 "state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 x[0], x[1], x[2], x[3], x[4]);
