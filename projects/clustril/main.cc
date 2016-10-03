@@ -182,7 +182,7 @@ int main(void) {
         chprintf((BaseSequentialStream*)&SDU1,
                 "adc12 avg:\t%d\r\n", analog.get_adc12());
         chprintf((BaseSequentialStream*)&SDU1,
-                "sensors:\t%0.2f\t%0.2f\t%0.2f\r\n",
+                "sensors:\t%0.3f\t%0.3f\t%0.3f\r\n",
                 u[1], z[0], z[1]);
         chprintf((BaseSequentialStream*)&SDU1,
                 "state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
