@@ -59,13 +59,18 @@ namespace {
       * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
       * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
       */
-     const float max_kollmorgen_torque = 10.0f; /* maximum measured kollmorgen torque (1.00 Arms/V) */
+     const float max_kollmorgen_torque = 10.0f; /* max torque at 1.00 Arms/V */
 
-     model::real_t wrap_angle(model::real_t angle) {
-         /*
-          * Angle magnitude is assumed to small enough to NOT require multiple
-          * additions/subtractions of 2pi.
-          */
+    const DACConfig dac1cfg1 = {
+        .init       = 2047U, // max value is 4095 (12-bit)
+        .datamode   = DAC_DHRM_12BIT_RIGHT
+    };
+
+    model::real_t wrap_angle(model::real_t angle) {
+        /*
+         * Angle magnitude is assumed to small enough to NOT require multiple
+         * additions/subtractions of 2pi.
+         */
         if (angle >= boost::math::constants::pi<float>()) {
             angle -= boost::math::constants::two_pi<float>();
         }
@@ -73,7 +78,7 @@ namespace {
             angle += boost::math::constants::two_pi<float>();
         }
         return angle;
-     }
+    }
 
      float rad_to_deg(float angle) {
          return angle * 360 / boost::math::constants::two_pi<float>();
@@ -96,13 +101,13 @@ int main(void) {
     chSysInit();
 
     /*
-     * Initializes a serial-over-USB CDC driver.
+     * Initialize a serial-over-USB CDC driver.
      */
     sduObjectInit(&SDU1);
     sduStart(&SDU1, &serusbcfg);
 
     /*
-     * Activates the USB driver and then the USB bus pull-up on D+.
+     * Activate the USB driver and then the USB bus pull-up on D+.
      * Note, a delay is inserted in order to not have to disconnect the cable
      * after a reset.
      */
@@ -111,21 +116,8 @@ int main(void) {
     usbStart(serusbcfg.usbp, &usbcfg);
     board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
-    /* create the example thread */
+    /* create the blink thread */
     chBlinkThreadCreateStatic();
-
-    /* initialize bicycle model and states */
-    model::Bicycle bicycle(v0, dt);
-    x.setZero();
-
-    /* initialize Kalman filter */
-    kalman_t kalman(bicycle,
-            parameters::defaultvalue::kalman::Q(dt), /* process noise cov */
-            (kalman_t::measurement_noise_covariance_t() <<
-             sigma0,      0,
-                  0, sigma1).finished(),
-            bicycle_t::state_t::Zero(), /* set initial state estimate to zero */
-            std::pow(x[1]/2, 2) * bicycle_t::state_matrix_t::Identity()); /* error cov */
 
     /*
      * Start sensors.
@@ -148,13 +140,33 @@ int main(void) {
     palSetLine(LINE_TORQUE_MEAS_EN);
 
     /*
+     * Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
+     * The default line configuration is OUTPUT_OPENDRAIN_PULLUP  for SPI1_ENC1_NSS
+     * and must be changed to use as analog output.
+     */
+    palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
+    dacStart(&DACD1, &dac1cfg1);
+
+    /* initialize bicycle model and states */
+    model::Bicycle bicycle(v0, dt);
+    x.setZero();
+
+    /* initialize Kalman filter */
+    kalman_t kalman(bicycle,
+            parameters::defaultvalue::kalman::Q(dt), /* process noise cov */
+            (kalman_t::measurement_noise_covariance_t() <<
+             sigma0,      0,
+                  0, sigma1).finished(),
+            bicycle_t::state_t::Zero(), /* set initial state estimate to zero */
+            std::pow(x[1]/2, 2) * bicycle_t::state_matrix_t::Identity()); /* error cov */
+
+    /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
     rtcnt_t kalman_update_time = 0;
     while (true) {
         u.setZero(); /* set both roll and steer torques to zero */
-        /* pulse torque measure signal and read steer torque value */
         u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
                 max_kistler_torque);
         float motor_torque = static_cast<float>(
@@ -187,8 +199,16 @@ int main(void) {
         x[2] = wrap_angle(x[2]);
         kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
 
+        /* generate an example torque output for testing */
+        float torque = 10.0f * std::sin(
+                boost::math::constants::two_pi<float>() *
+                ST2S(static_cast<float>(chVTGetSystemTime())));
+        dacsample_t aout = static_cast<dacsample_t>(
+                (torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
+        dacPutChannelX(&DACD1, 0, aout);
+
         chprintf((BaseSequentialStream*)&SDU1,
-                "encoder count:\t%d\r\n", encoder.count());
+                "DAC output:\t%d\r\n", aout);
         chprintf((BaseSequentialStream*)&SDU1,
                 "sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
                 u[1], motor_torque, rad_to_deg(z[0]), rad_to_deg(z[1]));
