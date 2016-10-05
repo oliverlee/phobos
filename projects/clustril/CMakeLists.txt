@@ -11,6 +11,8 @@ include_directories(${Boost_INCLUDE_DIR})
 add_definitions("-DEIGEN_NO_MALLOC")
 # Allow printing of float types
 add_definitions("-DCHPRINTF_USE_FLOAT")
+# use static simulator configurations
+add_definitions("-DSTATIC_SIMULATOR_CONFIG")
 
 # Disable narrowing warning ('int' to 'uint32_t') as the original datatype for
 # input to ADC_SQR1_NUM_CH() macro is 'uint16_t' and is cast to 'int'.

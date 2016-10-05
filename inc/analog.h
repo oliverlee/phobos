@@ -10,11 +10,18 @@ class Analog {
         adcsample_t get_adc10() const;
         adcsample_t get_adc11() const;
         adcsample_t get_adc12() const;
+        adcsample_t get_adc13() const;
         static adc_channels_num_t buffer_size();
 
     private:
-        enum sensor_t {ADC10=0, ADC11, ADC12};
+        enum sensor_t: uint8_t {ADC10=0, ADC11, ADC12, ADC13};
+#ifdef STATIC_SIMULATOR_CONFIG
+        /* use channels ADC12, ADC13 */
+        static constexpr adc_channels_num_t m_adc_num_channels = 2;
+#else // STATIC_SIMULATOR_CONFIG
+        /* use channels ADC10, ADC11, ADC12 */
         static constexpr adc_channels_num_t m_adc_num_channels = 3;
+#endif // STATIC_SIMULATOR_CONFIG
         static constexpr adc_channels_num_t m_adc_buffer_depth = 5;
         static constexpr adc_channels_num_t m_adc_buffer_size =
             m_adc_num_channels * m_adc_buffer_depth;
