@@ -16,10 +16,11 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "chprintf.h"
 
 #include "blink.h"
 #include "usbconfig.h"
+#include "printf.h"
+
 #include "encoder.h"
 
 namespace {
@@ -54,7 +55,7 @@ static THD_FUNCTION(SerialThread, arg) {
 
     while (true) {
         if (SDU1.config->usbp->state == USB_ACTIVE) {
-            chprintf((BaseSequentialStream*)&SDU1, "%d\r\n", encoder.count());
+            printf("%d\r\n", encoder.count());
         }
         chThdSleep(loop_time);
     }

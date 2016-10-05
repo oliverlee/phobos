@@ -17,9 +17,9 @@
 #include <array>
 #include "ch.h"
 #include "hal.h"
-#include "chprintf.h"
 
 #include "blink.h"
+#include "printf.h"
 #include "usbconfig.h"
 
 /*
@@ -111,12 +111,10 @@ static THD_FUNCTION(SerialThread, arg) {
 
         if (SDU1.config->usbp->state == USB_ACTIVE) {
             if (flags & adc_eventflag_error) {
-                chprintf((BaseSequentialStream*)&SDU1,
-                        "ERROR in ADC conversion.\r\n");
+                printf("ERROR in ADC conversion.\r\n");
             }
             if (flags & adc_eventflag_complete) {
-                chprintf((BaseSequentialStream*)&SDU1,
-                        "%d\t%d\t%d\r\n",
+                printf("%d\t%d\t%d\r\n",
                         adc_buffer[0],
                         adc_buffer[1],
                         adc_buffer[2]);

@@ -17,10 +17,10 @@
 #include <Eigen/Core>
 #include "ch.h"
 #include "hal.h"
-#include "chprintf.h"
 
 #include "blink.h"
 #include "usbconfig.h"
+#include "printf.h"
 
 namespace {
     using real_t = float;
@@ -104,18 +104,17 @@ int main(void) {
          * Transmit loop time and matrix values.
          */
         if (SDU1.config->usbp->state == USB_ACTIVE || SDU1.state == SDU_READY) {
-            chprintf((BaseSequentialStream*)&SDU1,
-                    "iteration %d: %d us\r\n", ++i, RTC2US(STM32_SYSCLK, dt));
+            printf("iteration %d: %d us\r\n", ++i, RTC2US(STM32_SYSCLK, dt));
             real_t* data = B.data();
             for (int i = 0; i < B.size(); ++i) {
-                chprintf((BaseSequentialStream*)&SDU1, "%0.2f", *data++);
+                printf("%0.2f", *data++);
                 if ((i % 4) == 3) {
-                    chprintf((BaseSequentialStream*)&SDU1, "\r\n");
+                    printf("\r\n");
                 } else {
-                    chprintf((BaseSequentialStream*)&SDU1, ", ");
+                    printf(", ");
                 }
             }
-            chprintf((BaseSequentialStream*)&SDU1, "\r\n");
+            printf("\r\n");
         }
         dt = chSysGetRealtimeCounterX() - start;
 
@@ -136,9 +135,8 @@ int main(void) {
          * If deadline missed, wait until button is pressed before continuing.
          */
         if (miss) {
-            chprintf((BaseSequentialStream*)&SDU1,
-                    "loop time was: %d us\r\n", RTC2US(STM32_SYSCLK, dt));
-            chprintf((BaseSequentialStream*)&SDU1, "Press button to continue.\r\n");
+            printf("loop time was: %d us\r\n", RTC2US(STM32_SYSCLK, dt));
+            printf("Press button to continue.\r\n");
             while (palReadLine(LINE_BUTTON)) { /* Button is active LOW. */
                 chThdSleepMilliseconds(10);
             }

@@ -16,10 +16,10 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "chprintf.h"
 
 #include "usbconfig.h"
 #include "blink.h"
+#include "printf.h"
 
 #include "bicycle.h"
 #include "kalman.h"
@@ -141,8 +141,7 @@ int main(void) {
         aux_hat = bicycle.x_aux_next(x_hat, aux_hat);
         aux_update_time = chSysGetRealtimeCounterX() - aux_update_time;
 
-        chprintf((BaseSequentialStream*)&SDU1,
-                "error:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
+        printf("error:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 aux_hat[0] - aux[0],
                 aux_hat[1] - aux[1],
                 aux_hat[2] - aux[2],
@@ -151,14 +150,11 @@ int main(void) {
                 x_hat[2] - x[2],
                 x_hat[3] - x[3],
                 x_hat[4] - x[4]);
-        chprintf((BaseSequentialStream*)&SDU1,
-                "state update time: %d us\r\n",
+        printf("state update time: %d us\r\n",
                 RTC2US(STM32_SYSCLK, state_update_time));
-        chprintf((BaseSequentialStream*)&SDU1,
-                "kalman update time: %d us\r\n",
+        printf("kalman update time: %d us\r\n",
                 RTC2US(STM32_SYSCLK, kalman_update_time));
-        chprintf((BaseSequentialStream*)&SDU1,
-                "aux update time: %d us\r\n",
+        printf("aux update time: %d us\r\n",
                 RTC2US(STM32_SYSCLK, aux_update_time));
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
