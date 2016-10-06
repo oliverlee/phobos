@@ -27,8 +27,7 @@ add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=FALSE")
 
 # get git sha1 https://stackoverflow.com/questions/1435953/how-can-i-pass-git-sha1-to-compiler-as-definition-using-cmake
 include(GetGitRevisionDescription)
-get_git_head_revision(GIT_REFSPEC GIT_SHA1)
-add_definitions("-DGITSHA1=${GIT_SHA1}")
+get_git_head_revision(GIT_REFSPEC GITSHA1)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 
