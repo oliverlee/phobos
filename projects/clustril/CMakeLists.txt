@@ -26,6 +26,8 @@ add_phobos_executable(clustril
     halconf.h
     mcuconf.h
     main.cc
+    printstate.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
+    ${PHOBOS_SOURCE_DIR}/src/extconfig.cc
     ${BICYCLE_SOURCE})

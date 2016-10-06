@@ -1,6 +1,7 @@
 #include "analog.h"
 #include "ch.h"
 #include <array>
+#include <type_traits>
 
 /*
  * ADC configuration options (set in halconf.h)
