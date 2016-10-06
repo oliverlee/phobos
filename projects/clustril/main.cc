@@ -220,7 +220,7 @@ int main(void) {
         printst_t s = getPrintState();
         if (s == printst_t::VERSION) {
             if (print_version_string) {
-                printf("Running firmware version %s\r\n", g_GITSHA1);
+                printf("Running firmware version %.7s\r\n", g_GITSHA1);
                 print_version_string = false;
             }
         } else if (s == printst_t::NORMAL) {
