@@ -20,6 +20,7 @@
 #include "blink.h"
 #include "usbconfig.h"
 #include "printf.h"
+#include "gitsha1.h"
 
 #include "bicycle.h"
 #include "kalman.h"
@@ -219,7 +220,7 @@ int main(void) {
         printst_t s = getPrintState();
         if (s == printst_t::VERSION) {
             if (print_version_string) {
-                printf("VERSION STRING\r\n");
+                printf("Running firmware version %s\r\n", g_GITSHA1);
                 print_version_string = false;
             }
         } else if (s == printst_t::NORMAL) {
