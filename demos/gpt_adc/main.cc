@@ -17,10 +17,10 @@
 #include <array>
 #include "ch.h"
 #include "hal.h"
-#include "chprintf.h"
 
 #include "blink.h"
 #include "usbconfig.h"
+#include "printf.h"
 
 namespace {
     thread_t* main_thread;
@@ -141,12 +141,10 @@ int main(void) {
 
         if (SDU1.config->usbp->state == USB_ACTIVE) {
             if (evt & adc_eventmask_error) {
-                chprintf((BaseSequentialStream*)&SDU1,
-                        "ERROR in ADC conversion.\r\n");
+                printf("ERROR in ADC conversion.\r\n");
             }
             if (evt & adc_eventmask_complete) {
-                chprintf((BaseSequentialStream*)&SDU1,
-                        "%d\t%d\t%d\r\n",
+                printf("%d\t%d\t%d\r\n",
                         adc_buffer[0],
                         adc_buffer[1],
                         adc_buffer[2]);

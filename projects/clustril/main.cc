@@ -16,10 +16,11 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "chprintf.h"
 
 #include "blink.h"
 #include "usbconfig.h"
+#include "printf.h"
+
 #include "bicycle.h"
 #include "kalman.h"
 #include "parameters.h"
@@ -29,6 +30,7 @@
 #include <boost/math/constants/constants.hpp>
 
 #include <type_traits>
+
 
 namespace {
     using bicycle_t = model::Bicycle;
@@ -207,16 +209,12 @@ int main(void) {
                 (torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(&DACD1, 0, aout);
 
-        chprintf((BaseSequentialStream*)&SDU1,
-                "DAC output:\t%d\r\n", aout);
-        chprintf((BaseSequentialStream*)&SDU1,
-                "sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
+        printf("DAC output:\t%d\r\n", aout);
+        printf("sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
                 u[1], motor_torque, rad_to_deg(z[0]), rad_to_deg(z[1]));
-        chprintf((BaseSequentialStream*)&SDU1,
-                "state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
+        printf("state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 x[0], x[1], x[2], x[3], x[4]);
-        chprintf((BaseSequentialStream*)&SDU1,
-                "kalman update time: %d us\r\n",
+        printf("kalman update time: %U us\r\n",
                 RTC2US(STM32_SYSCLK, kalman_update_time));
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }

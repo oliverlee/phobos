@@ -16,10 +16,11 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "chprintf.h"
 
 #include "blink.h"
 #include "usbconfig.h"
+#include "printf.h"
+
 #include "tsencoder.h"
 
 namespace {
@@ -57,11 +58,11 @@ namespace {
             if (SDU1.config->usbp->state == USB_ACTIVE) {
                 encoder.update_polynomial_fit();
                 encoder.update_estimate_time(chSysGetRealtimeCounterX());
-                chprintf((BaseSequentialStream*)&SDU1, "%0.2f\tindex: ", encoder.position());
+                printf("%0.2f\tindex: ", encoder.position());
                 if (encoder.index() == encoder_t::index_t::FOUND) {
-                    chprintf((BaseSequentialStream*)&SDU1, "FOUND\r\n");
+                    printf("FOUND\r\n");
                 } else {
-                    chprintf((BaseSequentialStream*)&SDU1, "NOTFOUND\r\n");
+                    printf("NOTFOUND\r\n");
                 }
             }
             chThdSleep(loop_time);

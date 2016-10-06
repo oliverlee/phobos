@@ -16,11 +16,11 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "chprintf.h"
 
 #include "blink.h"
 #include "usbconfig.h"
 #include "encoder.h"
+#include "printf.h"
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
@@ -53,11 +53,11 @@ static THD_FUNCTION(SerialThread, arg) {
 
     while (true) {
         if (SDU1.config->usbp->state == USB_ACTIVE) {
-            chprintf((BaseSequentialStream*)&SDU1, "%d\tindex: ", encoder.count());
+            printf("%d\tindex: ", encoder.count());
             if (encoder.index() == Encoder::index_t::FOUND) {
-                chprintf((BaseSequentialStream*)&SDU1, "FOUND\r\n");
+                printf("FOUND\r\n");
             } else {
-                chprintf((BaseSequentialStream*)&SDU1, "NOTFOUND\r\n");
+                printf("NOTFOUND\r\n");
             }
         }
         chThdSleep(loop_time);

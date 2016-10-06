@@ -16,10 +16,10 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "chprintf.h"
 
 #include "blink.h"
 #include "usbconfig.h"
+#include "printf.h"
 
 /*
  * DAC configuration options (set in halconf.h)
@@ -95,8 +95,7 @@ int main(void) {
         aout1 = (aout1 + 1000) % 4095;
         dacPutChannelX(&DACD1, 0, aout1);
         if (SDU1.config->usbp->state == USB_ACTIVE) {
-            chprintf((BaseSequentialStream*)&SDU1,
-                    "dac: %d\r\n", aout1);
+            printf("dac: %d\r\n", aout1);
         }
         chThdSleep(loop_time);
     }
