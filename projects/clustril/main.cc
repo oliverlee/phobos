@@ -123,20 +123,23 @@ int main(void) {
 
     /* create the blink thread and print state monitor */
     chBlinkThreadCreateStatic();
-    /* NOTE: The GPIOA_BUTTON pin MUST be removed from the PCB as it is held low by U4 */
-    enablePrintStateMonitor();
+    /*
+     * Use LINE_TIM4_CH2 (PB7, EXT1-15, J4-B) as a button by
+     * connecting/disconnecting it to ground.
+     * */
+    palSetLineMode(LINE_TIM4_CH2, PAL_MODE_INPUT_PULLUP);
+    enablePrintStateMonitor(LINE_TIM4_CH2);
 
     /*
      * Start sensors.
      * Encoder:
      *   Initialize encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
      */
-    // FIXME: Encoder is disabled as CH1 uses the same line as GPIOA_BUTTON.
-    // Switch encoder to TIM1, TIM4, TIM8? Need a 32B timer.
-    //palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
-    //palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
-    //encoder.start();
+    palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
+    palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
+    encoder.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
+
 
     /*
      * Set torque measurement enable line low.
@@ -224,7 +227,7 @@ int main(void) {
                 print_version_string = false;
             }
         } else if (s == printst_t::NORMAL) {
-            printf("DAC output:\t%d\r\n", aout);
+            printf("encoder count:\t%u\r\n", encoder.count());
             printf("sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
                     u[1], motor_torque, rad_to_deg(z[0]), rad_to_deg(z[1]));
             printf("state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",

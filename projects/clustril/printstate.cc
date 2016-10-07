@@ -23,13 +23,13 @@ namespace {
     }
 } // namespace
 
-void enablePrintStateMonitor() {
+void enablePrintStateMonitor(ioline_t line) {
     osalDbgAssert((extp->state == EXT_STOP) || (extp->state == EXT_ACTIVE),
             "invalid state");
     if (extp->state == EXT_STOP) {
         extStartI(extp);
     }
-    extChannelEnableSetModeI(extp, LINE_BUTTON, EXT_CH_MODE_FALLING_EDGE, /* button is active low */
+    extChannelEnableSetModeI(extp, line, EXT_CH_MODE_FALLING_EDGE,
             monitor_callback, nullptr);
 }
 
