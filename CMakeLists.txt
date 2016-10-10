@@ -17,12 +17,17 @@ set(CMAKE_MODULE_PATH
     ${PROJECT_SOURCE_DIR}/cmake/modules
     ${PROJECT_SOURCE_DIR}/external/bicycle/cmake/modules)
 message(STATUS "Using CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
+
 set(BICYCLE_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/src)
 set(BICYCLE_SOURCE
     ${BICYCLE_SOURCE_DIR}/bicycle.cc
     ${BICYCLE_SOURCE_DIR}/parameters.cc)
 set(BICYCLE_INCLUDE_DIR ${BICYCLE_SOURCE_DIR} ${BICYCLE_SOURCE_DIR}/../inc)
 add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=FALSE")
+
+# get git sha1 https://stackoverflow.com/questions/1435953/how-can-i-pass-git-sha1-to-compiler-as-definition-using-cmake
+include(GetGitRevisionDescription)
+get_git_head_revision(GIT_REFSPEC GITSHA1)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 

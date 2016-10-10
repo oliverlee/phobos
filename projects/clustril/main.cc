@@ -20,6 +20,7 @@
 #include "blink.h"
 #include "usbconfig.h"
 #include "printf.h"
+#include "gitsha1.h"
 
 #include "bicycle.h"
 #include "kalman.h"
@@ -28,6 +29,8 @@
 #include "analog.h"
 #include "encoder.h"
 #include <boost/math/constants/constants.hpp>
+
+#include "printstate.h"
 
 #include <type_traits>
 
@@ -118,8 +121,14 @@ int main(void) {
     usbStart(serusbcfg.usbp, &usbcfg);
     board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
-    /* create the blink thread */
+    /* create the blink thread and print state monitor */
     chBlinkThreadCreateStatic();
+    /*
+     * Use LINE_TIM4_CH2 (PB7, EXT1-15, J4-B) as a button by
+     * connecting/disconnecting it to ground.
+     * */
+    palSetLineMode(LINE_TIM4_CH2, PAL_MODE_INPUT_PULLUP);
+    enablePrintStateMonitor(LINE_TIM4_CH2);
 
     /*
      * Start sensors.
@@ -130,6 +139,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
+
 
     /*
      * Set torque measurement enable line low.
@@ -167,6 +177,7 @@ int main(void) {
      * dynamics in real-time (roughly).
      */
     rtcnt_t kalman_update_time = 0;
+    bool print_version_string;
     while (true) {
         u.setZero(); /* set both roll and steer torques to zero */
         u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
@@ -209,13 +220,24 @@ int main(void) {
                 (torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(&DACD1, 0, aout);
 
-        printf("DAC output:\t%d\r\n", aout);
-        printf("sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
-                u[1], motor_torque, rad_to_deg(z[0]), rad_to_deg(z[1]));
-        printf("state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
-                x[0], x[1], x[2], x[3], x[4]);
-        printf("kalman update time: %U us\r\n",
-                RTC2US(STM32_SYSCLK, kalman_update_time));
+        printst_t s = getPrintState();
+        if (s == printst_t::VERSION) {
+            if (print_version_string) {
+                printf("Running firmware version %.7s\r\n", g_GITSHA1);
+                print_version_string = false;
+            }
+        } else if (s == printst_t::NORMAL) {
+            printf("encoder count:\t%u\r\n", encoder.count());
+            printf("sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
+                    u[1], motor_torque, rad_to_deg(z[0]), rad_to_deg(z[1]));
+            printf("state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
+                    x[0], x[1], x[2], x[3], x[4]);
+            printf("kalman update time: %U us\r\n",
+                    RTC2US(STM32_SYSCLK, kalman_update_time));
+        } else if (s == printst_t::NONE) {
+            /* reset printing of version string */
+            print_version_string = true;
+        }
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
 }

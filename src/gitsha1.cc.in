@@ -1,0 +1,4 @@
+#include "gitsha1.h"
+
+#cmakedefine GITSHA1 "@GITSHA1@"
+const char g_GITSHA1[] = GITSHA1;
