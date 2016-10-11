@@ -1,0 +1,22 @@
+syntax = "proto2";
+import "nanopb.proto";
+
+// message type for stm32 -> Unity communication
+message ClustrilDatum {
+    required uint32 timestamp = 1;
+    optional string firmware_version = 2 [(nanopb).max_size = 7];
+    optional BicyclePose pose = 3;
+    // TODO: add other values here when writing to file
+    // can use variable-length encoding types to reduce file size
+}
+
+message BicyclePose {
+    required uint32 timestamp = 1;
+    required float x = 2;
+    required float y = 3;
+    required float yaw = 4;
+    required float roll = 5;
+    //required float pitch; TODO: skip this for now
+    required float steer = 6;
+}
+
