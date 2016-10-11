@@ -31,6 +31,8 @@
 #include <boost/math/constants/constants.hpp>
 
 #include "printstate.h"
+#include "packet/serialize.h"
+#include "packet/framing.h"
 
 #include <type_traits>
 
@@ -85,6 +87,9 @@ namespace {
      float rad_to_deg(float angle) {
          return angle * 360 / boost::math::constants::two_pi<float>();
      }
+
+     std::array<uint8_t, BicyclePose_size> encode_buffer;
+     std::array<uint8_t, BicyclePose_size + 1> frame_buffer;
 } // namespace
 
 /*
@@ -176,6 +181,7 @@ int main(void) {
     rtcnt_t kalman_update_time = 0;
     bool print_version_string;
     u.setZero(); /* set both roll and steer torques to zero */
+    BicyclePose pose = BicyclePose_init_zero;
     while (true) {
         u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
                 max_kistler_torque);
@@ -217,6 +223,16 @@ int main(void) {
                 (torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(&DACD1, 0, aout);
 
+        uint8_t bytes_written;
+        pose.x = 1;
+        pose.y = 2;
+        pose.yaw = x[0];
+        pose.roll = x[1];
+        pose.steer = x[2];
+        bytes_written = packet::serialize::encode_bicycle_pose(pose,
+                encode_buffer.data(), encode_buffer.size());
+        packet::framing::stuff(encode_buffer.data(), frame_buffer.data(), bytes_written);
+
         printst_t s = getPrintState();
         if (s == printst_t::VERSION) {
             if (print_version_string) {
@@ -224,13 +240,23 @@ int main(void) {
                 print_version_string = false;
             }
         } else if (s == printst_t::NORMAL) {
-            printf("encoder count:\t%u\r\n", encoder.count());
-            printf("sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
-                    u[1], motor_torque, rad_to_deg(z[0]), rad_to_deg(z[1]));
-            printf("state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
-                    rad_to_deg(x[0]), rad_to_deg(x[1]), rad_to_deg(x[2]), rad_to_deg(x[3]), rad_to_deg(x[4]));
-            printf("kalman update time: %U us\r\n",
-                    RTC2US(STM32_SYSCLK, kalman_update_time));
+            packet::framing::unstuff(frame_buffer.data(), encode_buffer.data(), encode_buffer.size());
+            if (packet::serialize::decode_bicycle_pose(encode_buffer.data(), &pose, bytes_written)) {
+                printf("bicycle pose:\r\n\
+                        \tx:\t%0.3f\r\n\
+                        \ty:\t%0.3f\r\n\
+                        \tyaw:\t%0.3f\r\n\
+                        \troll:\t%0.3f\r\n\
+                        \tsteer:\t%0.3f\r\n",
+                        pose.x, pose.y, pose.yaw, pose.roll, pose.steer);
+            }
+            //printf("encoder count:\t%u\r\n", encoder.count());
+            //printf("sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
+            //        u[1], motor_torque, rad_to_deg(z[0]), rad_to_deg(z[1]));
+            //printf("state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
+            //        rad_to_deg(x[0]), rad_to_deg(x[1]), rad_to_deg(x[2]), rad_to_deg(x[3]), rad_to_deg(x[4]));
+            //printf("kalman update time: %U us\r\n",
+            //        RTC2US(STM32_SYSCLK, kalman_update_time));
         } else if (s == printst_t::NONE) {
             /* reset printing of version string */
             print_version_string = true;
