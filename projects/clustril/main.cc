@@ -28,11 +28,11 @@
 
 #include "analog.h"
 #include "encoder.h"
-#include <boost/math/constants/constants.hpp>
 
 #include "printstate.h"
 #include "packet/serialize.h"
 #include "packet/framing.h"
+#include "angle.h"
 
 #include "messages.pb.h"
 
@@ -72,21 +72,6 @@ namespace {
         .init       = 2047U, // max value is 4095 (12-bit)
         .datamode   = DAC_DHRM_12BIT_RIGHT
     };
-
-    model::real_t wrap_angle(model::real_t angle) {
-        model::real_t a = std::fmod(angle, boost::math::constants::two_pi<model::real_t>());
-        if (a >= boost::math::constants::pi<model::real_t>()) {
-            a -= boost::math::constants::two_pi<model::real_t>();
-        }
-        if (a < -boost::math::constants::pi<model::real_t>()) {
-            a += boost::math::constants::two_pi<model::real_t>();
-        }
-        return a;
-    }
-
-     float rad_to_deg(float angle) {
-         return angle * 360 / boost::math::constants::two_pi<float>();
-     }
 
      std::array<uint8_t, BicyclePose_size> encode_buffer;
      std::array<uint8_t, BicyclePose_size + 1> frame_buffer;
@@ -194,7 +179,7 @@ int main(void) {
         //        max_kollmorgen_torque);
 
         /* set measurement vector */
-        z[0] = wrap_angle(x[0]); /* yaw angle, just use previous state value */
+        z[0] = angle::wrap(x[0]); /* yaw angle, just use previous state value */
 
         /*
          * Steer angle, read from encoder (enccnt_t is uint32_t)
@@ -206,22 +191,20 @@ int main(void) {
         if (position > rev / 2) {
             position -= rev;
         }
-        z[1] = static_cast<float>(position) / rev *
-                boost::math::constants::two_pi<float>();
+        z[1] = static_cast<float>(position) / rev * constants::two_pi;
 
         /* observer time/measurement update (~80 us with real_t = float) */
         kalman_update_time = chSysGetRealtimeCounterX();
         kalman.time_update(u);
         kalman.measurement_update(z);
         x = kalman.x();
-        x[0] = wrap_angle(x[0]);
-        x[1] = wrap_angle(x[1]);
-        x[2] = wrap_angle(x[2]);
+        x[0] = angle::wrap(x[0]);
+        x[1] = angle::wrap(x[1]);
+        x[2] = angle::wrap(x[2]);
         x_aux = bicycle.x_aux_next(x, x_aux);
 
         /* generate an example torque output for testing */
-        float torque = 10.0f * std::sin(
-                boost::math::constants::two_pi<float>() *
+        float torque = 10.0f * std::sin(constants::two_pi *
                 ST2S(static_cast<float>(chVTGetSystemTime())));
         dacsample_t aout = static_cast<dacsample_t>(
                 (torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
@@ -259,7 +242,9 @@ int main(void) {
                 printf("\tyaw:\t%0.3f deg\r\n"
                         "\troll:\t%0.3f deg\r\n"
                         "\tsteer:\t%0.3f deg\r\n",
-                        rad_to_deg(pose.yaw), rad_to_deg(pose.roll), rad_to_deg(pose.steer));
+                        pose.yaw*constants::as_degrees,
+                        pose.roll*constants::as_degrees,
+                        pose.steer*constants::as_degrees);
                 printf("computation time: %U us\r\n",
                         RTC2US(STM32_SYSCLK, kalman_update_time));
             }
