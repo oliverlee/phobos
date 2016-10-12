@@ -46,7 +46,7 @@ void stuff(const uint8_t* source, uint8_t* dest, uint8_t length) {
 void unstuff(const uint8_t* source, uint8_t* dest, uint8_t length) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
-    osalDbgAssert(length <= COBS_MAX_SIZE_DATA_SET + 1, "invalid data length");
+    // osalDbgAssert(length <= COBS_MAX_SIZE_DATA_SET + 1, "invalid data length"); always true due to data type
 
     const uint8_t* end = source + length;
     while (source < end) {

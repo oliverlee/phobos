@@ -179,15 +179,15 @@ int main(void) {
      * dynamics in real-time (roughly).
      */
     rtcnt_t kalman_update_time = 0;
-    bool print_version_string;
+    bool print_version_string = true;
     u.setZero(); /* set both roll and steer torques to zero */
     BicyclePose pose = BicyclePose_init_zero;
     while (true) {
         u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
                 max_kistler_torque);
-        float motor_torque = static_cast<float>(
-                analog.get_adc13()*2.0f*max_kollmorgen_torque/4096 -
-                max_kollmorgen_torque);
+        //float motor_torque = static_cast<float>(
+        //        analog.get_adc13()*2.0f*max_kollmorgen_torque/4096 -
+        //        max_kollmorgen_torque);
 
         /* set measurement vector */
         z[0] = wrap_angle(x[0]); /* yaw angle, just use previous state value */
