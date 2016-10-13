@@ -11,6 +11,7 @@ cache:
   - $HOME/toolchain
   - $HOME/eigen
   - $HOME/boost
+  - $HOME/protobuf
 
 sudo: false
 
@@ -38,6 +39,8 @@ install:
   - ls $HOME/eigen
   - bash travis/install-boost.sh
   - ls $HOME/boost
+  - bash travis/install-protobuf.sh
+  - ls $HOME/protobuf
 
 script:
   - mkdir build
