@@ -241,14 +241,16 @@ int main(void) {
             }
         } else if (s == printst_t::NORMAL) {
             packet::framing::unstuff(frame_buffer.data(), encode_buffer.data(), encode_buffer.size());
+            pose = BicyclePose_init_zero;
             if (packet::serialize::decode_bicycle_pose(encode_buffer.data(), &pose, bytes_written)) {
-                printf("bicycle pose:\r\n\
-                        \tx:\t%0.3f\r\n\
-                        \ty:\t%0.3f\r\n\
-                        \tyaw:\t%0.3f\r\n\
-                        \troll:\t%0.3f\r\n\
-                        \tsteer:\t%0.3f\r\n",
-                        pose.x, pose.y, pose.yaw, pose.roll, pose.steer);
+                printf("bicycle pose:\r\n"
+                        "\tx:\t%0.3f m\r\n"
+                        "\ty:\t%0.3f m\r\n",
+                        pose.x, pose.y);
+                printf("\tyaw:\t%0.3f deg\r\n"
+                        "\troll:\t%0.3f deg\r\n"
+                        "\tsteer:\t%0.3f deg\r\n",
+                        rad_to_deg(pose.yaw), rad_to_deg(pose.roll), rad_to_deg(pose.steer));
             }
             //printf("encoder count:\t%u\r\n", encoder.count());
             //printf("sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
