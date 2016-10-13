@@ -13,6 +13,8 @@ include_directories(${NANOPB_INCLUDE_DIRS})
 add_definitions("-DCHPRINTF_USE_FLOAT")
 # use static simulator configurations
 add_definitions("-DSTATIC_SIMULATOR_CONFIG")
+# use ChibiOS FATFS module
+set(CHIBIOS_BUILD_WITH_FATFS ON)
 
 # The required stacksize is not the exact amount but large enough such that the
 # main thread does not overflow.
@@ -35,6 +37,7 @@ set_property(SOURCE ${PROTO_SRCS} APPEND PROPERTY COMPILE_DEFINITIONS
 
 add_phobos_executable(clustril
     chconf.h
+    ffconf.h
     halconf.h
     mcuconf.h
     main.cc

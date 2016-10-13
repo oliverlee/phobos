@@ -16,6 +16,7 @@
 
 #include "ch.h"
 #include "hal.h"
+#include "ff.h"
 
 #include "blink.h"
 #include "usbconfig.h"
@@ -35,6 +36,126 @@
 
 #include "messages.pb.h"
 
+/*===========================================================================*/
+/* Card insertion monitor.                                                   */
+/*===========================================================================*/
+
+#define POLLING_INTERVAL 10
+#define POLLING_DELAY 10
+
+/**
+ * @brief   Card monitor timer.
+ */
+static virtual_timer_t tmr;
+
+/**
+ * @brief   Debounce counter.
+ */
+static unsigned cnt;
+
+/**
+ * @brief   Card event sources.
+ */
+static event_source_t inserted_event, removed_event;
+
+/**
+ * @brief   Insertion monitor timer callback function.
+ *
+ * @param[in] p         pointer to the @p BaseBlockDevice object
+ *
+ * @notapi
+ */
+static void tmrfunc(void *p) {
+  //BaseBlockDevice *bbdp = p;
+  BaseBlockDevice *bbdp = reinterpret_cast<BaseBlockDevice*>(p);
+
+  chSysLockFromISR();
+  if (cnt > 0) {
+    if (blkIsInserted(bbdp)) {
+      if (--cnt == 0) {
+        chEvtBroadcastI(&inserted_event);
+      }
+    }
+    else
+      cnt = POLLING_INTERVAL;
+  }
+  else {
+    if (!blkIsInserted(bbdp)) {
+      cnt = POLLING_INTERVAL;
+      chEvtBroadcastI(&removed_event);
+    }
+  }
+  chVTSetI(&tmr, MS2ST(POLLING_DELAY), tmrfunc, bbdp);
+  chSysUnlockFromISR();
+}
+
+/**
+ * @brief   Polling monitor start.
+ *
+ * @param[in] p         pointer to an object implementing @p BaseBlockDevice
+ *
+ * @notapi
+ */
+static void tmr_init(void *p)
+{
+  chEvtObjectInit(&inserted_event);
+  chEvtObjectInit(&removed_event);
+  chSysLock();
+  cnt = POLLING_INTERVAL;
+  chVTSetI(&tmr, MS2ST(POLLING_DELAY), tmrfunc, p);
+  chSysUnlock();
+}
+
+/*===========================================================================*/
+/* FatFs related.                                                            */
+/*===========================================================================*/
+
+/**
+ * @brief FS object.
+ */
+static FATFS SDC_FS;
+
+/* FS mounted and ready.*/
+static bool fs_ready = FALSE;
+
+/* Generic large buffer.*/
+static uint8_t fbuff[1024];
+
+/*===========================================================================*/
+/* Main and generic code.                                                    */
+/*===========================================================================*/
+
+/*
+ * Card insertion event.
+ */
+static void InsertHandler(eventid_t id) {
+  FRESULT err;
+
+  (void)id;
+  /*
+   * On insertion SDC initialization and FS mount.
+   */
+  if (sdcConnect(&SDCD1))
+    return;
+
+  err = f_mount(&SDC_FS, "/", 1);
+  if (err != FR_OK) {
+    sdcDisconnect(&SDCD1);
+    return;
+  }
+  fs_ready = TRUE;
+}
+
+/*
+ * Card removal event.
+ */
+static void RemoveHandler(eventid_t id) {
+
+  (void)id;
+  sdcDisconnect(&SDCD1);
+  fs_ready = FALSE;
+}
+
 namespace {
     /* sensors */
     Analog analog;
@@ -44,16 +165,16 @@ namespace {
              EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
                                                      * for valid edge */
 
-     const float max_kistler_torque = 25.0f; /* maximum measured steer torque */
-     /*
-      * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
-      * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
-      */
-     const float max_kollmorgen_torque = 10.0f; /* max torque at 1.00 Arms/V */
+    const float max_kistler_torque = 25.0f; /* maximum measured steer torque */
+    /*
+     * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
+     * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
+     */
+    const float max_kollmorgen_torque = 10.0f; /* max torque at 1.00 Arms/V */
 
     const DACConfig dac1cfg1 = {
-        .init       = 2047U, // max value is 4095 (12-bit)
-        .datamode   = DAC_DHRM_12BIT_RIGHT
+         .init       = 2047U, // max value is 4095 (12-bit)
+         .datamode   = DAC_DHRM_12BIT_RIGHT
     };
 
     std::array<uint8_t, BicyclePose_size> encode_buffer;
@@ -74,6 +195,16 @@ int main(void) {
     halInit();
     chSysInit();
 
+    static const evhandler_t evhndl[] = {
+      InsertHandler,
+      RemoveHandler
+    };
+    event_listener_t el0, el1;
+    sdcStart(&SDCD1, NULL); // Activate SDC driver 1, default configuration
+    tmr_init(&SDCD1);       // Activates the card insertion monitor.
+    chEvtRegister(&inserted_event, &el0, 0);
+    chEvtRegister(&removed_event, &el1, 1);
+
     /*
      * Initialize a serial-over-USB CDC driver.
      */
@@ -90,8 +221,7 @@ int main(void) {
     usbStart(serusbcfg.usbp, &usbcfg);
     board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
-    /* create the blink thread and print state monitor */
-    chBlinkThreadCreateStatic();
+    /* create print state monitor */
     /*
      * Use LINE_TIM4_CH2 (PB7, EXT1-15, J4-B) as a button by
      * connecting/disconnecting it to ground.
@@ -195,6 +325,17 @@ int main(void) {
             /* reset printing of version string */
             print_version_string = true;
         }
+
+        if (fs_ready) {
+            UINT bw;
+            FIL f;
+            FRESULT res = f_open(&f, "test.txt", FA_WRITE | FA_OPEN_ALWAYS);
+            f_lseek(&f, f_size(&f));
+            f_write(&f, encode_buffer.data(),  bicycle.pose_buffer_size() - 1, &bw);
+            f_close(&f);
+        }
+        chEvtDispatch(evhndl, chEvtWaitOneTimeout(ALL_EVENTS, MS2ST(500)));
+
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.model().dt()));
     }
 }
