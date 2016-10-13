@@ -13,17 +13,23 @@ include(external/ChibiOS/chibios.cmake)
 set(CHIBIOS_USE_PROCESS_STACKSIZE "0x3000"
     CACHE STRING "Stack size used by the main() thread." FORCE)
 
+# define CMake module path and include external project CMake moduels
 set(CMAKE_MODULE_PATH
     ${PROJECT_SOURCE_DIR}/cmake/modules
-    ${PROJECT_SOURCE_DIR}/external/bicycle/cmake/modules)
+    ${PROJECT_SOURCE_DIR}/external/bicycle/cmake/modules
+    ${PROJECT_SOURCE_DIR}/external/nanopb/extra)
 message(STATUS "Using CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
+# bicycle setup
 set(BICYCLE_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/src)
 set(BICYCLE_SOURCE
     ${BICYCLE_SOURCE_DIR}/bicycle.cc
     ${BICYCLE_SOURCE_DIR}/parameters.cc)
 set(BICYCLE_INCLUDE_DIR ${BICYCLE_SOURCE_DIR} ${BICYCLE_SOURCE_DIR}/../inc)
 add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=FALSE")
+
+# define nanopb variables if later needed
+set(NANOPB_SRC_ROOT_FOLDER ${PROJECT_SOURCE_DIR}/external/nanopb)
 
 # get git sha1 https://stackoverflow.com/questions/1435953/how-can-i-pass-git-sha1-to-compiler-as-definition-using-cmake
 include(GetGitRevisionDescription)

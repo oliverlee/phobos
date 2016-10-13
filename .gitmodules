@@ -7,3 +7,6 @@
 [submodule "external/gdb-regview"]
 	path = external/gdb-regview
 	url = https://github.com/fnoble/gdb-regview.git
+[submodule "external/nanopb"]
+	path = external/nanopb
+	url = https://github.com/oliverlee/nanopb.git
