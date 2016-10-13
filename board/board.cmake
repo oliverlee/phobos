@@ -1,5 +1,5 @@
 set(CHIBIOS_BOARD_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR})
-set(CHIBIOS_BOARD_SRC ${CHIBIOS_ROOT_DIR}/hal/boards/OLIMEX_STM32_H405/board.c)
+set(CHIBIOS_BOARD_SRC ${CMAKE_CURRENT_LIST_DIR}/board.c)
 
 # Include STM32F4xx platform files.
 include(${CHIBIOS_ROOT_DIR}/hal/ports/STM32/STM32F4xx/platform.cmake)
