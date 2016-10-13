@@ -52,6 +52,7 @@ namespace {
     bicycle_t::input_t u; /* roll torque, steer torque */
     bicycle_t::state_t x; /* yaw angle, roll angle, steer angle, roll rate, steer rate */
     bicycle_t::output_t z; /* yaw angle, steer angle */
+    bicycle_t::auxiliary_state_t x_aux; /* rear contact x, rear contact y, pitch angle */
 
     /* sensors */
     Analog analog;
@@ -165,6 +166,10 @@ int main(void) {
     model::Bicycle bicycle(v0, dt);
     x.setZero();
 
+    /* initialize bicycle auxiliary states */
+    x_aux.setZero(); /* set x, y to zero */
+    x_aux[2] = bicycle.solve_constraint_pitch(x, 30 * constants::as_radians);
+
     /* initialize Kalman filter */
     kalman_t kalman(bicycle,
             parameters::defaultvalue::kalman::Q(dt), /* process noise cov */
@@ -213,7 +218,7 @@ int main(void) {
         x[0] = wrap_angle(x[0]);
         x[1] = wrap_angle(x[1]);
         x[2] = wrap_angle(x[2]);
-        kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
+        x_aux = bicycle.x_aux_next(x, x_aux);
 
         /* generate an example torque output for testing */
         float torque = 10.0f * std::sin(
@@ -224,8 +229,8 @@ int main(void) {
         dacPutChannelX(&DACD1, 0, aout);
 
         uint8_t bytes_written;
-        pose.x = 1;
-        pose.y = 2;
+        pose.x = x_aux[0];
+        pose.y = x_aux[1];
         pose.yaw = x[0];
         pose.roll = x[1];
         pose.steer = x[2];
@@ -243,6 +248,12 @@ int main(void) {
             packet::framing::unstuff(frame_buffer.data(), encode_buffer.data(), encode_buffer.size());
             pose = BicyclePose_init_zero;
             if (packet::serialize::decode_bicycle_pose(encode_buffer.data(), &pose, bytes_written)) {
+                /*
+                 * total computation time (kalman update, x_aux calculation, packet framing and serialization)
+                 * = ~270 us
+                 * TODO: calculate x_aux in a separate loop at a slower update rate.
+                 */
+                kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
                 printf("bicycle pose:\r\n"
                         "\tx:\t%0.3f m\r\n"
                         "\ty:\t%0.3f m\r\n",
@@ -251,6 +262,8 @@ int main(void) {
                         "\troll:\t%0.3f deg\r\n"
                         "\tsteer:\t%0.3f deg\r\n",
                         rad_to_deg(pose.yaw), rad_to_deg(pose.roll), rad_to_deg(pose.steer));
+                printf("computation time: %U us\r\n",
+                        RTC2US(STM32_SYSCLK, kalman_update_time));
             }
             //printf("encoder count:\t%u\r\n", encoder.count());
             //printf("sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
