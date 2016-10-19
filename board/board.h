@@ -424,7 +424,7 @@
  * GPIOB setup:
  *
  * PB0  - SPI1_IMU_NSS              (output opendrain pullup maxiumum).
- * PB1  - SDIO_CD                   (input floating).
+ * PB1  - SDIO_CD                   (input pullup).
  * PB2  - BOOT1                     (input floating).
  * PB3  - JTAG_TDO                  (alternate 0).
  * PB4  - JTAG_TRST                 (alternate 0).
@@ -489,7 +489,7 @@
                                      PIN_OSPEED_HIGH(GPIOB_MOTOR1_RDY) |        \
                                      PIN_OSPEED_HIGH(GPIOB_MOTOR2_RDY))
 #define VAL_GPIOB_PUPDR             (PIN_PUPDR_PULLUP(GPIOB_SPI1_IMU_NSS) |         \
-                                     PIN_PUPDR_FLOATING(GPIOB_SDIO_CD) |            \
+                                     PIN_PUPDR_PULLUP(GPIOB_SDIO_CD) |              \
                                      PIN_PUPDR_FLOATING(GPIOB_BOOT1) |              \
                                      PIN_PUPDR_FLOATING(GPIOB_JTAG_TDO) |           \
                                      PIN_PUPDR_FLOATING(GPIOB_JTAG_TRST) |          \
