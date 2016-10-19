@@ -47,3 +47,8 @@ option(PHOBOS_BUILD_DEMO_USB_SERIAL "Build USB over serial demo" TRUE)
 if(PHOBOS_BUILD_DEMO_USB_SERIAL)
     add_subdirectory(usb_serial)
 endif()
+
+option(PHOBOS_BUILD_DEMO_FATFS "Build FATFS demo" TRUE)
+if(PHOBOS_BUILD_DEMO_FATFS)
+    add_subdirectory(fatfs)
+endif()
