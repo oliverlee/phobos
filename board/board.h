@@ -278,7 +278,7 @@
 
 #define LINE_OSC_IN                 PAL_LINE(GPIOD, 0U)
 #define LINE_OSC_OUT                PAL_LINE(GPIOD, 1U)
-#define LINE_SDIO_CMD               PAL_LINE(GPIOC, 2U)
+#define LINE_SDIO_CMD               PAL_LINE(GPIOD, 2U)
 
 
 /*
