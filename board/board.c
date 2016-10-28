@@ -122,11 +122,17 @@ bool mmc_lld_is_write_protected(MMCDriver *mmcp) {
  */
 void boardInit(void) {
 #if HAL_USE_SDC
-    palSetLineMode(LINE_SDIO_D0, PAL_MODE_ALTERNATE(12));
-    palSetLineMode(LINE_SDIO_D1, PAL_MODE_ALTERNATE(12));
-    palSetLineMode(LINE_SDIO_D2, PAL_MODE_ALTERNATE(12));
-    palSetLineMode(LINE_SDIO_D3, PAL_MODE_ALTERNATE(12));
-    palSetLineMode(LINE_SDIO_SCK, PAL_MODE_ALTERNATE(12));
-    palSetLineMode(LINE_SDIO_CMD, PAL_MODE_ALTERNATE(12));
+    palSetLineMode(LINE_SDIO_D0, PAL_MODE_ALTERNATE(12) |
+                                 PAL_STM32_OSPEED_HIGHEST);
+    palSetLineMode(LINE_SDIO_D1, PAL_MODE_ALTERNATE(12) |
+                                 PAL_STM32_OSPEED_HIGHEST);
+    palSetLineMode(LINE_SDIO_D2, PAL_MODE_ALTERNATE(12) |
+                                 PAL_STM32_OSPEED_HIGHEST);
+    palSetLineMode(LINE_SDIO_D3, PAL_MODE_ALTERNATE(12) |
+                                 PAL_STM32_OSPEED_HIGHEST);
+    palSetLineMode(LINE_SDIO_SCK, PAL_MODE_ALTERNATE(12) |
+                                  PAL_STM32_OSPEED_HIGHEST);
+    palSetLineMode(LINE_SDIO_CMD, PAL_MODE_ALTERNATE(12) |
+                                  PAL_STM32_OSPEED_HIGHEST);
 #endif
 }
