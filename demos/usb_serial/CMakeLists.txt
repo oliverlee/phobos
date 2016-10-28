@@ -1,10 +1,8 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-# Override default C/CXX debug optimization flag due to linking errors when both
-# LTO and Debug mode are used. As stated in the gcc manual, the last -O option
-# is used when there are multiple.
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Og")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Og")
+if(CHIBIOS_USE_LTO AND (CMAKE_BUILD_TYPE MATCHES Debug))
+    add_definitions("-DLTO_SYSCALL_UNDEFINED_REFERNCE_WORKAROUND")
+endif()
 
 add_phobos_executable(usb-serial
     chconf.h
