@@ -14,9 +14,6 @@
     limitations under the License.
 */
 
-//#include <cstdio>
-#include <cstring>
-
 #include "ch.h"
 #include "hal.h"
 #include "test.h"
@@ -58,25 +55,25 @@ static event_source_t inserted_event, removed_event;
  * @notapi
  */
 static void tmrfunc(void *p) {
-  BaseBlockDevice *bbdp = reinterpret_cast<BaseBlockDevice*>(p);
+    BaseBlockDevice *bbdp = reinterpret_cast<BaseBlockDevice*>(p);
 
-  chSysLockFromISR();
-  if (cnt > 0) {
-    if (blkIsInserted(bbdp)) {
-      if (--cnt == 0) {
-        chEvtBroadcastI(&inserted_event);
-      }
+    chSysLockFromISR();
+    if (cnt > 0) {
+        if (blkIsInserted(bbdp)) {
+            if (--cnt == 0) {
+                chEvtBroadcastI(&inserted_event);
+            }
+        } else {
+            cnt = POLLING_INTERVAL;
+        }
     } else {
-      cnt = POLLING_INTERVAL;
+        if (!blkIsInserted(bbdp)) {
+            cnt = POLLING_INTERVAL;
+            chEvtBroadcastI(&removed_event);
+        }
     }
-  } else {
-    if (!blkIsInserted(bbdp)) {
-      cnt = POLLING_INTERVAL;
-      chEvtBroadcastI(&removed_event);
-    }
-  }
-  chVTSetI(&tmr, MS2ST(POLLING_DELAY), tmrfunc, bbdp);
-  chSysUnlockFromISR();
+    chVTSetI(&tmr, MS2ST(POLLING_DELAY), tmrfunc, bbdp);
+    chSysUnlockFromISR();
 }
 
 /**
@@ -88,12 +85,12 @@ static void tmrfunc(void *p) {
  */
 static void tmr_init(void *p) {
 
-  chEvtObjectInit(&inserted_event);
-  chEvtObjectInit(&removed_event);
-  chSysLock();
-  cnt = POLLING_INTERVAL;
-  chVTSetI(&tmr, MS2ST(POLLING_DELAY), tmrfunc, p);
-  chSysUnlock();
+    chEvtObjectInit(&inserted_event);
+    chEvtObjectInit(&removed_event);
+    chSysLock();
+    cnt = POLLING_INTERVAL;
+    chVTSetI(&tmr, MS2ST(POLLING_DELAY), tmrfunc, p);
+    chSysUnlock();
 }
 
 /*===========================================================================*/
@@ -108,46 +105,6 @@ static FATFS SDC_FS;
 /* FS mounted and ready.*/
 static bool fs_ready = FALSE;
 
-/* Generic large buffer.*/
-static uint8_t fbuff[1024];
-
-static FRESULT scan_files(BaseSequentialStream *chp, char *path) {
-  FRESULT res;
-  FILINFO fno;
-  DIR dir;
-  int i;
-  char *fn;
-
-#if _USE_LFN
-  fno.lfname = 0;
-  fno.lfsize = 0;
-#endif
-  res = f_opendir(&dir, path);
-  if (res == FR_OK) {
-    i = strlen(path);
-    for (;;) {
-      res = f_readdir(&dir, &fno);
-      if (res != FR_OK || fno.fname[0] == 0)
-        break;
-      if (fno.fname[0] == '.')
-        continue;
-      fn = fno.fname;
-      if (fno.fattrib & AM_DIR) {
-        path[i++] = '/';
-        strcpy(&path[i], fn);
-        res = scan_files(chp, path);
-        if (res != FR_OK)
-          break;
-        path[--i] = 0;
-      }
-      else {
-        chprintf(chp, "%s/%s\r\n", path, fn);
-      }
-    }
-  }
-  return res;
-}
-
 /*===========================================================================*/
 /* Main and generic code.                                                    */
 /*===========================================================================*/
@@ -156,21 +113,21 @@ static FRESULT scan_files(BaseSequentialStream *chp, char *path) {
  * Card insertion event.
  */
 static void InsertHandler(eventid_t id) {
-  FRESULT err;
+    FRESULT err;
 
-  (void)id;
-  /*
-   * On insertion SDC initialization and FS mount.
-   */
-  if (sdcConnect(&SDCD1))
-    return;
+    (void)id;
+    /*
+     * On insertion SDC initialization and FS mount.
+     */
+    if (sdcConnect(&SDCD1))
+        return;
 
-  err = f_mount(&SDC_FS, "/", 1);
-  if (err != FR_OK) {
-    sdcDisconnect(&SDCD1);
-    return;
-  }
-  fs_ready = TRUE;
+    err = f_mount(&SDC_FS, "/", 1);
+    if (err != FR_OK) {
+        sdcDisconnect(&SDCD1);
+        return;
+    }
+    fs_ready = TRUE;
 }
 
 /*
@@ -178,56 +135,86 @@ static void InsertHandler(eventid_t id) {
  */
 static void RemoveHandler(eventid_t id) {
 
-  (void)id;
-  sdcDisconnect(&SDCD1);
-  fs_ready = FALSE;
+    (void)id;
+    sdcDisconnect(&SDCD1);
+    fs_ready = FALSE;
 }
 
 /*
  * Application entry point.
  */
 int main(void) {
-  static thread_t *shelltp = NULL;
-  static const evhandler_t evhndl[] = {
-    InsertHandler,
-    RemoveHandler
-  };
-  event_listener_t el0, el1;
+    static const evhandler_t evhndl[] = {
+        InsertHandler,
+        RemoveHandler
+    };
+    event_listener_t el0, el1;
 
-  /*
-   * System initializations.
-   * - HAL initialization, this also initializes the configured device drivers
-   *   and performs the board-specific initializations.
-   * - Kernel initialization, the main() function becomes a thread and the
-   *   RTOS is active.
-   */
-  halInit();
-  chSysInit();
+    /*
+     * System initializations.
+     * - HAL initialization, this also initializes the configured device drivers
+     *   and performs the board-specific initializations.
+     * - Kernel initialization, the main() function becomes a thread and the
+     *   RTOS is active.
+     */
+    halInit();
+    chSysInit();
 
-  /*
-   * Initializes a serial-over-USB CDC driver.
-   */
-  sduObjectInit(&SDU1);
-  sduStart(&SDU1, &serusbcfg);
+    /*
+     * Initializes a serial-over-USB CDC driver.
+     */
+    sduObjectInit(&SDU1);
+    sduStart(&SDU1, &serusbcfg);
 
-  /*
-   * Activates the SDC driver 1 using the default configuration.
-   */
-  sdcStart(&SDCD1, NULL);
+    /*
+     * Activates the SDC driver 1 using the default configuration.
+     */
+    sdcStart(&SDCD1, NULL);
 
-  /*
-   * Activates the card insertion monitor.
-   */
-  tmr_init(&SDCD1);
+    /*
+     * Activates the card insertion monitor.
+     */
+    tmr_init(&SDCD1);
 
-  /*
-   * Normal main() thread activity, in this demo it does nothing except
-   * sleeping in a loop and listen for events.
-   */
-  chEvtRegister(&inserted_event, &el0, 0);
-  chEvtRegister(&removed_event, &el1, 1);
-  while (true) {
-    // TODO: write file
-    chEvtDispatch(evhndl, chEvtWaitOneTimeout(ALL_EVENTS, MS2ST(500)));
-  }
+    /*
+     * Normal main() thread activity, in this demo it does nothing except
+     * sleeping in a loop and listen for events.
+     */
+    chEvtRegister(&inserted_event, &el0, 0);
+    chEvtRegister(&removed_event, &el1, 1);
+    bool file_written = false;
+    while (true) {
+        if (fs_ready) {
+            const char filename[] = "fatfs_test.txt";
+            FRESULT fr = f_stat(filename, nullptr);
+            const uint8_t test_buffer[] = {0xAB, 0xCD, 0xEF, 0x01};
+
+            if ((fr == FR_NO_FILE) || !file_written) {
+                FIL fil;
+                UINT bytes_written;
+
+                fr = f_open(&fil, filename, FA_WRITE | FA_CREATE_ALWAYS);
+                if (fr != FR_OK) {
+                    break;
+                }
+                f_write(&fil, test_buffer, sizeof(test_buffer), &bytes_written);
+                f_close(&fil);
+                file_written = true;
+            } else {
+                FIL fil;
+                uint8_t buffer[4];
+                UINT bytes_read;
+
+                fr = f_open(&fil, filename, FA_READ);
+                f_read(&fil, &buffer, sizeof(buffer), &bytes_read);
+                f_close(&fil);
+                if ((bytes_read != sizeof(test_buffer)) &&
+                    (buffer[0] != 0xAB) && (buffer[1] != 0xCD) &&
+                    (buffer[2] != 0xEF) && (buffer[3] != 0x01)) {
+                    chSysHalt("buffer not written/read correctly");
+                }
+            }
+        }
+        chEvtDispatch(evhndl, chEvtWaitOneTimeout(ALL_EVENTS, MS2ST(500)));
+    }
 }
