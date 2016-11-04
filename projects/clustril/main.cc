@@ -17,25 +17,17 @@
 #include "ch.h"
 #include "hal.h"
 
-#include "blink.h"
-#include "usbconfig.h"
-#include "printf.h"
 #include "gitsha1.h"
 
 #include "analog.h"
 #include "encoder.h"
 
-#include "printstate.h"
 #include "packet/serialize.h"
 #include "packet/framing.h"
 #include "angle.h"
 
-#include "parameters.h"
-
 #include "filesystem.h"
 #include "virtualbicycle.h"
-
-#include "messages.pb.h"
 
 namespace {
     /* sensors */
@@ -79,30 +71,6 @@ int main(void) {
     filesystem::init();
 
     /*
-     * Initialize a serial-over-USB CDC driver.
-     */
-    sduObjectInit(&SDU1);
-    sduStart(&SDU1, &serusbcfg);
-
-    /*
-     * Activate the USB driver and then the USB bus pull-up on D+.
-     * Note, a delay is inserted in order to not have to disconnect the cable
-     * after a reset.
-     */
-    board_usb_lld_disconnect_bus();   //usbDisconnectBus(serusbcfg.usbp);
-    chThdSleepMilliseconds(1500);
-    usbStart(serusbcfg.usbp, &usbcfg);
-    board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
-
-    /* create print state monitor */
-    /*
-     * Use LINE_TIM4_CH2 (PB7, EXT1-15, J4-B) as a button by
-     * connecting/disconnecting it to ground.
-     * */
-    palSetLineMode(LINE_TIM4_CH2, PAL_MODE_INPUT_PULLUP);
-    enablePrintStateMonitor(LINE_TIM4_CH2);
-
-    /*
      * Start sensors.
      * Encoder:
      *   Initialize encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
@@ -136,8 +104,6 @@ int main(void) {
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
-    bool print_version_string = true;
-    rtcnt_t bicycle_simulation_time = 0;
     while (true) {
         constexpr float roll_torque = 0;
 
@@ -153,7 +119,6 @@ int main(void) {
         float steer_angle = angle::encoder_count<float>(encoder);
 
         /* observer time/measurement update (~80 us with real_t = float) */
-        bicycle_simulation_time = chSysGetRealtimeCounterX();
         bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle);
         bicycle.encode_and_stuff_pose();
 
@@ -163,40 +128,6 @@ int main(void) {
         dacsample_t aout = static_cast<dacsample_t>(
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(&DACD1, 0, aout);
-
-        printst_t s = getPrintState();
-        if (s == printst_t::VERSION) {
-            if (print_version_string) {
-                printf("Running firmware version %.7s\r\n", g_GITSHA1);
-                print_version_string = false;
-            }
-        } else if (s == printst_t::NORMAL) {
-            packet::framing::unstuff(bicycle.pose_buffer(), encode_buffer.data(), bicycle.pose_buffer_size());
-            BicyclePose pose = BicyclePose_init_zero;
-            if (packet::serialize::decode(encode_buffer.data(), &pose, bicycle.pose_buffer_size() - 1)) {
-                /*
-                 * total computation time (kalman update, x_aux calculation, packet framing and serialization)
-                 * = ~270 us
-                 * TODO: calculate x_aux in a separate loop at a slower update rate.
-                 */
-                bicycle_simulation_time = chSysGetRealtimeCounterX() - bicycle_simulation_time;
-                printf("bicycle pose:\r\n"
-                        "\tx:\t%0.3f m\r\n"
-                        "\ty:\t%0.3f m\r\n",
-                        pose.x, pose.y);
-                printf("\tyaw:\t%0.3f deg\r\n"
-                        "\troll:\t%0.3f deg\r\n"
-                        "\tsteer:\t%0.3f deg\r\n",
-                        pose.yaw*constants::as_degrees,
-                        pose.roll*constants::as_degrees,
-                        pose.steer*constants::as_degrees);
-                printf("computation time: %U us\r\n",
-                        RTC2US(STM32_SYSCLK, bicycle_simulation_time));
-            }
-        } else if (s == printst_t::NONE) {
-            /* reset printing of version string */
-            print_version_string = true;
-        }
 
         if (filesystem::ready()) {
             UINT bytes_written;

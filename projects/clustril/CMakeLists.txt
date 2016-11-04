@@ -35,6 +35,9 @@ endif()
 set_property(SOURCE ${PROTO_SRCS} APPEND PROPERTY COMPILE_DEFINITIONS
     ${PROTOBUF_COMPILE_DEFINITIONS})
 
+# exclude blink and usb sources
+set(PHOBOS_COMMON_SRC ${PROJECT_BINARY_DIR}/src/gitsha1.cc)
+
 add_phobos_executable(clustril
     chconf.h
     ffconf.h
