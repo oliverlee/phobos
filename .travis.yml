@@ -47,3 +47,7 @@ script:
   - cd build
   - cmake $BUILD_TYPE -DBOOST_ROOT=$HOME/boost/boost_1_61_0 -DEIGEN3_INCLUDE_DIR=$HOME/eigen/eigen-eigen-07105f7124f9 -DTOOLCHAIN_DIR=$TRAVIS_BUILD_DIR/toolchain/gcc-arm-none-eabi-5_4-2016q2 -DPROTOBUF_PROTOC_EXECUTABLE=$HOME/protobuf/bin/protoc -DCMAKE_TOOLCHAIN_FILE=../toolchain-gcc-arm-none-eabi-5_4-2016q2.cmake ..
   - make
+
+branches:
+  only:
+    - master
