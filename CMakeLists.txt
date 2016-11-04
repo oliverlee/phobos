@@ -13,7 +13,7 @@ include(external/ChibiOS/chibios.cmake)
 set(CHIBIOS_USE_PROCESS_STACKSIZE "0x3000"
     CACHE STRING "Stack size used by the main() thread." FORCE)
 
-# define CMake module path and include external project CMake moduels
+# define CMake module path and include external project CMake modules
 set(CMAKE_MODULE_PATH
     ${PROJECT_SOURCE_DIR}/cmake/modules
     ${PROJECT_SOURCE_DIR}/external/bicycle/cmake/modules
@@ -26,7 +26,7 @@ set(BICYCLE_SOURCE
     ${BICYCLE_SOURCE_DIR}/bicycle.cc
     ${BICYCLE_SOURCE_DIR}/parameters.cc)
 set(BICYCLE_INCLUDE_DIR ${BICYCLE_SOURCE_DIR} ${BICYCLE_SOURCE_DIR}/../inc)
-add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=FALSE")
+add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=false")
 
 # define nanopb variables if later needed
 set(NANOPB_SRC_ROOT_FOLDER ${PROJECT_SOURCE_DIR}/external/nanopb)
@@ -46,7 +46,7 @@ macro(add_phobos_executable target_name)
     set(source_file_properties_modified 0)
     foreach(src in ${ARGN})
         get_filename_component(src_name ${src} NAME)
-        if(src_name STREQUAL "main.cc")
+        if(src_name MATCHES "(main|virtualbicycle).cc")
             # Disable format warnings for printf as we use parameters types defined by ChibiOS
             set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-format")
             # suppress boost undef warnings
@@ -90,7 +90,7 @@ macro(add_phobos_executable target_name)
         set_property(SOURCE ${BICYCLE_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated")
     endif()
     if(USE_BICYCLE_SOURCE_)
-        add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=FALSE")
+        add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=false")
     endif()
 endmacro(add_phobos_executable target_name)
 
