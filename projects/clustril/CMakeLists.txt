@@ -41,6 +41,7 @@ add_phobos_executable(clustril
     halconf.h
     mcuconf.h
     main.cc
+    filesystem.cc
     printstate.cc
     virtualbicycle.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc

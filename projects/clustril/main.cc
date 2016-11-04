@@ -16,7 +16,6 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "ff.h"
 
 #include "blink.h"
 #include "usbconfig.h"
@@ -32,129 +31,11 @@
 #include "angle.h"
 
 #include "parameters.h"
+
+#include "filesystem.h"
 #include "virtualbicycle.h"
 
 #include "messages.pb.h"
-
-/*===========================================================================*/
-/* Card insertion monitor.                                                   */
-/*===========================================================================*/
-
-#define POLLING_INTERVAL 10
-#define POLLING_DELAY 10
-
-/**
- * @brief   Card monitor timer.
- */
-static virtual_timer_t tmr;
-
-/**
- * @brief   Debounce counter.
- */
-static unsigned cnt;
-
-/**
- * @brief   Card event sources.
- */
-static event_source_t inserted_event, removed_event;
-
-/**
- * @brief   Insertion monitor timer callback function.
- *
- * @param[in] p         pointer to the @p BaseBlockDevice object
- *
- * @notapi
- */
-static void tmrfunc(void *p) {
-  //BaseBlockDevice *bbdp = p;
-  BaseBlockDevice *bbdp = reinterpret_cast<BaseBlockDevice*>(p);
-
-  chSysLockFromISR();
-  if (cnt > 0) {
-    if (blkIsInserted(bbdp)) {
-      if (--cnt == 0) {
-        chEvtBroadcastI(&inserted_event);
-      }
-    }
-    else
-      cnt = POLLING_INTERVAL;
-  }
-  else {
-    if (!blkIsInserted(bbdp)) {
-      cnt = POLLING_INTERVAL;
-      chEvtBroadcastI(&removed_event);
-    }
-  }
-  chVTSetI(&tmr, MS2ST(POLLING_DELAY), tmrfunc, bbdp);
-  chSysUnlockFromISR();
-}
-
-/**
- * @brief   Polling monitor start.
- *
- * @param[in] p         pointer to an object implementing @p BaseBlockDevice
- *
- * @notapi
- */
-static void tmr_init(void *p)
-{
-  chEvtObjectInit(&inserted_event);
-  chEvtObjectInit(&removed_event);
-  chSysLock();
-  cnt = POLLING_INTERVAL;
-  chVTSetI(&tmr, MS2ST(POLLING_DELAY), tmrfunc, p);
-  chSysUnlock();
-}
-
-/*===========================================================================*/
-/* FatFs related.                                                            */
-/*===========================================================================*/
-
-/**
- * @brief FS object.
- */
-static FATFS SDC_FS;
-
-/* FS mounted and ready.*/
-static bool fs_ready = FALSE;
-
-/* Generic large buffer.*/
-static uint8_t fbuff[1024];
-
-/*===========================================================================*/
-/* Main and generic code.                                                    */
-/*===========================================================================*/
-
-/*
- * Card insertion event.
- */
-static void InsertHandler(eventid_t id) {
-  FRESULT err;
-
-  (void)id;
-  /*
-   * On insertion SDC initialization and FS mount.
-   */
-  if (sdcConnect(&SDCD1))
-    return;
-
-  err = f_mount(&SDC_FS, "/", 1);
-  if (err != FR_OK) {
-    sdcDisconnect(&SDCD1);
-    return;
-  }
-  fs_ready = TRUE;
-}
-
-/*
- * Card removal event.
- */
-static void RemoveHandler(eventid_t id) {
-
-  (void)id;
-  sdcDisconnect(&SDCD1);
-  fs_ready = FALSE;
-}
 
 namespace {
     /* sensors */
@@ -195,15 +76,7 @@ int main(void) {
     halInit();
     chSysInit();
 
-    static const evhandler_t evhndl[] = {
-      InsertHandler,
-      RemoveHandler
-    };
-    event_listener_t el0, el1;
-    sdcStart(&SDCD1, NULL); // Activate SDC driver 1, default configuration
-    tmr_init(&SDCD1);       // Activates the card insertion monitor.
-    chEvtRegister(&inserted_event, &el0, 0);
-    chEvtRegister(&removed_event, &el1, 1);
+    filesystem::init();
 
     /*
      * Initialize a serial-over-USB CDC driver.
@@ -238,7 +111,6 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
-
 
     /*
      * Set torque measurement enable line low.
@@ -326,15 +198,15 @@ int main(void) {
             print_version_string = true;
         }
 
-        if (fs_ready) {
-            UINT bw;
+        if (filesystem::ready()) {
+            UINT bytes_written;
             FIL f;
             FRESULT res = f_open(&f, "test.txt", FA_WRITE | FA_OPEN_ALWAYS);
             f_lseek(&f, f_size(&f));
-            f_write(&f, encode_buffer.data(),  bicycle.pose_buffer_size() - 1, &bw);
+            f_write(&f, encode_buffer.data(),  bicycle.pose_buffer_size() - 1, &bytes_written);
             f_close(&f);
         }
-        chEvtDispatch(evhndl, chEvtWaitOneTimeout(ALL_EVENTS, MS2ST(500)));
+        chEvtDispatch(filesystem::sdc_eventhandlers, chEvtWaitOneTimeout(ALL_EVENTS, MS2ST(500)));
 
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.model().dt()));
     }
