@@ -57,12 +57,12 @@ namespace {
              EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
                                                      * for valid edge */
 
-     const float max_kistler_torque = 25.0f; /* maximum measured steer torque */
+     const float max_kistler_torque = 50.0f; /* maximum measured steer torque */
      /*
       * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
       * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
       */
-     const float max_kollmorgen_torque = 10.0f; /* max torque at 1.00 Arms/V */
+     const float max_kollmorgen_torque = 11.5f; /* max torque at 1.6 Arms/V */
 
     const DACConfig dac1cfg1 = {
         .init       = 2047U, // max value is 4095 (12-bit)
