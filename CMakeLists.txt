@@ -51,10 +51,10 @@ macro(add_phobos_executable target_name)
     set(source_file_properties_modified 0)
     foreach(src in ${ARGN})
         get_filename_component(src_name ${src} NAME)
-        if(src_name MATCHES "(main|virtualbicycle).cc")
+        if(src_name MATCHES "main.cc")
             # Disable format warnings for printf as we use parameters types defined by ChibiOS
             set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-format")
-            # suppress boost undef warnings
+            # suppress Boost undef warnings
             if(Boost_INCLUDE_DIR)
                 set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
             endif()

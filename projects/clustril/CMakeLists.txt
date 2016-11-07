@@ -38,12 +38,17 @@ set_property(SOURCE ${PROTO_SRCS} APPEND PROPERTY COMPILE_DEFINITIONS
 # exclude blink and usb sources
 set(PHOBOS_COMMON_SRC ${PROJECT_BINARY_DIR}/src/gitsha1.cc)
 
+# suppress Boost undef warnings and Eigen deprecated warnings
+set_property(SOURCE messageutil.cc virtualbicycle.cc
+    APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef -Wno-deprecated")
+
 add_phobos_executable(clustril
     chconf.h
     ffconf.h
     halconf.h
     mcuconf.h
     main.cc
+    messageutil.cc
     filesystem.cc
     printstate.cc
     virtualbicycle.cc

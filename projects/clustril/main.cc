@@ -28,6 +28,10 @@
 
 #include "filesystem.h"
 #include "virtualbicycle.h"
+#include "messages.pb.h"
+#include "messageutil.h"
+
+#include <array>
 
 namespace {
     /* sensors */
@@ -50,7 +54,10 @@ namespace {
          .datamode   = DAC_DHRM_12BIT_RIGHT
     };
 
-    std::array<uint8_t, BicyclePose_size> encode_buffer;
+    static constexpr ClustrilMessage clustril_message_zero = ClustrilMessage_init_zero;
+    ClustrilMessage sample;
+
+    std::array<uint8_t, ClustrilMessage_size> encode_buffer;
 } // namespace
 
 /*
@@ -100,11 +107,53 @@ int main(void) {
 
     VirtualBicycle bicycle;
 
+    /* write firmware gitsha1, bicycle and Kalman settings to file */
+    rtcnt_t bicycle_simulation_time = chSysGetRealtimeCounterX();
+
+    sample = clustril_message_zero;
+    sample.timestamp = bicycle_simulation_time;
+    std::memcpy(sample.firmware_version, g_GITSHA1,
+            sizeof(sample.firmware_version)*sizeof(sample.firmware_version[0]));
+    sample.has_firmware_version = true;
+    message::set_clustril_initial_values(&sample, bicycle);
+
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
+    bool delete_file = true;
     while (true) {
+        chEvtDispatch(filesystem::sdc_eventhandlers, chEvtWaitOneTimeout(ALL_EVENTS, MS2ST(5)));
+
+        // TODO: write to file in a separate thread
+        if (filesystem::ready()) {
+            const char* filename = "test.txt";
+            UINT bytes_written;
+            FIL f;
+            FRESULT res;
+
+            if (delete_file) {
+                res = f_unlink(filename);
+                chDbgCheck((res == FR_OK) || (res ==  FR_NO_FILE) || (res = FR_NO_PATH));
+                delete_file = false;
+            }
+
+            res = f_open(&f, filename, FA_WRITE | FA_OPEN_ALWAYS);
+            chDbgAssert(res == FR_OK, "file open failed");
+
+            res = f_lseek(&f, f_size(&f));
+            chDbgAssert(res == FR_OK, "file seek failed");
+
+            uint8_t bytes_encoded = packet::serialize::encode_delimited(sample, encode_buffer.data(), encode_buffer.size());
+            res = f_write(&f, encode_buffer.data(), bytes_encoded, &bytes_written);
+            chDbgAssert(res == FR_OK, "file write failed");
+
+            res = f_close(&f);
+            chDbgAssert(res == FR_OK, "file close failed");
+        } else {
+            continue;
+        }
+
         constexpr float roll_torque = 0;
 
         /* get torque measurements */
@@ -122,23 +171,18 @@ int main(void) {
         bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle);
         bicycle.encode_and_stuff_pose();
 
-        /* generate an example torque output for testing */
+        /* generate a simple torque output (sine wave) for peripheral testing */
         float feedback_torque = 10.0f * std::sin(constants::two_pi *
                 ST2S(static_cast<float>(chVTGetSystemTime())));
         dacsample_t aout = static_cast<dacsample_t>(
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(&DACD1, 0, aout);
 
-        if (filesystem::ready()) {
-            UINT bytes_written;
-            FIL f;
-            FRESULT res = f_open(&f, "test.txt", FA_WRITE | FA_OPEN_ALWAYS);
-            f_lseek(&f, f_size(&f));
-            f_write(&f, encode_buffer.data(),  bicycle.pose_buffer_size() - 1, &bytes_written);
-            f_close(&f);
-        }
-        chEvtDispatch(filesystem::sdc_eventhandlers, chEvtWaitOneTimeout(ALL_EVENTS, MS2ST(500)));
+        sample = clustril_message_zero;
+        sample.timestamp = chSysGetRealtimeCounterX();
+        message::set_clustril_loop_values(&sample, bicycle, steer_torque, motor_torque, encoder.count(), feedback_torque);
 
+        // TODO: fix sleep amount
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.model().dt()));
     }
 }

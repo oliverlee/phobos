@@ -43,7 +43,7 @@ void VirtualBicycle::update(float roll_torque_input, float steer_torque_input, /
 
     m_x_aux = m_bicycle.x_aux_next(m_kalman.x(), m_x_aux);
 
-    m_pose.timestamp = 1;
+    m_pose.timestamp = 1; // FIXME when running at a different rate
     m_pose.x = m_x_aux[0];
     m_pose.y = m_x_aux[1];
     m_pose.pitch = m_x_aux[2];
