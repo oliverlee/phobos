@@ -30,12 +30,7 @@
 #include "encoder.h"
 #include <boost/math/constants/constants.hpp>
 
-#include "printstate.h"
-#include "packet/serialize.h"
-#include "packet/framing.h"
-
-#include <type_traits>
-
+#include "messages.pb.h"
 
 namespace {
     using bicycle_t = model::Bicycle;
@@ -88,9 +83,6 @@ namespace {
      float rad_to_deg(float angle) {
          return angle * 360 / boost::math::constants::two_pi<float>();
      }
-
-     std::array<uint8_t, BicyclePose_size> encode_buffer;
-     std::array<uint8_t, BicyclePose_size + 1> frame_buffer;
 } // namespace
 
 /*
@@ -126,12 +118,6 @@ int main(void) {
 
     /* create the blink thread and print state monitor */
     chBlinkThreadCreateStatic();
-    /*
-     * Use LINE_TIM4_CH2 (PB7, EXT1-15, J4-B) as a button by
-     * connecting/disconnecting it to ground.
-     * */
-    palSetLineMode(LINE_TIM4_CH2, PAL_MODE_INPUT_PULLUP);
-    enablePrintStateMonitor(LINE_TIM4_CH2);
 
     /*
      * Start sensors.
@@ -184,15 +170,16 @@ int main(void) {
      * dynamics in real-time (roughly).
      */
     rtcnt_t kalman_update_time = 0;
-    bool print_version_string = true;
     u.setZero(); /* set both roll and steer torques to zero */
     BicyclePose pose = BicyclePose_init_zero;
     while (true) {
-        u[1] = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
+        constexpr float roll_torque = 0.0f;
+        float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
                 max_kistler_torque);
-        //float motor_torque = static_cast<float>(
-        //        analog.get_adc13()*2.0f*max_kollmorgen_torque/4096 -
-        //        max_kollmorgen_torque);
+        float motor_torque = static_cast<float>(
+                analog.get_adc13()*2.0f*max_kollmorgen_torque/4096 -
+                max_kollmorgen_torque);
+        u << roll_torque, steer_torque;
 
         /* set measurement vector */
         z[0] = wrap_angle(x[0]); /* yaw angle, just use previous state value */
@@ -221,61 +208,24 @@ int main(void) {
         x_aux = bicycle.x_aux_next(x, x_aux);
 
         /* generate an example torque output for testing */
-        float torque = 10.0f * std::sin(
+        float feedback_torque = 10.0f * std::sin(
                 boost::math::constants::two_pi<float>() *
                 ST2S(static_cast<float>(chVTGetSystemTime())));
         dacsample_t aout = static_cast<dacsample_t>(
-                (torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
+                (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(&DACD1, 0, aout);
 
-        uint8_t bytes_written;
         pose.x = x_aux[0];
         pose.y = x_aux[1];
         pose.yaw = x[0];
         pose.roll = x[1];
         pose.steer = x[2];
-        bytes_written = packet::serialize::encode_bicycle_pose(pose,
-                encode_buffer.data(), encode_buffer.size());
-        packet::framing::stuff(encode_buffer.data(), frame_buffer.data(), bytes_written);
 
-        printst_t s = getPrintState();
-        if (s == printst_t::VERSION) {
-            if (print_version_string) {
-                printf("Running firmware version %.7s\r\n", g_GITSHA1);
-                print_version_string = false;
-            }
-        } else if (s == printst_t::NORMAL) {
-            packet::framing::unstuff(frame_buffer.data(), encode_buffer.data(), encode_buffer.size());
-            pose = BicyclePose_init_zero;
-            if (packet::serialize::decode_bicycle_pose(encode_buffer.data(), &pose, bytes_written)) {
-                /*
-                 * total computation time (kalman update, x_aux calculation, packet framing and serialization)
-                 * = ~270 us
-                 * TODO: calculate x_aux in a separate loop at a slower update rate.
-                 */
-                kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
-                printf("bicycle pose:\r\n"
-                        "\tx:\t%0.3f m\r\n"
-                        "\ty:\t%0.3f m\r\n",
-                        pose.x, pose.y);
-                printf("\tyaw:\t%0.3f deg\r\n"
-                        "\troll:\t%0.3f deg\r\n"
-                        "\tsteer:\t%0.3f deg\r\n",
-                        rad_to_deg(pose.yaw), rad_to_deg(pose.roll), rad_to_deg(pose.steer));
-                printf("computation time: %U us\r\n",
-                        RTC2US(STM32_SYSCLK, kalman_update_time));
-            }
-            //printf("encoder count:\t%u\r\n", encoder.count());
-            //printf("sensors:\t%0.3f\t%0.3f\t%0.3f\t%0.3f\r\n",
-            //        u[1], motor_torque, rad_to_deg(z[0]), rad_to_deg(z[1]));
-            //printf("state:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
-            //        rad_to_deg(x[0]), rad_to_deg(x[1]), rad_to_deg(x[2]), rad_to_deg(x[3]), rad_to_deg(x[4]));
-            //printf("kalman update time: %U us\r\n",
-            //        RTC2US(STM32_SYSCLK, kalman_update_time));
-        } else if (s == printst_t::NONE) {
-            /* reset printing of version string */
-            print_version_string = true;
-        }
+        kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
+        printf("torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\tsteer angle: %8.3f deg\r\n",
+                steer_torque, motor_torque, rad_to_deg(z[1]));
+        printf("update time: %d us\t\tfirmware version %.7s\r\n",
+                RTC2US(STM32_SYSCLK, kalman_update_time), g_GITSHA1);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
 }
