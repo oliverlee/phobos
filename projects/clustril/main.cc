@@ -243,7 +243,7 @@ int main(void) {
                 print_version_string = false;
             }
         } else if (s == printst_t::NORMAL) {
-            packet::framing::unstuff(frame_buffer.data(), encode_buffer.data(), encode_buffer.size());
+            packet::framing::unstuff(frame_buffer.data(), encode_buffer.data(), bytes_written + 1);
             pose = BicyclePose_init_zero;
             if (packet::serialize::decode(encode_buffer.data(), &pose, bytes_written)) {
                 /*
