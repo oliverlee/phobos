@@ -19,7 +19,7 @@ template <typename T>
 const pb_field_t* message_field<T>::type = nullptr;
 
 template <typename T>
-uint8_t encode(const T& t, uint8_t* buffer, uint8_t buffer_size) {
+uint32_t encode(const T& t, uint8_t* buffer, uint32_t buffer_size) {
     osalDbgCheck(message_field<T>::type != nullptr);
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, buffer_size);
     bool status = pb_encode(&stream, message_field<T>::type, &t);
@@ -28,7 +28,7 @@ uint8_t encode(const T& t, uint8_t* buffer, uint8_t buffer_size) {
 }
 
 template <typename T>
-bool decode(const uint8_t* buffer, T* t, uint8_t buffer_size) {
+bool decode(const uint8_t* buffer, T* t, uint32_t buffer_size) {
     osalDbgCheck(message_field<T>::type != nullptr);
     pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_size);
     bool status = pb_decode(&stream, message_field<T>::type, t);
@@ -37,7 +37,7 @@ bool decode(const uint8_t* buffer, T* t, uint8_t buffer_size) {
 }
 
 template <typename T>
-uint8_t encode_delimited(const T& t, uint8_t* buffer, uint8_t buffer_size) {
+uint32_t encode_delimited(const T& t, uint8_t* buffer, uint32_t buffer_size) {
     osalDbgCheck(message_field<T>::type != nullptr);
     pb_ostream_t stream = pb_ostream_from_buffer(buffer, buffer_size);
     bool status = pb_encode_delimited(&stream, message_field<T>::type, &t);
@@ -46,7 +46,7 @@ uint8_t encode_delimited(const T& t, uint8_t* buffer, uint8_t buffer_size) {
 }
 
 template <typename T>
-bool decode_delimited(const uint8_t* buffer, T* t, uint8_t buffer_size) {
+bool decode_delimited(const uint8_t* buffer, T* t, uint32_t buffer_size) {
     osalDbgCheck(message_field<T>::type != nullptr);
     pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_size);
     bool status = pb_decode_delimited(&stream, message_field<T>::type, t);
