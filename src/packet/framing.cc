@@ -7,19 +7,16 @@
  * Refer to: https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing
  */
 
-namespace {
-    constexpr uint8_t COBS_MAX_SIZE_DATA_SET = 254;
-} // namespace
-
 namespace packet {
 namespace framing {
 
-void stuff(const uint8_t* source, uint8_t* dest, uint8_t length) {
+void stuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
-    osalDbgAssert(length <= COBS_MAX_SIZE_DATA_SET, "invalid data length");
+    osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET,
+            "source data exceeds allowed frame algorithm size");
 
-    const uint8_t* end = source + length;
+    const uint8_t* end = source + source_byte_size;
     uint8_t* code_p = dest++; /* pointer to write code */
     uint8_t code = 0x01;
 
@@ -34,7 +31,7 @@ void stuff(const uint8_t* source, uint8_t* dest, uint8_t length) {
             write_code();
         } else { /* handle non-zero byte */
             *dest++ = *source;
-            if (++code == 0xff) { /* reached max data length */
+            if (++code == 0xff) { /* reached max COBS data size */
                 write_code();
             }
         }
@@ -43,12 +40,13 @@ void stuff(const uint8_t* source, uint8_t* dest, uint8_t length) {
     write_code();
 }
 
-void unstuff(const uint8_t* source, uint8_t* dest, uint8_t length) {
+void unstuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
-    // osalDbgAssert(length <= COBS_MAX_SIZE_DATA_SET + 1, "invalid data length"); always true due to data type
+    // osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET + 1,
+    // "invalid data size"); always true due to data type
 
-    const uint8_t* end = source + length;
+    const uint8_t* end = source + source_byte_size;
     while (source < end) {
         uint8_t code = *source++;
 
