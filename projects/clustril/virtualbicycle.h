@@ -2,6 +2,7 @@
 #include "bicycle.h"
 #include "kalman.h"
 #include "messages.pb.h"
+#include "constants.h"
 
 class VirtualBicycle {
     public:
@@ -9,13 +10,13 @@ class VirtualBicycle {
         using kalman_t = observer::Kalman<bicycle_t>;
 
         /* Bicycle model parameters */
-        static const float default_fs; // sample rate [Hz]
-        static const float default_dt; // sample time [s]
-        static const float default_v; // forward speed [m/s]
+        static constexpr float default_fs = 200.0f; // sample rate [Hz]
+        static constexpr float default_dt = 1.0f/default_fs; // sample time [s]
+        static constexpr float default_v = 5.0f; // forward speed [m/s]
 
         /* Kalman filter variance values */
-        static const float default_sigma0; // yaw angle measurement noise variance
-        static const float default_sigma1; // steer angle measurement noise variance
+        static constexpr float default_sigma0 = 1 * constants::as_radians; // yaw angle measurement noise variance
+        static constexpr float default_sigma1 = 0.008 * constants::as_radians; // steer angle measurement noise variance
 
         VirtualBicycle(float v = default_v, float dt = default_dt,
                        float sigma0 = default_sigma0, float sigma1 = default_sigma1);

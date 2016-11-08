@@ -13,12 +13,6 @@ namespace {
     std::array<uint8_t, BicyclePose_size + packet::framing::FRAME_STUFF_OVERHEAD> frame_buffer;
 } // namespace
 
-const float VirtualBicycle::default_fs = 200;
-const float VirtualBicycle::default_dt = 1.0/default_fs;
-const float VirtualBicycle::default_v = 5.0;
-const float VirtualBicycle::default_sigma0 = 1 * constants::as_radians;
-const float VirtualBicycle::default_sigma1 = 0.008 * constants::as_radians;
-
 VirtualBicycle::VirtualBicycle(float v, float dt, float sigma0, float sigma1) :
 m_bicycle(v , dt),
 m_kalman(m_bicycle, /* bicycle model used in Kalman filter */
