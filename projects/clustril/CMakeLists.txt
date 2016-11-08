@@ -26,7 +26,12 @@ endif()
 # generate protobuf sources
 nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROJECT_SOURCE_DIR}/proto/messages.proto)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
+set(PROTOBUF_COMPILE_DEFINITIONS "PB_FIELD_16BIT")
+if(CMAKE_BUILD_TYPE MATCHES Release)
+    set(PROTOBUF_COMPILE_DEFINITIONS ${PROTOBUF_COMPILE_DEFINITIONS} "PB_NO_ERRMSG" "PB_BUFFER_ONLY")
+endif()
+set_property(SOURCE ${PROTO_SRCS} APPEND PROPERTY COMPILE_DEFINITIONS
+    ${PROTOBUF_COMPILE_DEFINITIONS})
 
 add_phobos_executable(clustril
     chconf.h
