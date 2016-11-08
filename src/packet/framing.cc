@@ -53,11 +53,11 @@ void unstuff(const uint8_t* source, uint8_t* dest, uint8_t length) {
         uint8_t code = *source++;
 
         osalDbgAssert(code != 0, "zero byte input");
-        osalDbgAssert(code <= (end - source), "input too short");
+        osalDbgAssert(code - 1 <= (end - source), "input too short");
         for (uint8_t i = 1; i < code; ++i) {
             *dest++ = *source++;
         }
-        if (code < 0xff) { /* don't write the last zero for max data length */
+        if (code < 0xff) { /* don't write the end-of-packet zero if data length = 0xff */
             *dest++ = 0;
         }
     }
