@@ -34,8 +34,7 @@
 #include "packet/serialize.h"
 #include "packet/framing.h"
 
-#include <type_traits>
-
+#include "messages.pb.h"
 
 namespace {
     using bicycle_t = model::Bicycle;
@@ -234,8 +233,7 @@ int main(void) {
         pose.yaw = x[0];
         pose.roll = x[1];
         pose.steer = x[2];
-        bytes_written = packet::serialize::encode_bicycle_pose(pose,
-                encode_buffer.data(), encode_buffer.size());
+        bytes_written = packet::serialize::encode(pose, encode_buffer.data(), encode_buffer.size());
         packet::framing::stuff(encode_buffer.data(), frame_buffer.data(), bytes_written);
 
         printst_t s = getPrintState();
@@ -247,7 +245,7 @@ int main(void) {
         } else if (s == printst_t::NORMAL) {
             packet::framing::unstuff(frame_buffer.data(), encode_buffer.data(), encode_buffer.size());
             pose = BicyclePose_init_zero;
-            if (packet::serialize::decode_bicycle_pose(encode_buffer.data(), &pose, bytes_written)) {
+            if (packet::serialize::decode(encode_buffer.data(), &pose, bytes_written)) {
                 /*
                  * total computation time (kalman update, x_aux calculation, packet framing and serialization)
                  * = ~270 us
