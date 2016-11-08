@@ -1,24 +1,26 @@
 #include "packet/serialize.h"
-#include "pb_encode.h"
-#include "pb_decode.h"
-#include "osal.h"
+#include "messages.pb.h"
 
 namespace packet {
 namespace serialize {
 
-uint8_t encode_bicycle_pose(const BicyclePose& bp, uint8_t* buffer, uint8_t buffer_size) {
-    pb_ostream_t stream = pb_ostream_from_buffer(buffer, buffer_size);
-    bool status = pb_encode(&stream, BicyclePose_fields, &bp);
-    osalDbgCheck(status);
-    return stream.bytes_written;
-}
-
-bool decode_bicycle_pose(const uint8_t* buffer, BicyclePose* bp, uint8_t buffer_size) {
-    pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_size);
-    bool status = pb_decode(&stream, BicyclePose_fields, bp);
-    osalDbgCheck(status);
-    return status;
-}
+// TODO: autogenerate these template specializations
+template <> const pb_field_t* message_field<ClustrilMessage>::type = ClustrilMessage_fields;
+template <> const pb_field_t* message_field<BicycleState>::type = BicycleState_fields;
+template <> const pb_field_t* message_field<BicycleInput>::type = BicycleInput_fields;
+template <> const pb_field_t* message_field<BicyclePose>::type = BicyclePose_fields;
+template <> const pb_field_t* message_field<Sensors>::type = Sensors_fields;
+template <> const pb_field_t* message_field<Actuators>::type = Actuators_fields;
+template <> const pb_field_t* message_field<SymmetricStateMatrix>::type = SymmetricStateMatrix_fields;
+template <> const pb_field_t* message_field<SymmetricOutputMatrix>::type = SymmetricOutputMatrix_fields;
+template <> const pb_field_t* message_field<KalmanGainMatrix>::type = KalmanGainMatrix_fields;
+template <> const pb_field_t* message_field<Kalman>::type = Kalman_fields;
+template <> const pb_field_t* message_field<SecondOrderMatrix>::type = SecondOrderMatrix_fields;
+template <> const pb_field_t* message_field<StateMatrix>::type = StateMatrix_fields;
+template <> const pb_field_t* message_field<InputMatrix>::type = InputMatrix_fields;
+template <> const pb_field_t* message_field<OutputMatrix>::type = OutputMatrix_fields;
+template <> const pb_field_t* message_field<FeedthroughMatrix>::type = FeedthroughMatrix_fields;
+template <> const pb_field_t* message_field<BicycleModel>::type = BicycleModel_fields;
 
 } // namespace serialize
 } // namespace packet
