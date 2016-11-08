@@ -36,5 +36,23 @@ bool decode(const uint8_t* buffer, T* t, uint8_t buffer_size) {
     return status;
 }
 
+template <typename T>
+uint8_t encode_delimited(const T& t, uint8_t* buffer, uint8_t buffer_size) {
+    osalDbgCheck(message_field<T>::type != nullptr);
+    pb_ostream_t stream = pb_ostream_from_buffer(buffer, buffer_size);
+    bool status = pb_encode_delimited(&stream, message_field<T>::type, &t);
+    osalDbgCheck(status);
+    return stream.bytes_written;
+}
+
+template <typename T>
+bool decode_delimited(const uint8_t* buffer, T* t, uint8_t buffer_size) {
+    osalDbgCheck(message_field<T>::type != nullptr);
+    pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_size);
+    bool status = pb_decode_delimited(&stream, message_field<T>::type, t);
+    osalDbgCheck(status);
+    return status;
+}
+
 } // namespace serialize
 } // namespace packet
