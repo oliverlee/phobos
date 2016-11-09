@@ -13,6 +13,8 @@ include_directories(${NANOPB_INCLUDE_DIRS})
 add_definitions("-DCHPRINTF_USE_FLOAT")
 # use static simulator configurations
 add_definitions("-DSTATIC_SIMULATOR_CONFIG")
+# use ChibiOS FATFS module
+set(CHIBIOS_BUILD_WITH_FATFS ON)
 
 # The required stacksize is not the exact amount but large enough such that the
 # main thread does not overflow.
@@ -33,11 +35,21 @@ endif()
 set_property(SOURCE ${PROTO_SRCS} APPEND PROPERTY COMPILE_DEFINITIONS
     ${PROTOBUF_COMPILE_DEFINITIONS})
 
+# exclude blink and usb sources
+set(PHOBOS_COMMON_SRC ${PROJECT_BINARY_DIR}/src/gitsha1.cc)
+
+# suppress Boost undef warnings and Eigen deprecated warnings
+set_property(SOURCE messageutil.cc virtualbicycle.cc
+    APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef -Wno-deprecated")
+
 add_phobos_executable(clustril
     chconf.h
+    ffconf.h
     halconf.h
     mcuconf.h
     main.cc
+    messageutil.cc
+    filesystem.cc
     printstate.cc
     virtualbicycle.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc

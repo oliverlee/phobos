@@ -17,23 +17,21 @@
 #include "ch.h"
 #include "hal.h"
 
-#include "blink.h"
-#include "usbconfig.h"
-#include "printf.h"
 #include "gitsha1.h"
 
 #include "analog.h"
 #include "encoder.h"
 
-#include "printstate.h"
 #include "packet/serialize.h"
 #include "packet/framing.h"
 #include "angle.h"
 
-#include "parameters.h"
+#include "filesystem.h"
 #include "virtualbicycle.h"
-
 #include "messages.pb.h"
+#include "messageutil.h"
+
+#include <array>
 
 namespace {
     /* sensors */
@@ -44,19 +42,22 @@ namespace {
              EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
                                                      * for valid edge */
 
-     const float max_kistler_torque = 25.0f; /* maximum measured steer torque */
-     /*
-      * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
-      * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
-      */
-     const float max_kollmorgen_torque = 10.0f; /* max torque at 1.00 Arms/V */
+    const float max_kistler_torque = 25.0f; /* maximum measured steer torque */
+    /*
+     * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
+     * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
+     */
+    const float max_kollmorgen_torque = 10.0f; /* max torque at 1.00 Arms/V */
 
     const DACConfig dac1cfg1 = {
-        .init       = 2047U, // max value is 4095 (12-bit)
-        .datamode   = DAC_DHRM_12BIT_RIGHT
+         .init       = 2047U, // max value is 4095 (12-bit)
+         .datamode   = DAC_DHRM_12BIT_RIGHT
     };
 
-    std::array<uint8_t, BicyclePose_size> encode_buffer;
+    static constexpr ClustrilMessage clustril_message_zero = ClustrilMessage_init_zero;
+    ClustrilMessage sample;
+
+    std::array<uint8_t, ClustrilMessage_size> encode_buffer;
 } // namespace
 
 /*
@@ -74,30 +75,7 @@ int main(void) {
     halInit();
     chSysInit();
 
-    /*
-     * Initialize a serial-over-USB CDC driver.
-     */
-    sduObjectInit(&SDU1);
-    sduStart(&SDU1, &serusbcfg);
-
-    /*
-     * Activate the USB driver and then the USB bus pull-up on D+.
-     * Note, a delay is inserted in order to not have to disconnect the cable
-     * after a reset.
-     */
-    board_usb_lld_disconnect_bus();   //usbDisconnectBus(serusbcfg.usbp);
-    chThdSleepMilliseconds(1500);
-    usbStart(serusbcfg.usbp, &usbcfg);
-    board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
-
-    /* create the blink thread and print state monitor */
-    chBlinkThreadCreateStatic();
-    /*
-     * Use LINE_TIM4_CH2 (PB7, EXT1-15, J4-B) as a button by
-     * connecting/disconnecting it to ground.
-     * */
-    palSetLineMode(LINE_TIM4_CH2, PAL_MODE_INPUT_PULLUP);
-    enablePrintStateMonitor(LINE_TIM4_CH2);
+    filesystem::init();
 
     /*
      * Start sensors.
@@ -108,7 +86,6 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
-
 
     /*
      * Set torque measurement enable line low.
@@ -130,13 +107,53 @@ int main(void) {
 
     VirtualBicycle bicycle;
 
+    /* write firmware gitsha1, bicycle and Kalman settings to file */
+    rtcnt_t bicycle_simulation_time = chSysGetRealtimeCounterX();
+
+    sample = clustril_message_zero;
+    sample.timestamp = bicycle_simulation_time;
+    std::memcpy(sample.firmware_version, g_GITSHA1,
+            sizeof(sample.firmware_version)*sizeof(sample.firmware_version[0]));
+    sample.has_firmware_version = true;
+    message::set_clustril_initial_values(&sample, bicycle);
+
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
-    bool print_version_string = true;
-    rtcnt_t bicycle_simulation_time = 0;
+    bool delete_file = true;
     while (true) {
+        chEvtDispatch(filesystem::sdc_eventhandlers, chEvtWaitOneTimeout(ALL_EVENTS, MS2ST(5)));
+
+        // TODO: write to file in a separate thread
+        if (filesystem::ready()) {
+            const char* filename = "test.txt";
+            UINT bytes_written;
+            FIL f;
+            FRESULT res;
+
+            if (delete_file) {
+                res = f_unlink(filename);
+                chDbgCheck((res == FR_OK) || (res ==  FR_NO_FILE) || (res = FR_NO_PATH));
+                delete_file = false;
+            }
+
+            res = f_open(&f, filename, FA_WRITE | FA_OPEN_ALWAYS);
+            chDbgAssert(res == FR_OK, "file open failed");
+
+            res = f_lseek(&f, f_size(&f));
+            chDbgAssert(res == FR_OK, "file seek failed");
+
+            uint8_t bytes_encoded = packet::serialize::encode_delimited(sample, encode_buffer.data(), encode_buffer.size());
+            res = f_write(&f, encode_buffer.data(), bytes_encoded, &bytes_written);
+            chDbgAssert(res == FR_OK, "file write failed");
+
+            res = f_close(&f);
+            chDbgAssert(res == FR_OK, "file close failed");
+        } else {
+            continue;
+        }
+
         constexpr float roll_torque = 0;
 
         /* get torque measurements */
@@ -151,50 +168,21 @@ int main(void) {
         float steer_angle = angle::encoder_count<float>(encoder);
 
         /* observer time/measurement update (~80 us with real_t = float) */
-        bicycle_simulation_time = chSysGetRealtimeCounterX();
         bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle);
         bicycle.encode_and_stuff_pose();
 
-        /* generate an example torque output for testing */
+        /* generate a simple torque output (sine wave) for peripheral testing */
         float feedback_torque = 10.0f * std::sin(constants::two_pi *
                 ST2S(static_cast<float>(chVTGetSystemTime())));
         dacsample_t aout = static_cast<dacsample_t>(
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(&DACD1, 0, aout);
 
-        printst_t s = getPrintState();
-        if (s == printst_t::VERSION) {
-            if (print_version_string) {
-                printf("Running firmware version %.7s\r\n", g_GITSHA1);
-                print_version_string = false;
-            }
-        } else if (s == printst_t::NORMAL) {
-            packet::framing::unstuff(bicycle.pose_buffer(), encode_buffer.data(), bicycle.pose_buffer_size());
-            BicyclePose pose = BicyclePose_init_zero;
-            if (packet::serialize::decode(encode_buffer.data(), &pose, bicycle.pose_buffer_size() - 1)) {
-                /*
-                 * total computation time (kalman update, x_aux calculation, packet framing and serialization)
-                 * = ~270 us
-                 * TODO: calculate x_aux in a separate loop at a slower update rate.
-                 */
-                bicycle_simulation_time = chSysGetRealtimeCounterX() - bicycle_simulation_time;
-                printf("bicycle pose:\r\n"
-                        "\tx:\t%0.3f m\r\n"
-                        "\ty:\t%0.3f m\r\n",
-                        pose.x, pose.y);
-                printf("\tyaw:\t%0.3f deg\r\n"
-                        "\troll:\t%0.3f deg\r\n"
-                        "\tsteer:\t%0.3f deg\r\n",
-                        pose.yaw*constants::as_degrees,
-                        pose.roll*constants::as_degrees,
-                        pose.steer*constants::as_degrees);
-                printf("computation time: %U us\r\n",
-                        RTC2US(STM32_SYSCLK, bicycle_simulation_time));
-            }
-        } else if (s == printst_t::NONE) {
-            /* reset printing of version string */
-            print_version_string = true;
-        }
+        sample = clustril_message_zero;
+        sample.timestamp = chSysGetRealtimeCounterX();
+        message::set_clustril_loop_values(&sample, bicycle, steer_torque, motor_torque, encoder.count(), feedback_torque);
+
+        // TODO: fix sleep amount
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.model().dt()));
     }
 }

@@ -12,6 +12,11 @@ set(OPENOCD_INTERFACE_CFG "${PROJECT_SOURCE_DIR}/openocd_olimex-arm-usb-tiny-h_s
 include(external/ChibiOS/chibios.cmake)
 set(CHIBIOS_USE_PROCESS_STACKSIZE "0x3000"
     CACHE STRING "Stack size used by the main() thread." FORCE)
+if(CMAKE_BUILD_TYPE MATCHES Release)
+    add_definitions("-DOSAL_DBG_ENABLE_ASSERTS=false -DOSAL_DBG_ENABLE_CHECKS=false")
+else()
+    add_definitions("-DOSAL_DBG_ENABLE_ASSERTS=true -DOSAL_DBG_ENABLE_CHECKS=true")
+endif()
 
 # define CMake module path and include external project CMake modules
 set(CMAKE_MODULE_PATH
@@ -46,10 +51,10 @@ macro(add_phobos_executable target_name)
     set(source_file_properties_modified 0)
     foreach(src in ${ARGN})
         get_filename_component(src_name ${src} NAME)
-        if(src_name MATCHES "(main|virtualbicycle).cc")
+        if(src_name MATCHES "main.cc")
             # Disable format warnings for printf as we use parameters types defined by ChibiOS
             set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-format")
-            # suppress boost undef warnings
+            # suppress Boost undef warnings
             if(Boost_INCLUDE_DIR)
                 set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
             endif()
@@ -100,4 +105,3 @@ include_directories(src) # definitions for template classes are placed in src di
 add_subdirectory(src)
 add_subdirectory(demos)
 add_subdirectory(projects)
-
