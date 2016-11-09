@@ -28,7 +28,7 @@ nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROJECT_SOURCE_DIR}/proto/messages.p
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
 
-add_phobos_executable(clustril
+add_phobos_executable(drunlo
     chconf.h
     halconf.h
     mcuconf.h
