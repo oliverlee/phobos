@@ -26,7 +26,7 @@ tui enable
 
 set trace-commands on
 set logging on
-set print pretty
+set print pretty on
 
 python
 import os
@@ -35,6 +35,11 @@ sys.path.insert(0, os.path.join(os.path.expanduser('~'), 'repos/phobos/debug'))
 from printers import register_eigen_printers
 register_eigen_printers(None)
 end
+
+# make sure we use a single byte charset as we frequently use uint8_t to store
+# values that are NOT valid UTF-8 (multibyte, usually default) encodings and
+# will cause gdb to crash when printing character constants
+set charset ISO-8859-1
 
 source /Users/oliver/repos/phobos/external/gdb-regview/gdb-regview.py
 regview load /Users/oliver/repos/phobos/external/gdb-regview/defs/stm32f40x.xml
