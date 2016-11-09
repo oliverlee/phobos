@@ -17,38 +17,23 @@
 #include "ch.h"
 #include "hal.h"
 
-#include "blink.h"
-#include "usbconfig.h"
-#include "gitsha1.h"
-
-#include "parameters.h"
-
-#include "angle.h"
 #include "analog.h"
 #include "encoder.h"
+
+#include "gitsha1.h"
+#include "angle.h"
+#include "blink.h"
+#include "usbconfig.h"
+#include "saconfig.h"
+
+#include "parameters.h"
 
 namespace {
     const float dt = 0.05f; /* ms */
 
     /* sensors */
     Analog analog;
-    Encoder encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
-            {PAL_LINE(GPIOA, GPIOA_PIN2), /* index channel */
-             152000, /* counts per revolution */
-             EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
-                                                     * for valid edge */
-
-    const float max_kistler_torque = 50.0f; /* maximum measured steer torque */
-    /*
-     * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
-     * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
-     */
-    const float max_kollmorgen_torque = 11.5f; /* max torque at 1.6 Arms/V */
-
-    const DACConfig dac1cfg1 = {
-        .init       = 2047U, // max value is 4095 (12-bit)
-        .datamode   = DAC_DHRM_12BIT_RIGHT
-    };
+    Encoder encoder(sa::RLS_ENC, sa::RLS_ENC_INDEX_CFG);
 } // namespace
 
 /*
@@ -112,7 +97,7 @@ int main(void) {
      * and must be changed to use as analog output.
      */
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
-    dacStart(&DACD1, &dac1cfg1);
+    dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -120,24 +105,22 @@ int main(void) {
      */
     while (true) {
         /* get sensor measurements */
-        float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
-                max_kistler_torque);
+        float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
+                sa::MAX_KISTLER_TORQUE);
         float motor_torque = static_cast<float>(
-                analog.get_adc13()*2.0f*max_kollmorgen_torque/4096 -
-                max_kollmorgen_torque);
+                analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
+                sa::MAX_KOLLMORGEN_TORQUE);
         float steer_angle = angle::encoder_count<float>(encoder);
 
         /* generate an example torque output for testing */
         float feedback_torque = 10.0f * std::sin(
-                boost::math::constants::two_pi<float>() *
-                ST2S(static_cast<float>(chVTGetSystemTime())));
+                constants::two_pi * ST2S(static_cast<float>(chVTGetSystemTime())));
         dacsample_t aout = static_cast<dacsample_t>(
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
-        dacPutChannelX(&DACD1, 0, aout);
+        dacPutChannelX(sa::KOLLM_DAC, 0, aout);
 
-        printf("torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\tsteer angle: %8.3f deg\r\n",
-                steer_torque, motor_torque, steer_angle);
-        printf("firmware version %.7s\r\n", g_GITSHA1);
+        printf("[%.7s] torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\tsteer angle: %8.3f deg\r\n",
+                g_GITSHA1, steer_torque, motor_torque, steer_angle);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
 }
