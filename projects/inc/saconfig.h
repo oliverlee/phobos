@@ -19,13 +19,13 @@ constexpr EncoderConfig RLS_ENC_INDEX_CFG = {
     .filter = EncoderConfig::filter_t::CAPTURE_64 /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us for valid edge */
 };
 
-constexpr float MAX_KISTLER_TORQUE = 25.0f; /* maximum measured steer torque */
+constexpr float MAX_KISTLER_TORQUE = 50.0f; /* maximum measured steer torque */
 
 /*
  * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
  * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
  */
-constexpr float MAX_KOLLMORGEN_TORQUE = 10.0f; /* max torque at 1.00 Arms/V */
+constexpr float MAX_KOLLMORGEN_TORQUE = 11.5f; /* max torque at 1.00 Arms/V */
 
 constexpr DACDriver* KOLLM_DAC = &DACD1;
 
