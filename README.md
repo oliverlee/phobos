@@ -133,3 +133,25 @@ For general instructions refer to the ChibiOS/Eclipse guides [part
 - Copy ChibiOS jar files found in eclipse/dropins to the Eclipse dropins
   directory. For OSX, this is located at
   `/Applications/Eclipse.app/Contents/Eclipse/dropins/`
+
+## Demo and Project descriptions
+Most demos and projects will print ASCII output using serial over USB and blink
+the LED to denote that the code is running. A brief description of each
+executable is given below:
+
+    +-- demos
+    |   +-- adc             - Reads ADC channels ADC10, ADC11, ADC12.
+    |   +-- bicycle         - Simulates the Whipple model with Kalman filter and prints state and auxiliary state.
+    |   +-- dac             - Outputs new DAC values at 1 kHz with large steps between each value.
+    |   +-- eigen           - Performs matrix multiplication and matrix element rescaling.
+    |   +-- encoder         - Activates incremental encoder with 15200 counts per revolution.
+    |   +-- encoder_hots    - Activates incremental encoder with 15200 counts per revolution using Higher-Order Time-Sampling.
+    |   +-- encoder_index   - Activates incremental encoder with 15200 counts per revolution and index channel.
+    |   +-- fatfs           - Writes and reads data to file on micro SD card.
+    |   +-- gpt_adc         - Reads ADC channels ADC10, ADC11, ADC12 and uses GPT triggering.
+    |   +-- pwm_encoder     - Activates 2 PWM channels 1/4 period of of phase and an incremental encoder.
+    |   +-- usb_serial      - Runs ChibiOS usb-serial demo and runs tests.
+    |
+    +-- projects
+        +-- clustril        - Runs development static simulator code. Requires usage of SDIO which prevents usage of serial over USB.
+        +-- drunlo          - Prints sensor values as ASCII. Requires usage of serial over USB.
