@@ -17,42 +17,28 @@
 #include "ch.h"
 #include "hal.h"
 
-#include "gitsha1.h"
-
 #include "analog.h"
 #include "encoder.h"
 
-#include "packet/serialize.h"
-#include "packet/framing.h"
+#include "gitsha1.h"
 #include "angle.h"
-
 #include "filesystem.h"
 #include "virtualbicycle.h"
+#include "saconfig.h"
+
+#include "packet/serialize.h"
+#include "packet/framing.h"
 #include "messages.pb.h"
 #include "messageutil.h"
+
+#include "parameters.h"
 
 #include <array>
 
 namespace {
     /* sensors */
     Analog analog;
-    Encoder encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
-            {PAL_NOLINE, /* no index channel */
-             152000, /* counts per revolution */
-             EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
-                                                     * for valid edge */
-
-    const float max_kistler_torque = 25.0f; /* maximum measured steer torque */
-    /*
-     * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
-     * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
-     */
-    const float max_kollmorgen_torque = 10.0f; /* max torque at 1.00 Arms/V */
-
-    const DACConfig dac1cfg1 = {
-         .init       = 2047U, // max value is 4095 (12-bit)
-         .datamode   = DAC_DHRM_12BIT_RIGHT
-    };
+    Encoder encoder(sa::RLS_ENC, sa::RLS_ENC_INDEX_CFG);
 
     static constexpr ClustrilMessage clustril_message_zero = ClustrilMessage_init_zero;
     ClustrilMessage sample;
@@ -103,7 +89,7 @@ int main(void) {
      * and must be changed to use as analog output.
      */
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
-    dacStart(&DACD1, &dac1cfg1);
+    dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
 
     VirtualBicycle bicycle;
 
@@ -157,11 +143,11 @@ int main(void) {
         constexpr float roll_torque = 0;
 
         /* get torque measurements */
-        float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*max_kistler_torque/4096 -
-                max_kistler_torque);
+        float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
+                sa::MAX_KISTLER_TORQUE);
         float motor_torque = static_cast<float>(
-                analog.get_adc13()*2.0f*max_kollmorgen_torque/4096 -
-                max_kollmorgen_torque);
+                analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
+                sa::MAX_KOLLMORGEN_TORQUE);
 
         /* get angle measurements */
         float yaw_angle = angle::wrap(bicycle.x()[0]); /* yaw angle, just use previous state value */
@@ -176,7 +162,7 @@ int main(void) {
                 ST2S(static_cast<float>(chVTGetSystemTime())));
         dacsample_t aout = static_cast<dacsample_t>(
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
-        dacPutChannelX(&DACD1, 0, aout);
+        dacPutChannelX(sa::KOLLM_DAC, 0, aout);
 
         sample = clustril_message_zero;
         sample.timestamp = chSysGetRealtimeCounterX();
