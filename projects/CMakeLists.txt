@@ -36,3 +36,8 @@ option(PHOBOS_BUILD_PROJECT_DRUNLO "Build Drunlo (static simulator) demo" TRUE)
 if(PHOBOS_BUILD_PROJECT_DRUNLO)
     add_subdirectory(drunlo)
 endif()
+
+option(PHOBOS_BUILD_PROJECT_FLIMNAP "Build Flimnap (static simulator) demo" TRUE)
+if(PHOBOS_BUILD_PROJECT_FLIMNAP)
+    add_subdirectory(flimnap)
+endif()
