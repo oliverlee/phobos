@@ -33,8 +33,6 @@
 #include <array>
 
 namespace {
-    const float dt = 0.05f; /* ms */
-
     /* sensors */
     Analog analog;
     Encoder encoder(sa::RLS_ENC, sa::RLS_ENC_INDEX_CFG);
@@ -121,7 +119,7 @@ int main(void) {
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
 
     /*
-     * Initialize bicycle with default parameters.
+     * Initialize bicycle with default parameters, dt = 0.005 s, v = 5 m/s.
      */
     VirtualBicycle bicycle;
 
@@ -134,6 +132,8 @@ int main(void) {
      * dynamics in real-time (roughly).
      */
     while (true) {
+        systime_t starttime = chVTGetSystemTime();
+
         constexpr float roll_torque = 0.0f;
 
         /* get sensor measurements */
@@ -158,7 +158,7 @@ int main(void) {
 
         /* generate an example torque output for testing */
         float feedback_torque = 10.0f * std::sin(
-                constants::two_pi * ST2S(static_cast<float>(chVTGetSystemTime())));
+                constants::two_pi * ST2S(static_cast<float>(starttime)));
         dacsample_t aout = static_cast<dacsample_t>(
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
@@ -172,9 +172,17 @@ int main(void) {
         pose.steer = bicycle.pose().steer * constants::as_degrees;
         pose.v = bicycle.model().v();
         pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
+        /* TODO: examine difference between chVTGetSystemTime() calls */
 
         bytes_written = packet::frame::stuff(&pose, packet_buffer.data(), sizeof(pose));
         obqWriteTimeout(&SDU1.obqueue, packet_buffer.data(), bytes_written, TIME_INFINITE);
-        chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.model().dt()));
+
+        systime_t dt = MS2ST(static_cast<systime_t>(1000*bicycle.model().dt()));
+        systime_t sleeptime = dt + starttime - chVTGetSystemTime();
+        if (sleeptime >= dt) {
+            chDbgAssert(false, "deadline missed");
+            continue;
+        }
+        chThdSleep(sleeptime);
     }
 }
