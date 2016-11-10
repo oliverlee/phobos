@@ -10,83 +10,91 @@
 namespace packet {
 namespace framing {
 
-uint8_t stuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
+uint8_t stuff(const void* source, void* dest, uint8_t source_byte_size) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
     osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET,
             "source data exceeds allowed frame algorithm size");
 
-    const uint8_t* end = source + source_byte_size;
-    uint8_t* code_p = dest++; /* pointer to write code */
+    const char* source_ = static_cast<const char*>(source);
+    char* dest_ = static_cast<char*>(dest);
+
+    const char* end = source_ + source_byte_size;
+    char* code_p = dest_++; /* pointer to write code */
     uint8_t code = 0x01;
 
     auto write_code = [&]() {
         *code_p = code;
-        code_p = dest++;
+        code_p = dest_++;
         code = 0x01;
     };
 
-    while (source < end) {
-        if (*source == 0) { /* handle zero byte in data */
+    while (source_ < end) {
+        if (*source_ == 0) { /* handle zero byte in data */
             write_code();
         } else { /* handle non-zero byte */
-            *dest++ = *source;
+            *dest_++ = *source_;
             if (++code == 0xff) { /* reached max COBS data size */
                 write_code();
             }
         }
-        ++source;
+        ++source_;
     }
     write_code();
-    *dest = COBS_PACKET_DELIMITER;
+    *dest_ = COBS_PACKET_DELIMITER;
     return source_byte_size + PACKET_OVERHEAD;
 }
 
-uint8_t unstuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
+uint8_t unstuff(const void* source, void* dest, uint8_t source_byte_size) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
     // osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET + 1,
     // "invalid data size"); always true due to data type
 
-    const uint8_t* end = source + source_byte_size;
-    const uint8_t* start = dest;
-    while (source < end) {
-        uint8_t code = *source++;
+    const char* source_ = static_cast<const char*>(source);
+    char* dest_ = static_cast<char*>(dest);
+
+    const char* end = source_ + source_byte_size;
+    while (source_ < end) {
+        uint8_t code = *source_++;
 
         osalDbgAssert(code != 0, "zero byte input");
-        osalDbgAssert((code - 1) <= (end - source), "input code too small or source buffer too small");
+        osalDbgAssert((code - 1) <= (end - source_), "input code too small or source buffer too small");
         for (uint8_t i = 1; i < code; ++i) {
-            *dest++ = *source++;
+            *dest_++ = *source_++;
         }
         if (code < 0xff) { /* don't write the end-of-packet zero if data length = 0xff */
-            *dest++ = 0;
+            *dest_++ = 0;
         }
     }
-    return dest - start;
+    return source_byte_size - PACKET_OVERHEAD;
 }
 
-uint8_t unstuff(const uint8_t* source, uint8_t* dest) {
+uint8_t unstuff(const void* source, void* dest) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
 
-    const uint8_t* start = dest;
+    const char* source_ = static_cast<const char*>(source);
+    char* dest_ = static_cast<char*>(dest);
+
+    const char* start = dest_;
     while (true) {
-        uint8_t code = *source++;
+        uint8_t code = *source_++;
 
         if (code == 0) {
-            osalDbgAssert(start == dest, "zero byte input");
+            osalDbgAssert(start == dest_, "zero byte input");
             break;
         }
-        osalDbgAssert((code - 1) <= (COBS_MAX_SIZE_DATA_SET - (dest - start)),
+        osalDbgAssert((code - 1) <= (COBS_MAX_SIZE_DATA_SET - (dest_ - start)),
                 "input code too small or source buffer too small");
         for (uint8_t i = 1; i < code; ++i) {
-            *dest++ = *source++;
+            *dest_++ = *source_++;
         }
         if (code < 0xff) { /* don't write the end-of-packet zero if data length = 0xff */
-            *dest++ = 0;
+            *dest_++ = 0;
         }
     }
-    return dest - start;
+    return dest_ - start;
 }
 
 } // namespace framing
