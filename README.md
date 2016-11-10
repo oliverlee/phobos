@@ -1,6 +1,7 @@
 #PHOBOS
 The larger and innermost of the two natural satellites of Mars, Phobos is the
-embedded system that controls the gyroscopic balance assistance system.
+embedded system that controls the static (fixed-base) bicycle simulator and
+steer-by-wire bicycle.
 
 ## Toolchain
 To compile the code, use [GNU ARM Embedded
