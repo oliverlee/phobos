@@ -4,7 +4,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(CHIBIOS_BUILD_WITH_FATFS ON)
 
 # generate protobuf sources
-nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROJECT_SOURCE_DIR}/proto/messages.proto)
+nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${PHOBOS_PROJECT_DIR}/proto/clustril.proto)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 set(PROTOBUF_COMPILE_DEFINITIONS "PB_FIELD_16BIT")
 if(CMAKE_BUILD_TYPE MATCHES Release)

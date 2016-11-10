@@ -23,6 +23,7 @@ prevent stack overflow in this project.")
 endif()
 
 # include project headers and sources
+set(PHOBOS_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(PHOBOS_PROJECT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/inc)
 set(PHOBOS_PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${PHOBOS_PROJECT_INCLUDE_DIR})

@@ -3,42 +3,42 @@
 
 namespace message {
 
-void set_bicycle_state(BicycleState* pb, const bicycle_t::state_t& x) {
+void set_bicycle_state(BicycleStateMessage* pb, const bicycle_t::state_t& x) {
     std::memcpy(pb->x, x.data(), sizeof(pb->x));
     pb->x_count = sizeof(pb->x)/sizeof(pb->x[0]);
 }
 
-void set_bicycle_input(BicycleInput* pb, const bicycle_t::input_t& u) {
+void set_bicycle_input(BicycleInputMessage* pb, const bicycle_t::input_t& u) {
     std::memcpy(pb->u, u.data(), sizeof(pb->u));
     pb->u_count = sizeof(pb->u)/sizeof(pb->u[0]);
 }
 
-void set_state_matrix(StateMatrix* pb, const bicycle_t::state_matrix_t& m) {
+void set_state_matrix(StateMatrixMessage* pb, const bicycle_t::state_matrix_t& m) {
     std::memcpy(pb->m, m.data(), sizeof(pb->m));
     pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
 }
 
-void set_input_matrix(InputMatrix* pb, const bicycle_t::input_matrix_t& m) {
+void set_input_matrix(InputMatrixMessage* pb, const bicycle_t::input_matrix_t& m) {
     std::memcpy(pb->m, m.data(), sizeof(pb->m));
     pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
 }
 
-void set_output_matrix(OutputMatrix* pb, const bicycle_t::output_matrix_t& m) {
+void set_output_matrix(OutputMatrixMessage* pb, const bicycle_t::output_matrix_t& m) {
     std::memcpy(pb->m, m.data(), sizeof(pb->m));
     pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
 }
 
-void set_feedthrough_matrix(FeedthroughMatrix* pb, const bicycle_t::feedthrough_matrix_t& m) {
+void set_feedthrough_matrix(FeedthroughMatrixMessage* pb, const bicycle_t::feedthrough_matrix_t& m) {
     std::memcpy(pb->m, m.data(), sizeof(pb->m));
     pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
 }
 
-void set_second_order_matrix(SecondOrderMatrix* pb, const bicycle_t::second_order_matrix_t& m) {
+void set_second_order_matrix(SecondOrderMatrixMessage* pb, const bicycle_t::second_order_matrix_t& m) {
     std::memcpy(pb->m, m.data(), sizeof(pb->m));
     pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
 }
 
-void set_symmetric_state_matrix(SymmetricStateMatrix* pb, const bicycle_t::state_matrix_t& m) {
+void set_symmetric_state_matrix(SymmetricStateMatrixMessage* pb, const bicycle_t::state_matrix_t& m) {
     // TODO: autogenerate in case state size changes in the future
     auto p = pb->m;
     auto d = m.data(); // (0, 0)
@@ -58,7 +58,7 @@ void set_symmetric_state_matrix(SymmetricStateMatrix* pb, const bicycle_t::state
     pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
 }
 
-void set_symmetric_output_matrix(SymmetricOutputMatrix* pb, const kalman_t::measurement_noise_covariance_t& m) {
+void set_symmetric_output_matrix(SymmetricOutputMatrixMessage* pb, const kalman_t::measurement_noise_covariance_t& m) {
     // TODO: autogenerate in case state size changes in the future
     auto p = pb->m;
     auto d = m.data();
@@ -69,12 +69,12 @@ void set_symmetric_output_matrix(SymmetricOutputMatrix* pb, const kalman_t::meas
     pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
 }
 
-void set_kalman_gain_matrix(KalmanGainMatrix* pb, const kalman_t::kalman_gain_t& m) {
+void set_kalman_gain_matrix(KalmanGainMatrixMessage* pb, const kalman_t::kalman_gain_t& m) {
     std::memcpy(pb->m, m.data(), sizeof(pb->m));
     pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
 }
 
-void set_bicycle_canonical(BicycleModel* pb, const bicycle_t& b) {
+void set_bicycle_canonical(BicycleModelMessage* pb, const bicycle_t& b) {
     set_second_order_matrix(&pb->M, b.M());
     set_second_order_matrix(&pb->C1, b.C1());
     set_second_order_matrix(&pb->K0, b.K0());
@@ -85,7 +85,7 @@ void set_bicycle_canonical(BicycleModel* pb, const bicycle_t& b) {
     pb->has_K2 = true;
 }
 
-void set_bicycle_discrete_time_state_space(BicycleModel* pb, const bicycle_t& b) {
+void set_bicycle_discrete_time_state_space(BicycleModelMessage* pb, const bicycle_t& b) {
     pb->v = b.v();
     pb->dt = b.dt();
     pb->has_v = true;
@@ -101,14 +101,14 @@ void set_bicycle_discrete_time_state_space(BicycleModel* pb, const bicycle_t& b)
     pb->has_D = true;
 }
 
-void set_kalman_noise_covariances(Kalman* pb, const kalman_t& k) {
+void set_kalman_noise_covariances(BicycleKalmanMessage* pb, const kalman_t& k) {
     set_symmetric_state_matrix(&pb->process_noise_covariance, k.Q());
     set_symmetric_output_matrix(&pb->measurement_noise_covariance, k.R());
     pb->has_process_noise_covariance = true;
     pb->has_measurement_noise_covariance = true;
 }
 
-void set_kalman_gain(Kalman* pb, const kalman_t& k) {
+void set_kalman_gain(BicycleKalmanMessage* pb, const kalman_t& k) {
     set_symmetric_state_matrix(&pb->error_covariance, k.P());
     set_kalman_gain_matrix(&pb->kalman_gain, k.K());
     pb->has_error_covariance = true;

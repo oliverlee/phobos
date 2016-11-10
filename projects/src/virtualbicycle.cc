@@ -9,8 +9,8 @@
 
 
 namespace {
-    std::array<uint8_t, BicyclePose_size> serialize_buffer;
-    std::array<uint8_t, BicyclePose_size + packet::frame::PACKET_OVERHEAD> frame_buffer;
+    std::array<uint8_t, BicyclePoseMessage_size> serialize_buffer;
+    std::array<uint8_t, BicyclePoseMessage_size + packet::frame::PACKET_OVERHEAD> frame_buffer;
 } // namespace
 
 VirtualBicycle::VirtualBicycle(float v, float dt, float sigma0, float sigma1) :
@@ -30,7 +30,7 @@ m_pose_size(0) {
     /* use an initial guess of 30 degrees for pitch */
     m_x_aux[2] = m_bicycle.solve_constraint_pitch(m_kalman.x(), 30 * constants::as_radians);
 
-    m_pose = BicyclePose_init_zero;
+    m_pose = BicyclePoseMessage_init_zero;
     m_pose.pitch = m_x_aux[2];
 }
 
@@ -78,7 +78,7 @@ const VirtualBicycle::bicycle_t::auxiliary_state_t& VirtualBicycle::x_aux() cons
     return m_x_aux;
 }
 
-const BicyclePose& VirtualBicycle::pose() const {
+const BicyclePoseMessage& VirtualBicycle::pose() const {
     return m_pose;
 }
 
