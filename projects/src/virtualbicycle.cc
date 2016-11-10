@@ -1,7 +1,7 @@
 #include "virtualbicycle.h"
 #include "angle.h"
 #include "packet/serialize.h"
-#include "packet/framing.h"
+#include "packet/frame.h"
 
 #include "parameters.h"
 
@@ -10,7 +10,7 @@
 
 namespace {
     std::array<uint8_t, BicyclePose_size> serialize_buffer;
-    std::array<uint8_t, BicyclePose_size + packet::framing::PACKET_OVERHEAD> frame_buffer;
+    std::array<uint8_t, BicyclePose_size + packet::frame::PACKET_OVERHEAD> frame_buffer;
 } // namespace
 
 VirtualBicycle::VirtualBicycle(float v, float dt, float sigma0, float sigma1) :
@@ -56,9 +56,9 @@ void VirtualBicycle::update(float roll_torque_input, float steer_torque_input, /
 /* WARNING: this member function is not thread safe with multiple VirtualBicycle objects */
 uint8_t VirtualBicycle::encode_and_stuff_pose() {
     uint8_t bytes_written = packet::serialize::encode(m_pose, serialize_buffer.data(), serialize_buffer.size());
-    packet::framing::stuff(serialize_buffer.data(), frame_buffer.data(), bytes_written);
+    packet::frame::stuff(serialize_buffer.data(), frame_buffer.data(), bytes_written);
 
-    m_pose_size = bytes_written + packet::framing::PACKET_OVERHEAD;
+    m_pose_size = bytes_written + packet::frame::PACKET_OVERHEAD;
     return m_pose_size;
 }
 

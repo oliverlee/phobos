@@ -1,4 +1,4 @@
-#include "packet/framing.h"
+#include "packet/frame.h"
 #include "osal.h"
 
 /*
@@ -8,7 +8,7 @@
  */
 
 namespace packet {
-namespace framing {
+namespace frame {
 
 uint8_t stuff(const void* source, void* dest, uint8_t source_byte_size) {
     osalDbgCheck(source != nullptr);
@@ -100,5 +100,5 @@ uint8_t unstuff(const void* source, void* dest) {
     return dest_ - static_cast<char*>(dest) - 1;
 }
 
-} // namespace framing
+} // namespace frame
 } // namespace packet

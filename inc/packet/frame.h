@@ -8,7 +8,7 @@
  */
 
 namespace packet {
-namespace framing {
+namespace frame {
 
 constexpr uint8_t COBS_MAX_SIZE_DATA_SET = 254;
 constexpr uint8_t COBS_PACKET_FRAME_OVERHEAD = 1;
@@ -39,5 +39,5 @@ uint8_t unstuff(const void* source, void* dest, uint8_t source_byte_size);
  */
 uint8_t unstuff(const void* source, void* dest);
 
-} // namespace framing
+} // namespace frame
 } // namespace packet
