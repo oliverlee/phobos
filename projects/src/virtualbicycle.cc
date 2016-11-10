@@ -10,7 +10,7 @@
 
 namespace {
     std::array<uint8_t, BicyclePose_size> serialize_buffer;
-    std::array<uint8_t, BicyclePose_size + packet::framing::FRAME_STUFF_OVERHEAD> frame_buffer;
+    std::array<uint8_t, BicyclePose_size + packet::framing::PACKET_OVERHEAD> frame_buffer;
 } // namespace
 
 VirtualBicycle::VirtualBicycle(float v, float dt, float sigma0, float sigma1) :
@@ -58,7 +58,7 @@ uint8_t VirtualBicycle::encode_and_stuff_pose() {
     uint8_t bytes_written = packet::serialize::encode(m_pose, serialize_buffer.data(), serialize_buffer.size());
     packet::framing::stuff(serialize_buffer.data(), frame_buffer.data(), bytes_written);
 
-    m_pose_size = bytes_written + packet::framing::FRAME_STUFF_OVERHEAD;
+    m_pose_size = bytes_written + packet::framing::PACKET_OVERHEAD;
     return m_pose_size;
 }
 

@@ -38,6 +38,7 @@ void stuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
         ++source;
     }
     write_code();
+    *dest = COBS_PACKET_DELIMITER;
 }
 
 void unstuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
