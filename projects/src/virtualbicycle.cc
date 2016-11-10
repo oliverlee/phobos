@@ -7,7 +7,6 @@
 
 #include <array>
 
-
 namespace {
     std::array<uint8_t, BicyclePoseMessage_size> serialize_buffer;
     std::array<uint8_t, BicyclePoseMessage_size + packet::frame::PACKET_OVERHEAD> frame_buffer;

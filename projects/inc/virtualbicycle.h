@@ -1,7 +1,7 @@
 #pragma once
 #include "bicycle.h"
 #include "kalman.h"
-#include "clustril.pb.h"
+#include "pose.pb.h"
 #include "constants.h"
 
 class VirtualBicycle {

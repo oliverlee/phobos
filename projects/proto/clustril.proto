@@ -1,5 +1,6 @@
 syntax = "proto2";
 import "nanopb.proto";
+import "pose.proto";
 
 message ClustrilMessage {
     required uint32 timestamp =         1;
@@ -26,29 +27,16 @@ message BicycleInputMessage {
     repeated float u = 1 [(nanopb).max_count = 2];
 }
 
-// message type for stm32 -> Unity communication
-message BicyclePoseMessage {
-    required uint32 timestamp = 1;
-    required float x =          2;
-    required float y =          3;
-    required float yaw =        4;
-    required float roll =       5;
-    required float pitch =      6;
-    required float steer =      7;
-}
-
 // STM32F4 ADC, DAC are 12-bit
 message SensorMessage {
     required uint32 kistler_measured_torque =   1 [(nanopb).int_size = IS_16];
     required uint32 kollmorgen_actual_torque =  2 [(nanopb).int_size = IS_16];
     required uint32 steer_encoder_count =       3;
-
 }
 
 message ActuatorMessage {
     required uint32 kollmorgen_command_torque = 1 [(nanopb).int_size = IS_16];
 }
-
 
 // symmetric 5x5 matrix
 message SymmetricStateMatrixMessage {

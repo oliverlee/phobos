@@ -4,7 +4,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(CHIBIOS_BUILD_WITH_FATFS ON)
 
 # generate protobuf sources
-nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${PHOBOS_PROJECT_DIR}/proto/clustril.proto)
+nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS
+    ${PHOBOS_PROJECT_DIR}/proto/clustril.proto
+    ${PHOBOS_PROJECT_DIR}/proto/pose.proto)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 set(PROTOBUF_COMPILE_DEFINITIONS "PB_FIELD_16BIT")
 if(CMAKE_BUILD_TYPE MATCHES Release)
@@ -28,6 +30,7 @@ add_phobos_executable(clustril
     halconf.h
     mcuconf.h
     main.cc
+    serialize.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/filesystem.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/virtualbicycle.cc
@@ -35,6 +38,5 @@ add_phobos_executable(clustril
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc
     ${PHOBOS_SOURCE_DIR}/src/packet/frame.cc
-    ${PHOBOS_SOURCE_DIR}/src/packet/serialize.cc
     ${PROTO_SRCS} ${PROTO_HDRS}
     ${BICYCLE_SOURCE})
