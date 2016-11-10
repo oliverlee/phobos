@@ -21,8 +21,11 @@ constexpr auto PACKET_DELIMITER_SIZE = COBS_PACKET_DELIMITER_SIZE;
 constexpr auto PACKET_OVERHEAD = PACKET_FRAME_OVERHEAD + PACKET_DELIMITER_SIZE;
 constexpr auto PACKET_DELIMITER = COBS_PACKET_DELIMITER;
 
-void stuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size);
-void unstuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size);
+/* Returns number of bytes in dest buffer after stuffing, including packet frame overhead and delimiter. */
+uint8_t stuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size);
+
+/* Returns number of bytes in dest buffer after unstuffing. */
+uint8_t unstuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size);
 
 } // namespace framing
 } // namespace packet

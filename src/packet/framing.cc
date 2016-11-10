@@ -10,7 +10,7 @@
 namespace packet {
 namespace framing {
 
-void stuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
+uint8_t stuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
     osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET,
@@ -39,20 +39,22 @@ void stuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
     }
     write_code();
     *dest = COBS_PACKET_DELIMITER;
+    return source_byte_size + PACKET_OVERHEAD;
 }
 
-void unstuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
+uint8_t unstuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
     // osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET + 1,
     // "invalid data size"); always true due to data type
 
     const uint8_t* end = source + source_byte_size;
+    const uint8_t* start = dest;
     while (source < end) {
         uint8_t code = *source++;
 
         osalDbgAssert(code != 0, "zero byte input");
-        osalDbgAssert(code - 1 <= (end - source), "input too short");
+        osalDbgAssert(code - 1 <= (end - source), "input code too small or source buffer too small");
         for (uint8_t i = 1; i < code; ++i) {
             *dest++ = *source++;
         }
@@ -60,6 +62,7 @@ void unstuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) {
             *dest++ = 0;
         }
     }
+    return dest - start;
 }
 
 } // namespace framing
