@@ -3,17 +3,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 # use ChibiOS FATFS module
 set(CHIBIOS_BUILD_WITH_FATFS ON)
 
-# generate protobuf sources
-nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS
-    ${PHOBOS_PROJECT_DIR}/proto/clustril.proto
-    ${PHOBOS_PROJECT_DIR}/proto/pose.proto)
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-set(PROTOBUF_COMPILE_DEFINITIONS "PB_FIELD_16BIT")
-if(CMAKE_BUILD_TYPE MATCHES Release)
-    set(PROTOBUF_COMPILE_DEFINITIONS ${PROTOBUF_COMPILE_DEFINITIONS} "PB_NO_ERRMSG" "PB_BUFFER_ONLY")
-endif()
-set_property(SOURCE ${PROTO_SRCS} APPEND PROPERTY COMPILE_DEFINITIONS
-    ${PROTOBUF_COMPILE_DEFINITIONS})
+generate_protobuf_source(
+    ${PHOBOS_PROJECT_PROTO_DIR}/pose.proto
+    ${PHOBOS_PROJECT_PROTO_DIR}/clustril.proto)
 
 # exclude blink and usb sources
 set(PHOBOS_COMMON_SRC ${PROJECT_BINARY_DIR}/src/gitsha1.cc)
@@ -38,5 +30,5 @@ add_phobos_executable(clustril
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc
     ${PHOBOS_SOURCE_DIR}/src/packet/frame.cc
-    ${PROTO_SRCS} ${PROTO_HDRS}
+    ${PROTOBUF_GENERATED_SOURCE}
     ${BICYCLE_SOURCE})
