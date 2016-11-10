@@ -22,7 +22,7 @@ m_kalman(m_bicycle, /* bicycle model used in Kalman filter */
               0, sigma1).finished(),
         bicycle_t::state_t::Zero(), /* initial state estimate */
         std::pow(sigma0, 2)*bicycle_t::state_matrix_t::Identity()), /* error cov */ // FIXME
-        m_pose_size(0) {
+m_pose_size(0) {
     m_u.setZero();
     m_z.setZero();
     m_x_aux.setZero();
@@ -31,6 +31,7 @@ m_kalman(m_bicycle, /* bicycle model used in Kalman filter */
     m_x_aux[2] = m_bicycle.solve_constraint_pitch(m_kalman.x(), 30 * constants::as_radians);
 
     m_pose = BicyclePose_init_zero;
+    m_pose.pitch = m_x_aux[2];
 }
 
 void VirtualBicycle::update(float roll_torque_input, float steer_torque_input, /* u[0], u[1] */
