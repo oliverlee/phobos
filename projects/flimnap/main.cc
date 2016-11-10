@@ -19,6 +19,7 @@
 
 #include "analog.h"
 #include "encoder.h"
+#include "packet/frame.h"
 
 #include "gitsha1.h"
 #include "angle.h"
@@ -28,6 +29,8 @@
 #include "saconfig.h"
 
 #include "parameters.h"
+
+#include <array>
 
 namespace {
     const float dt = 0.05f; /* ms */
@@ -45,11 +48,14 @@ namespace {
         float steer; /* deg */
         float v; /* m/s      * Wheel angle and radius are not considered here.
                              * Computation must occur during visualization */
-        uint8_t timestamp;  /* Converted from system ticks to milliseconds 
+        uint8_t timestamp;  /* Converted from system ticks to milliseconds
                              * and contains only the least significant bits */
     }; /* 29 bytes */
 
     pose_t pose = {};
+
+    using namespace packet::frame;
+    std::array<uint8_t, sizeof(pose_t) + PACKET_OVERHEAD> packet_buffer;
 } // namespace
 
 /*
@@ -119,6 +125,10 @@ int main(void) {
      */
     VirtualBicycle bicycle;
 
+    /* transmit git sha information, block until receiver is ready */
+    uint8_t bytes_written = packet::frame::stuff(g_GITSHA1, packet_buffer.data(), 7);
+    obqWriteTimeout(&SDU1.obqueue, packet_buffer.data(), bytes_written, TIME_INFINITE);
+
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
@@ -153,10 +163,6 @@ int main(void) {
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
 
-        /*
-         * for now, print out pose.
-         * TODO: encode this as a simple packed struct and send over serial
-         */
         pose = pose_t{}; /* reset pose to zero */
         pose.x = bicycle.pose().x;
         pose.y = bicycle.pose().y;
@@ -167,12 +173,8 @@ int main(void) {
         pose.v = bicycle.model().v();
         pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
 
-        printf("[%.7s] pose -- x: %7.2f m\ty: %7.2f m\tpitch: %7.2f deg\r\n",
-                g_GITSHA1, pose.x, pose.y, pose.pitch);
-        printf("[%.7s]     -- yaw: %7.2f deg\troll: %7.2f deg\tsteer: %7.2f deg\r\n",
-                g_GITSHA1, pose.yaw, pose.roll, pose.steer);
-        printf("[%.7s]     -- v: %7.2f m/s\ttimestamp: %u\r\n",
-                g_GITSHA1, pose.v, pose.timestamp);
+        bytes_written = packet::frame::stuff(&pose, packet_buffer.data(), sizeof(pose));
+        obqWriteTimeout(&SDU1.obqueue, packet_buffer.data(), bytes_written, TIME_INFINITE);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.model().dt()));
     }
 }
