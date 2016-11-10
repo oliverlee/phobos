@@ -54,7 +54,31 @@ uint8_t unstuff(const uint8_t* source, uint8_t* dest, uint8_t source_byte_size) 
         uint8_t code = *source++;
 
         osalDbgAssert(code != 0, "zero byte input");
-        osalDbgAssert(code - 1 <= (end - source), "input code too small or source buffer too small");
+        osalDbgAssert((code - 1) <= (end - source), "input code too small or source buffer too small");
+        for (uint8_t i = 1; i < code; ++i) {
+            *dest++ = *source++;
+        }
+        if (code < 0xff) { /* don't write the end-of-packet zero if data length = 0xff */
+            *dest++ = 0;
+        }
+    }
+    return dest - start;
+}
+
+uint8_t unstuff(const uint8_t* source, uint8_t* dest) {
+    osalDbgCheck(source != nullptr);
+    osalDbgCheck(dest != nullptr);
+
+    const uint8_t* start = dest;
+    while (true) {
+        uint8_t code = *source++;
+
+        if (code == 0) {
+            osalDbgAssert(start == dest, "zero byte input");
+            break;
+        }
+        osalDbgAssert((code - 1) <= (COBS_MAX_SIZE_DATA_SET - (dest - start)),
+                "input code too small or source buffer too small");
         for (uint8_t i = 1; i < code; ++i) {
             *dest++ = *source++;
         }
