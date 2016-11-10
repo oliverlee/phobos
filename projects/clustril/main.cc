@@ -27,7 +27,6 @@
 #include "saconfig.h"
 
 #include "packet/serialize.h"
-#include "packet/framing.h"
 #include "messages.pb.h"
 #include "messageutil.h"
 
