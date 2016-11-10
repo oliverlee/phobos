@@ -80,15 +80,15 @@ uint8_t unstuff(const void* source, void* dest) {
     const char* source_ = static_cast<const char*>(source);
     char* dest_ = static_cast<char*>(dest);
 
-    const char* start = dest_;
     while (true) {
         uint8_t code = *source_++;
 
         if (code == 0) {
-            osalDbgAssert(start != dest_, "zero byte input");
+            osalDbgAssert(dest_ != static_cast<char*>(dest), "zero byte input");
             break;
         }
-        osalDbgAssert((code - 1) <= (COBS_MAX_SIZE_DATA_SET - (dest_ - start)),
+        osalDbgAssert((code - 1) <=
+                (COBS_MAX_SIZE_DATA_SET - (dest_ - static_cast<char*>(dest) - 1)),
                 "input code too small or source buffer too small");
         for (uint8_t i = 1; i < code; ++i) {
             *dest_++ = *source_++;
@@ -97,7 +97,7 @@ uint8_t unstuff(const void* source, void* dest) {
             *dest_++ = 0;
         }
     }
-    return dest_ - start;
+    return dest_ - static_cast<char*>(dest) - 1;
 }
 
 } // namespace framing
