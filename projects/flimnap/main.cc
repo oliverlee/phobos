@@ -23,6 +23,7 @@
 #include "gitsha1.h"
 #include "angle.h"
 #include "blink.h"
+#include "virtualbicycle.h"
 #include "usbconfig.h"
 #include "saconfig.h"
 
@@ -99,11 +100,19 @@ int main(void) {
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
 
+
+    /*
+     * Initialize bicycle with default parameters.
+     */
+    VirtualBicycle bicycle;
+
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
     while (true) {
+        constexpr float roll_torque = 0.0f;
+
         /* get sensor measurements */
         float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
                 sa::MAX_KISTLER_TORQUE);
@@ -112,6 +121,18 @@ int main(void) {
                 sa::MAX_KOLLMORGEN_TORQUE);
         float steer_angle = angle::encoder_count<float>(encoder);
 
+        (void)motor_torque; /* remove build warning for unused variable */
+
+        /* yaw angle, just use previous state value */
+        float yaw_angle = angle::wrap(bicycle.pose().yaw);
+
+        /* set steer torque/angle for a simple simulation */
+        steer_angle = angle::wrap(bicycle.pose().steer);
+        steer_torque = 0.0f;
+
+        /* simulate bicycle */
+        bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle);
+
         /* generate an example torque output for testing */
         float feedback_torque = 10.0f * std::sin(
                 constants::two_pi * ST2S(static_cast<float>(chVTGetSystemTime())));
@@ -119,8 +140,15 @@ int main(void) {
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
 
-        printf("[%.7s] torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\tsteer angle: %8.3f deg\r\n",
-                g_GITSHA1, steer_torque, motor_torque, steer_angle);
-        chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
+        /*
+         * for now, print out pose.
+         * TODO: encode this as a simple packed struct and send over serial
+         */
+        printf("[%.7s] pose -- x: %7.2f m\ty: %7.2f m\tpitch: %7.2f deg\r\n",
+                g_GITSHA1, bicycle.pose().x, bicycle.pose().y, bicycle.pose().pitch*constants::as_degrees);
+        printf("[%.7s] pose -- yaw: %7.2f deg\troll: %7.2f deg\tsteer: %7.2f deg\r\n",
+                g_GITSHA1, bicycle.pose().yaw*constants::as_degrees,
+                bicycle.pose().roll*constants::as_degrees, bicycle.pose().steer*constants::as_degrees);
+        chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.model().dt()));
     }
 }
