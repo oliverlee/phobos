@@ -35,6 +35,21 @@ namespace {
     /* sensors */
     Analog analog;
     Encoder encoder(sa::RLS_ENC, sa::RLS_ENC_INDEX_CFG);
+
+    struct __attribute__((__packed__)) pose_t {
+        float x; /* m */
+        float y; /* m */
+        float pitch; /* deg */
+        float yaw; /* deg */
+        float roll; /* deg */
+        float steer; /* deg */
+        float v; /* m/s      * Wheel angle and radius are not considered here.
+                             * Computation must occur during visualization */
+        uint8_t timestamp;  /* Converted from system ticks to milliseconds 
+                             * and contains only the least significant bits */
+    }; /* 29 bytes */
+
+    pose_t pose = {};
 } // namespace
 
 /*
@@ -81,7 +96,6 @@ int main(void) {
     encoder.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
 
-
     /*
      * Set torque measurement enable line low.
      * The output of the Kistler torque sensor is not valid until after a falling edge
@@ -99,7 +113,6 @@ int main(void) {
      */
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-
 
     /*
      * Initialize bicycle with default parameters.
@@ -144,11 +157,22 @@ int main(void) {
          * for now, print out pose.
          * TODO: encode this as a simple packed struct and send over serial
          */
+        pose = pose_t{}; /* reset pose to zero */
+        pose.x = bicycle.pose().x;
+        pose.y = bicycle.pose().y;
+        pose.pitch = bicycle.pose().pitch * constants::as_degrees;
+        pose.yaw = bicycle.pose().yaw * constants::as_degrees;
+        pose.roll = bicycle.pose().roll * constants::as_degrees;
+        pose.steer = bicycle.pose().steer * constants::as_degrees;
+        pose.v = bicycle.model().v();
+        pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
+
         printf("[%.7s] pose -- x: %7.2f m\ty: %7.2f m\tpitch: %7.2f deg\r\n",
-                g_GITSHA1, bicycle.pose().x, bicycle.pose().y, bicycle.pose().pitch*constants::as_degrees);
-        printf("[%.7s] pose -- yaw: %7.2f deg\troll: %7.2f deg\tsteer: %7.2f deg\r\n",
-                g_GITSHA1, bicycle.pose().yaw*constants::as_degrees,
-                bicycle.pose().roll*constants::as_degrees, bicycle.pose().steer*constants::as_degrees);
+                g_GITSHA1, pose.x, pose.y, pose.pitch);
+        printf("[%.7s]     -- yaw: %7.2f deg\troll: %7.2f deg\tsteer: %7.2f deg\r\n",
+                g_GITSHA1, pose.yaw, pose.roll, pose.steer);
+        printf("[%.7s]     -- v: %7.2f m/s\ttimestamp: %u\r\n",
+                g_GITSHA1, pose.v, pose.timestamp);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.model().dt()));
     }
 }
