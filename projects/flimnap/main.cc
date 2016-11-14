@@ -40,10 +40,10 @@ namespace {
     struct __attribute__((__packed__)) pose_t {
         float x; /* m */
         float y; /* m */
-        float pitch; /* deg */
-        float yaw; /* deg */
-        float roll; /* deg */
-        float steer; /* deg */
+        float pitch; /* rad */
+        float yaw; /* rad */
+        float roll; /* rad */
+        float steer; /* rad */
         float v; /* m/s      * Wheel angle and radius are not considered here.
                              * Computation must occur during visualization */
         uint8_t timestamp;  /* Converted from system ticks to milliseconds
@@ -166,10 +166,10 @@ int main(void) {
         pose = pose_t{}; /* reset pose to zero */
         pose.x = bicycle.pose().x;
         pose.y = bicycle.pose().y;
-        pose.pitch = bicycle.pose().pitch * constants::as_degrees;
-        pose.yaw = bicycle.pose().yaw * constants::as_degrees;
-        pose.roll = bicycle.pose().roll * constants::as_degrees;
-        pose.steer = bicycle.pose().steer * constants::as_degrees;
+        pose.pitch = bicycle.pose().pitch;
+        pose.yaw = bicycle.pose().yaw;
+        pose.roll = bicycle.pose().roll;
+        pose.steer = bicycle.pose().steer;
         pose.v = bicycle.model().v();
         pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
         /* TODO: examine difference between chVTGetSystemTime() calls */
