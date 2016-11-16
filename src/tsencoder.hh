@@ -118,21 +118,21 @@ polycoeff_t TSEncoder<M, N, O>::position() const {
 template <size_t M, size_t N, size_t O>
 polycoeff_t TSEncoder<M, N, O>::velocity() const {
     Eigen::Matrix<tsenccnt_t, M, 1> velocity_coefficients;
-    for (int i = 0; i < M; ++i) {
+    for (unsigned int i = 0; i < M; ++i) {
         velocity_coefficients(i) = M - i;
     }
-    return velocity_coefficients.cwiseProduct(m_P.template top<M>()).transpose() *
-        m_T.template bottom<M>();
+    return velocity_coefficients.template cast<polycoeff_t>().cwiseProduct(
+            m_P.template head<M>()).transpose() * m_T.template tail<M>();
 }
 
 template <size_t M, size_t N, size_t O>
 polycoeff_t TSEncoder<M, N, O>::acceleration() const {
     Eigen::Matrix<tsenccnt_t, M - 1 , 1> acceleration_coefficients;
-    for (int i = 0; i < M - 1; ++i) {
+    for (unsigned int i = 0; i < M - 1; ++i) {
         acceleration_coefficients(i) = (M - i) * (M - i - 1);
     }
-    return acceleration_coefficients.cwiseProduct(m_P.template top<M - 1>()).transpose() *
-        m_T.template bottom<M - 1>();
+    return acceleration_coefficients.template cast<polycoeff_t>().cwiseProduct(
+            m_P.template head<M - 1>()).transpose() * m_T.template tail<M - 1>();
 }
 
 template <size_t M, size_t N, size_t O>
