@@ -125,7 +125,10 @@ int main(void) {
 
     /* transmit git sha information, block until receiver is ready */
     uint8_t bytes_written = packet::frame::stuff(g_GITSHA1, packet_buffer.data(), 7);
-    obqWriteTimeout(&SDU1.obqueue, packet_buffer.data(), bytes_written, TIME_INFINITE);
+    while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
+        chThdSleepMilliseconds(10);
+    }
+    streamWrite(&SDU1, packet_buffer.data(), bytes_written);
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -172,15 +175,24 @@ int main(void) {
         pose.steer = bicycle.pose().steer;
         pose.v = bicycle.model().v();
         pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
-        /* TODO: examine difference between chVTGetSystemTime() calls */
-
+        /*
+         * Timing information
+         * (replaced chVTGetSystemTIme() with chSysGetRealtimeCounterX() and two uint32_t timing related fields added to
+         * pose_t)
+         * - Debug mode with all ChibiOS debug configuration options enabled: computation ~3.1 ms, tx ~20 us
+         * - Release mode: computation ~200 us, tx ~10 us
+         *
+         * TODO: Pose message should be transmitted asynchronously.
+         * After starting transmission, the simulation should start to calculate pose for the next timestep.
+         * This is currently not necessary given the observed timings.
+         */
         bytes_written = packet::frame::stuff(&pose, packet_buffer.data(), sizeof(pose));
-        obqWriteTimeout(&SDU1.obqueue, packet_buffer.data(), bytes_written, TIME_INFINITE);
+        streamWrite(&SDU1, packet_buffer.data(), bytes_written);
 
         systime_t dt = MS2ST(static_cast<systime_t>(1000*bicycle.model().dt()));
         systime_t sleeptime = dt + starttime - chVTGetSystemTime();
         if (sleeptime >= dt) {
-            chDbgAssert(false, "deadline missed");
+            //chDbgAssert(false, "deadline missed");
             continue;
         }
         chThdSleep(sleeptime);
