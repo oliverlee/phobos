@@ -50,15 +50,24 @@ In 'Security & Privacy', verify that the option 'Automatically allow signed
 software to receive incoming connections' is enabled.
 
 ## Running
-All of the demos blink the board LED when running. All demos also send ASCII
+Most of the demos blink the board LED when running. Most demos also send ASCII
 over serial and increase the blink rate of the LED when a USB connection is
-established. The transmitted characters can be viewed using any serial terminal
-program. Here's an example using screen
+established. The exception is the FATFS demo as use the SDIO uses a same pin as
+USB so both peripherals cannot be used at once. The transmitted characters can
+be viewed using any serial terminal program. Here's an example using screen
 
     oliver@canopus:~$ screen /dev/tty.usbmodem311
 
 As a virtual serial port is established, baud rate is ignored and has no impact
 on USB transfer speed.
+
+Some projects output serial data just as bytes (not ASCII). Cutecom can be used
+to view the data as hex. You can download it
+[here](http://cutecom.sourceforge.net/). If you used homebrew to install Qt4,
+Qt3 support will be missing. You can reinstall Qt4 with the following option to
+enable support
+
+    oliver@canopus:~$ brew reinstall qt --with-qt3support
 
 The projects in this repository are designed to run on an [Olimex
 STM32-H405](https://www.olimex.com/Products/ARM/ST/STM32-H405/) microcontroller
@@ -156,3 +165,4 @@ executable is given below:
     +-- projects
         +-- clustril        - Runs development static simulator code. Requires usage of SDIO which prevents usage of serial over USB.
         +-- drunlo          - Prints sensor values as ASCII. Requires usage of serial over USB.
+        +-- flimnap         - Runs static simulator code interfacing with Unity environment Bikesim. Cannot log data via SDIO.

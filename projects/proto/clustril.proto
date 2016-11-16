@@ -1,0 +1,100 @@
+syntax = "proto2";
+import "nanopb.proto";
+import "pose.proto";
+
+message ClustrilMessage {
+    required uint32 timestamp =         1;
+    optional string firmware_version =  2 [(nanopb).max_size = 7];
+
+    optional SensorMessage sensors =          3;
+    optional ActuatorMessage actuators =      4;
+
+    optional BicycleStateMessage state =       5;
+    optional BicycleInputMessage input =       6;
+    optional BicyclePoseMessage pose =         7;
+
+    optional BicycleModelMessage model =       8;
+    optional BicycleKalmanMessage kalman =     9;
+}
+
+// states are yaw, roll, steer, roll rate, steer rate (5)
+message BicycleStateMessage {
+    repeated float x = 1 [(nanopb).max_count = 5];
+}
+
+// inputs are roll torque, steer torque (2)
+message BicycleInputMessage {
+    repeated float u = 1 [(nanopb).max_count = 2];
+}
+
+// STM32F4 ADC, DAC are 12-bit
+message SensorMessage {
+    required uint32 kistler_measured_torque =   1 [(nanopb).int_size = IS_16];
+    required uint32 kollmorgen_actual_torque =  2 [(nanopb).int_size = IS_16];
+    required uint32 steer_encoder_count =       3;
+}
+
+message ActuatorMessage {
+    required uint32 kollmorgen_command_torque = 1 [(nanopb).int_size = IS_16];
+}
+
+// symmetric 5x5 matrix
+message SymmetricStateMatrixMessage {
+    repeated float m = 1 [(nanopb).max_count = 15];
+}
+
+// symmetric 2x2 matrix
+message SymmetricOutputMatrixMessage {
+    repeated float m = 1 [(nanopb).max_count = 3];
+}
+
+// 5x2 matrix
+message KalmanGainMatrixMessage {
+    repeated float m = 1 [(nanopb).max_count = 10];
+}
+
+message BicycleKalmanMessage {
+    optional BicycleStateMessage state_estimate =                          1;
+    optional SymmetricStateMatrixMessage error_covariance =                2;
+    optional SymmetricStateMatrixMessage process_noise_covariance =        3;
+    optional SymmetricOutputMatrixMessage measurement_noise_covariance =   4;
+    optional KalmanGainMatrixMessage kalman_gain =                         5;
+}
+
+// 2x2 matrix
+message SecondOrderMatrixMessage {
+    repeated float m = 1 [(nanopb).max_count = 4];
+}
+
+// 5x5 matrix
+message StateMatrixMessage {
+    repeated float m = 1 [(nanopb).max_count = 25];
+}
+
+// 5x2 matrix
+message InputMatrixMessage {
+    repeated float m = 1 [(nanopb).max_count = 10];
+}
+
+// 2x5 matrix
+message OutputMatrixMessage {
+    repeated float m = 1 [(nanopb).max_count = 10];
+}
+
+// 2x2 matrix
+message FeedthroughMatrixMessage {
+    repeated float m = 1 [(nanopb).max_count = 4];
+}
+
+message BicycleModelMessage {
+    optional float v =              1;
+    optional float dt =             2;
+    optional SecondOrderMatrixMessage M =  3;
+    optional SecondOrderMatrixMessage C1 = 4;
+    optional SecondOrderMatrixMessage K0 = 5;
+    optional SecondOrderMatrixMessage K2 = 6;
+    optional StateMatrixMessage A =        7;
+    optional InputMatrixMessage B =        8;
+    optional OutputMatrixMessage C =       9;
+    optional FeedthroughMatrixMessage D =  10;
+}

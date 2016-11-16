@@ -1,12 +1,10 @@
 set(BOOST_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/include)
 find_host_package(Eigen3 3.2.4 REQUIRED)
 find_host_package(Boost 1.58 REQUIRED)
-find_host_package(Nanopb REQUIRED)
 
 include_directories(${BICYCLE_INCLUDE_DIR})
 include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories(${Boost_INCLUDE_DIR})
-include_directories(${NANOPB_INCLUDE_DIRS})
 
 # Allow printing of float types
 add_definitions("-DCHPRINTF_USE_FLOAT")
@@ -23,9 +21,41 @@ prevent stack overflow in this project.")
 endif()
 
 # include project headers and sources
+set(PHOBOS_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(PHOBOS_PROJECT_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/proto)
 set(PHOBOS_PROJECT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/inc)
 set(PHOBOS_PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${PHOBOS_PROJECT_INCLUDE_DIR})
+
+# define protobuf generation macro
+macro(generate_protobuf_source)
+    set(argn ${ARGN})
+    list(LENGTH argn n)
+    if(${n} GREATER 0)
+        find_host_package(Nanopb REQUIRED)
+        include_directories(${NANOPB_INCLUDE_DIRS})
+
+        nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${ARGN})
+        include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+        set(PROTOBUF_COMPILE_DEFINITIONS)
+        foreach(proto in ${ARGN})
+            get_filename_component(proto_name ${proto} NAME)
+            if(proto_name MATCHES "clustril.proto")
+                set(PROTOBUF_COMPILE_DEFINITIONS "PB_FIELD_16BIT")
+                break()
+            endif()
+        endforeach()
+
+        if(CMAKE_BUILD_TYPE MATCHES Release)
+            set(PROTOBUF_COMPILE_DEFINITIONS ${PROTOBUF_COMPILE_DEFINITIONS}
+                "PB_NO_ERRMSG" "PB_BUFFER_ONLY")
+        endif()
+        set_property(SOURCE ${PROTO_SRCS} APPEND PROPERTY COMPILE_DEFINITIONS
+            ${PROTOBUF_COMPILE_DEFINITIONS})
+        set(PROTOBUF_GENERATED_SOURCE ${PROTO_SRCS} ${PROTO_HDRS})
+    endif()
+endmacro()
 
 option(PHOBOS_BUILD_PROJECT_CLUSTRIL "Build Clustril (static simulator) demo" TRUE)
 if(PHOBOS_BUILD_PROJECT_CLUSTRIL)
@@ -35,4 +65,9 @@ endif()
 option(PHOBOS_BUILD_PROJECT_DRUNLO "Build Drunlo (static simulator) demo" TRUE)
 if(PHOBOS_BUILD_PROJECT_DRUNLO)
     add_subdirectory(drunlo)
+endif()
+
+option(PHOBOS_BUILD_PROJECT_FLIMNAP "Build Flimnap (static simulator) demo" TRUE)
+if(PHOBOS_BUILD_PROJECT_FLIMNAP)
+    add_subdirectory(flimnap)
 endif()

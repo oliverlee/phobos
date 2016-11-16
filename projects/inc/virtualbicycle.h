@@ -1,7 +1,7 @@
 #pragma once
 #include "bicycle.h"
 #include "kalman.h"
-#include "messages.pb.h"
+#include "pose.pb.h"
 #include "constants.h"
 
 class VirtualBicycle {
@@ -29,7 +29,7 @@ class VirtualBicycle {
         const bicycle_t::input_t& u() const; /* get most recent input used */
         const bicycle_t::output_t& z() const; /* get most recent measurement used */
         const bicycle_t::auxiliary_state_t& x_aux() const; /* get most recent auxiliary state (estimate) computed */
-        const BicyclePose& pose() const; /* get most recent pose computed */
+        const BicyclePoseMessage& pose() const; /* get most recent pose computed */
         const bicycle_t& model() const; /* get current bicycle model */
         const kalman_t& kalman() const; /* get current Kalman model */
         const uint8_t* pose_buffer() const; /* get pointer to buffer with pose data */
@@ -42,6 +42,6 @@ class VirtualBicycle {
         bicycle_t::input_t m_u; /* roll torque, steer torque */
         bicycle_t::output_t m_z; /* yaw angle, steer angle */
         bicycle_t::auxiliary_state_t m_x_aux; /* rear contact x, rear contact y, pitch angle */
-        BicyclePose m_pose; /* visualization fields */
+        BicyclePoseMessage m_pose; /* visualization fields */
         uint8_t m_pose_size; /* size of encoded and framed pose in bytes */
 };
