@@ -160,8 +160,7 @@ int main(void) {
         bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle);
 
         /* generate an example torque output for testing */
-        float feedback_torque = 10.0f * std::sin(
-                constants::two_pi * ST2S(static_cast<float>(starttime)));
+        float feedback_torque = bicycle.handlebar_feedback_torque();
         dacsample_t aout = static_cast<dacsample_t>(
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
