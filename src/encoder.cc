@@ -44,7 +44,7 @@ void Encoder::start() {
     m_gptp->config = &m_gptconfig;
     gpt_lld_start(m_gptp); /* configure and activate peripheral */
     m_gptp->tim->SMCR = TIM_SMCR_SMS_1 | TIM_SMCR_SMS_0; /* encoder mode 3, count on both TI1FP2 and TI2FP1 edges */
-    m_gptp->tim->CCER = 0U; /* rising edge polarity */
+    m_gptp->tim->CCER = TIM_CCER_CC2P; /* reverse edge polarity for positive rotation as defined in our system */
     m_gptp->tim->CCMR1 = TIM_CCMR1_CC2S_0 | TIM_CCMR1_CC1S_0; /* no prescaler, IC2 -> TI2, IC1 -> TI1 */
     uint16_t filter = static_cast<uint16_t>(m_config.filter);
     m_gptp->tim->CCMR1 |= (filter << 12) | (filter << 4); /* set input capture filters */
