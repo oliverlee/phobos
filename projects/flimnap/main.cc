@@ -168,10 +168,10 @@ int main(void) {
         pose = pose_t{}; /* reset pose to zero */
         pose.x = bicycle.pose().x;
         pose.y = bicycle.pose().y;
-        pose.pitch = bicycle.pose().pitch;
-        pose.yaw = bicycle.pose().yaw;
-        pose.roll = bicycle.pose().roll;
-        pose.steer = bicycle.pose().steer;
+        pose.pitch = angle::wrap(bicycle.pose().pitch);
+        pose.yaw = angle::wrap(bicycle.pose().yaw);
+        pose.roll = angle::wrap(bicycle.pose().roll);
+        pose.steer = angle::wrap(bicycle.pose().steer);
         pose.v = bicycle.v();
         pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
         /*
