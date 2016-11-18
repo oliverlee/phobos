@@ -152,10 +152,6 @@ int main(void) {
         /* yaw angle, just use previous state value */
         float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
-        /* set steer torque/angle for a simple simulation */
-        steer_angle = angle::wrap(bicycle.pose().steer);
-        steer_torque = 0.0f;
-
         /* simulate bicycle */
         bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle);
 
