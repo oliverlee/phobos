@@ -33,6 +33,7 @@
 #include <array>
 
 namespace {
+    constexpr float v = 3.0;
     /* sensors */
     Analog analog;
     Encoder encoder(sa::RLS_ENC, sa::RLS_ENC_INDEX_CFG);
@@ -119,9 +120,9 @@ int main(void) {
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
 
     /*
-     * Initialize bicycle with default parameters, dt = 0.005 s, v = 5 m/s.
+     * Initialize bicycle with default parameters, dt = 0.005 s.
      */
-    model::SimpleBicycle bicycle;
+    model::SimpleBicycle bicycle(v);
 
     /* transmit git sha information, block until receiver is ready */
     uint8_t bytes_written = packet::frame::stuff(g_GITSHA1, packet_buffer.data(), 7);
