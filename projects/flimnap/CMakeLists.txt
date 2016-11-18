@@ -4,7 +4,7 @@ generate_protobuf_source(${PHOBOS_PROJECT_PROTO_DIR}/pose.proto)
 
 # suppress Boost undef warnings and Eigen deprecated warnings
 set_property(SOURCE
-    ${PHOBOS_PROJECT_SOURCE_DIR}/virtualbicycle.cc
+    ${PHOBOS_PROJECT_SOURCE_DIR}/simplebicycle.cc
     APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef -Wno-deprecated")
 
 add_phobos_executable(flimnap
@@ -12,7 +12,7 @@ add_phobos_executable(flimnap
     halconf.h
     mcuconf.h
     main.cc
-    ${PHOBOS_PROJECT_SOURCE_DIR}/virtualbicycle.cc
+    ${PHOBOS_PROJECT_SOURCE_DIR}/simplebicycle.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc

@@ -24,7 +24,7 @@
 #include "gitsha1.h"
 #include "angle.h"
 #include "blink.h"
-#include "virtualbicycle.h"
+#include "simplebicycle.h"
 #include "usbconfig.h"
 #include "saconfig.h"
 
@@ -121,7 +121,7 @@ int main(void) {
     /*
      * Initialize bicycle with default parameters, dt = 0.005 s, v = 5 m/s.
      */
-    VirtualBicycle bicycle;
+    model::SimpleBicycle bicycle;
 
     /* transmit git sha information, block until receiver is ready */
     uint8_t bytes_written = packet::frame::stuff(g_GITSHA1, packet_buffer.data(), 7);
@@ -173,7 +173,7 @@ int main(void) {
         pose.yaw = bicycle.pose().yaw;
         pose.roll = bicycle.pose().roll;
         pose.steer = bicycle.pose().steer;
-        pose.v = bicycle.model().v();
+        pose.v = bicycle.v();
         pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
         /*
          * Timing information
@@ -189,7 +189,7 @@ int main(void) {
         bytes_written = packet::frame::stuff(&pose, packet_buffer.data(), sizeof(pose));
         streamWrite(&SDU1, packet_buffer.data(), bytes_written);
 
-        systime_t dt = MS2ST(static_cast<systime_t>(1000*bicycle.model().dt()));
+        systime_t dt = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
         systime_t sleeptime = dt + starttime - chVTGetSystemTime();
         if (sleeptime >= dt) {
             //chDbgAssert(false, "deadline missed");
