@@ -24,7 +24,7 @@
 #include "gitsha1.h"
 #include "angle.h"
 #include "blink.h"
-#include "virtualbicycle.h"
+#include "simplebicycle.h"
 #include "usbconfig.h"
 #include "saconfig.h"
 
@@ -33,6 +33,7 @@
 #include <array>
 
 namespace {
+    constexpr float v = 3.0;
     /* sensors */
     Analog analog;
     Encoder encoder(sa::RLS_ENC, sa::RLS_ENC_INDEX_CFG);
@@ -119,9 +120,9 @@ int main(void) {
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
 
     /*
-     * Initialize bicycle with default parameters, dt = 0.005 s, v = 5 m/s.
+     * Initialize bicycle with default parameters, dt = 0.005 s.
      */
-    VirtualBicycle bicycle;
+    model::SimpleBicycle bicycle(v);
 
     /* transmit git sha information, block until receiver is ready */
     uint8_t bytes_written = packet::frame::stuff(g_GITSHA1, packet_buffer.data(), 7);
@@ -152,16 +153,11 @@ int main(void) {
         /* yaw angle, just use previous state value */
         float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
-        /* set steer torque/angle for a simple simulation */
-        steer_angle = angle::wrap(bicycle.pose().steer);
-        steer_torque = 0.0f;
-
         /* simulate bicycle */
         bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle);
 
         /* generate an example torque output for testing */
-        float feedback_torque = 10.0f * std::sin(
-                constants::two_pi * ST2S(static_cast<float>(starttime)));
+        float feedback_torque = bicycle.handlebar_feedback_torque();
         dacsample_t aout = static_cast<dacsample_t>(
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
@@ -169,11 +165,11 @@ int main(void) {
         pose = pose_t{}; /* reset pose to zero */
         pose.x = bicycle.pose().x;
         pose.y = bicycle.pose().y;
-        pose.pitch = bicycle.pose().pitch;
-        pose.yaw = bicycle.pose().yaw;
-        pose.roll = bicycle.pose().roll;
-        pose.steer = bicycle.pose().steer;
-        pose.v = bicycle.model().v();
+        pose.pitch = angle::wrap(bicycle.pose().pitch);
+        pose.yaw = angle::wrap(bicycle.pose().yaw);
+        pose.roll = angle::wrap(bicycle.pose().roll);
+        pose.steer = angle::wrap(bicycle.pose().steer);
+        pose.v = bicycle.v();
         pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
         /*
          * Timing information
@@ -189,7 +185,7 @@ int main(void) {
         bytes_written = packet::frame::stuff(&pose, packet_buffer.data(), sizeof(pose));
         streamWrite(&SDU1, packet_buffer.data(), bytes_written);
 
-        systime_t dt = MS2ST(static_cast<systime_t>(1000*bicycle.model().dt()));
+        systime_t dt = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
         systime_t sleeptime = dt + starttime - chVTGetSystemTime();
         if (sleeptime >= dt) {
             //chDbgAssert(false, "deadline missed");
