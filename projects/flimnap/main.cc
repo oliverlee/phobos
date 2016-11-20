@@ -129,7 +129,7 @@ int main(void) {
     while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
         chThdSleepMilliseconds(10);
     }
-    streamWrite(&SDU1, packet_buffer.data(), bytes_written);
+    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -183,12 +183,12 @@ int main(void) {
          * This is currently not necessary given the observed timings.
          */
         bytes_written = packet::frame::stuff(&pose, packet_buffer.data(), sizeof(pose));
-        streamWrite(&SDU1, packet_buffer.data(), bytes_written);
+        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
 
         systime_t dt = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
         systime_t sleeptime = dt + starttime - chVTGetSystemTime();
         if (sleeptime >= dt) {
-            //chDbgAssert(false, "deadline missed");
+            chDbgAssert(false, "deadline missed");
             continue;
         }
         chThdSleep(sleeptime);
