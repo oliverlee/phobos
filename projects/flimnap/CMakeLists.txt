@@ -2,6 +2,11 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 generate_protobuf_source(${PHOBOS_PROJECT_PROTO_DIR}/pose.proto)
 
+# exclude printf source and default USB config
+set(PHOBOS_COMMON_SRC
+    ${PROJECT_BINARY_DIR}/src/gitsha1.cc
+    ${PROJECT_SOURCE_DIR}/src/blink.cc)
+
 # suppress Boost undef warnings and Eigen deprecated warnings
 set_property(SOURCE
     ${PHOBOS_PROJECT_SOURCE_DIR}/simplebicycle.cc
@@ -12,6 +17,7 @@ add_phobos_executable(flimnap
     halconf.h
     mcuconf.h
     main.cc
+    usbconfig.c # add USB config file without input/output buffer queues
     ${PHOBOS_PROJECT_SOURCE_DIR}/simplebicycle.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
