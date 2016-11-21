@@ -228,9 +228,9 @@ static USBOutEndpointState ep1outstate;
  */
 static const USBEndpointConfig ep1config = {
   USB_EP_MODE_TYPE_BULK,
-  NULL,
-  NULL,
-  NULL,
+  NULL, /* no setup callback */
+  NULL, /* no data transmitted callback */
+  sduDataReceived,
   0x0040,
   0x0040,
   &ep1instate,
