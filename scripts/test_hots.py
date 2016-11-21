@@ -28,8 +28,14 @@ polyorder = 3
 
 ##############################################################################
 
-eventlength = len(events)
-print("encoder events: {0}".format(eventlength))
+def timestamp_matrix(polynomial_order, time_vector):
+    A = np.ones((len(time_vector), polynomial_order))
+    A[:, -2] = np.array(time_vector)
+    for i in reversed(range(0, A.shape[1] - 2)):
+        A[:, i] = A[:, i + 1] * A[:, -2]
+    return A
+
+print("encoder events: {0}".format(len(events)))
 print("polynomial order {0}:\n".format(polyorder))
 
 t, x = zip(*events)
@@ -41,10 +47,7 @@ alpha = 1/(t[-1] - t[0])
 t = alpha*t # scale time values
 print("alpha = {0}".format(alpha))
 
-A = np.ones((eventlength, polyorder))
-A[:, -2] = np.array(t)
-for i in reversed(range(0, A.shape[1] - 2)):
-    A[:, i] = A[:, i + 1] * A[:, -2]
+A = timestamp_matrix(polyorder, t)
 B = np.array(x)
 print("time stamp matrix A =\n{0}".format(A))
 print("position vector B = {0}".format(B))
@@ -77,7 +80,20 @@ y_fit = p_fit(t_fit)
 ax.plot(t_fit, y_fit, color=colors[4])
 
 # plot estimated position
-ax.plot(tcf, y_fit[-1], 'o', color=colors[3])
+ycf = y_fit[-1]
+if abs(ycf - x[-1]) > 1:
+    ycf = x[-1]
+ax.plot(tcf, ycf, 'o', color=colors[3])
+
+# recalculate polynomial with estimated position
+t2 = np.append(t, tcf)
+x2 = np.append(x, ycf)
+A2 = timestamp_matrix(polyorder, t2)
+B2 = np.array(x2)
+P2 = np.linalg.lstsq(A2, B2)[0]
+p2_fit = np.poly1d(P2)
+
+ax.plot(t_fit, p2_fit(t_fit), color=colors[2])
 
 # fit axes
 x1 = tcf
@@ -90,7 +106,9 @@ plt.axis((x0 - x_plot_margin,
           y0 - y_plot_margin,
           y1 + y_plot_margin))
 
-plt.legend(['encoder events', 'best fit line', 'estimated position'], loc=0)
+plt.legend(['encoder events', 'best fit line',
+            'estimated position', 'recalculated best fit line'],
+           loc=0)
 ax.set_xlabel('normalized time')
 ax.set_ylabel('encoder position')
 fig.suptitle('higher-order encoder time-stamping estimate')
