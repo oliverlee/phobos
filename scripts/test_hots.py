@@ -24,7 +24,7 @@ events = [
 (2114813308, 998)
     ]
 tcf = 1.87497497
-polyorder = 3
+polyorder = 2
 
 ##############################################################################
 
@@ -68,22 +68,24 @@ print("position = {0}".format(np.dot(P, T)))
 colors = sns.color_palette("Paired")
 sns.set_style('darkgrid')
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(2, sharex=True)
 # print encoder events
-ax.plot(t, x, 'o', color=colors[5])
+ax[0].plot(t, x, 'o', color=colors[5])
 x0, x1, y0, y1 = plt.axis()
 
 # plot best fit line
 t_fit = np.linspace(0, tcf, 100)
 p_fit = np.poly1d(P)
+pd_fit = np.polyder(p_fit)
 y_fit = p_fit(t_fit)
-ax.plot(t_fit, y_fit, color=colors[4])
+ax[0].plot(t_fit, y_fit, color=colors[4], linewidth=3)
+ax[1].plot(t_fit, pd_fit(t_fit), color=colors[4], linewidth=3)
 
 # plot estimated position
 ycf = y_fit[-1]
 if abs(ycf - x[-1]) > 1:
     ycf = x[-1]
-ax.plot(tcf, ycf, 'o', color=colors[3])
+ax[0].plot(tcf, ycf, 'o', color=colors[3])
 
 # recalculate polynomial with estimated position
 t2 = np.append(t, tcf)
@@ -92,24 +94,27 @@ A2 = timestamp_matrix(polyorder, t2)
 B2 = np.array(x2)
 P2 = np.linalg.lstsq(A2, B2)[0]
 p2_fit = np.poly1d(P2)
+p2d_fit = np.polyder(p2_fit)
 
-ax.plot(t_fit, p2_fit(t_fit), color=colors[2])
+ax[0].plot(t_fit, p2_fit(t_fit), color=colors[2])
+ax[1].plot(t_fit, p2d_fit(t_fit), color=colors[2])
 
 # fit axes
+x0 = 0
 x1 = tcf
-y1 = max(y1, max(y_fit))
-y0 = min(y0, min(y_fit))
+y1 = max(max(y_fit), max(x))
+y0 = min(min(y_fit), min(x))
 x_plot_margin = 0.1 * (x1 - x0)
 y_plot_margin = 0.1 * (y1 - y0)
-plt.axis((x0 - x_plot_margin,
-          x1 + x_plot_margin,
-          y0 - y_plot_margin,
-          y1 + y_plot_margin))
+ax[0].set_xlim([x0 - x_plot_margin, x1 + x_plot_margin])
+ax[0].set_ylim([y0 - y_plot_margin, y1 + y_plot_margin])
 
-plt.legend(['encoder events', 'best fit line',
-            'estimated position', 'recalculated best fit line'],
-           loc=0)
-ax.set_xlabel('normalized time')
-ax.set_ylabel('encoder position')
-fig.suptitle('higher-order encoder time-stamping estimate')
+ax[0].legend(['encoder events', 'best fit line',
+              'estimated position', 'recalculated best fit line'],
+             loc=0)
+ax[0].set_ylabel('encoder position')
+ax[1].set_xlabel('normalized time')
+ax[1].set_ylabel('encoder velocity')
+fig.suptitle('higher-order encoder time-stamping estimate, polynomial order'
+        ' {0}\n{1}, {2}, {3}'.format(polyorder, ycf, pd_fit[-1], p2d_fit[-1]))
 plt.show(block=False)
