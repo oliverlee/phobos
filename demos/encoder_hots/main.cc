@@ -55,15 +55,14 @@ namespace {
         board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
         while (true) {
-            if (SDU1.config->usbp->state == USB_ACTIVE) {
+            if ((SDU1.config->usbp->state == USB_ACTIVE) || (SDU1.state == SDU_READY)) {
                 encoder.update_polynomial_fit();
                 encoder.update_estimate_time(chSysGetRealtimeCounterX());
-                printf("%0.2f\tindex: ", encoder.position());
-                if (encoder.index() == encoder_t::index_t::FOUND) {
-                    printf("FOUND\r\n");
-                } else {
-                    printf("NOTFOUND\r\n");
-                }
+                printf("index: %u\tpos: %8.3f\tvel: %8.3f\tacc: %8.3f\r\n",
+                        encoder.index() == encoder_t::index_t::FOUND,
+                        encoder.position(),
+                        encoder.velocity(),
+                        encoder.acceleration());
             }
             chThdSleep(loop_time);
         }
