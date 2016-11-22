@@ -67,8 +67,8 @@ class TSEncoder {
         };
 
         mutable std::array<event_t, N> m_events; /* circular buffer for encoder events */
-        mutable uint8_t m_event_index; /* event buffer index */
-        mutable uint8_t m_skip_order_counter; /* skip order counter */
+        mutable size_t m_event_index; /* index of oldest entry */
+        mutable size_t m_skip_order_counter; /* skip order counter */
         Eigen::Matrix<polycoeff_t, N, M + 1> m_A; /* time stamp matrix */
         Eigen::Matrix<polycoeff_t, M + 1, 1> m_P; /* polynomial coefficients */
         Eigen::Matrix<tsenccnt_t, N, 1> m_B; /* position vector */

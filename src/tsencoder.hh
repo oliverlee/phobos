@@ -86,11 +86,15 @@ void TSEncoder<M, N, O>::update_polynomial_fit() {
      * int32_t.
      */
     chSysLock();
-    m_t0 = m_events[(m_event_index + 1) % N].first;
-    m_alpha = 1.0f / (m_events[m_event_index].first - m_t0);
+    m_t0 = m_events[m_event_index].first;
+    size_t newest_index = m_event_index - 1;
+    if (m_event_index == 0) {
+        newest_index = N - 1;
+    }
+    m_alpha = 1.0f / (m_events[newest_index].first - m_t0);
     for (unsigned int i = 0; i < N; ++i) {
-        m_A(i, M - 1) = m_alpha * (m_events[(m_event_index + i + 1) % N].first - m_t0);
-        m_B(i) = m_events[(m_event_index + i + 1) % N].second;
+        m_A(i, M - 1) = m_alpha * (m_events[(m_event_index + i) % N].first - m_t0);
+        m_B(i) = m_events[(m_event_index + i) % N].second;
     }
     chSysUnlock();
     for (unsigned int i = 0; i < M - 1; ++i) {
@@ -200,18 +204,19 @@ void TSEncoder<M, N, O>::add_event_callback(void* p) {
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::add_event(rtcnt_t t, tsenccnt_t x, bool use_skip) const {
     chDbgCheckClassI();
-    m_events[m_event_index] = std::make_pair(t, x);
     if (use_skip) {
-        if (++m_skip_order_counter >= O) {
+        if (++m_skip_order_counter >= 0) {
             m_skip_order_counter = 0;
+        } else {
+            /* decrement the event index to overwrite the most recent event */
+            if (m_event_index-- == 0) {
+                m_event_index = O - 1;
+            }
         }
-    } else {
-        m_skip_order_counter = 0;
     }
-    if (m_skip_order_counter == 0) {
-        if (++m_event_index >= N) {
-            m_event_index = 0;
-        }
+    m_events[m_event_index++] = std::make_pair(t, x);
+    if (m_event_index == N) {
+        m_event_index = 0;
     }
 }
 
