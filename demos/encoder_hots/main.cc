@@ -25,7 +25,7 @@
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
-    using encoder_t = TSEncoder<2, 10, 0>;
+    using encoder_t = TSEncoder<2, 16, 0>;
     encoder_t encoder({
             LINE_TIM5_CH1,
             LINE_TIM5_CH2,
@@ -56,13 +56,19 @@ namespace {
 
         while (true) {
             if ((SDU1.config->usbp->state == USB_ACTIVE) || (SDU1.state == SDU_READY)) {
-                encoder.update_polynomial_fit();
-                encoder.update_estimate_time(chSysGetRealtimeCounterX());
-                printf("index: %u\tpos: %8.3f\tvel: %8.3f\tacc: %8.3f\r\n",
-                        encoder.index() == encoder_t::index_t::FOUND,
-                        encoder.position(),
-                        encoder.velocity(),
-                        encoder.acceleration());
+                bool transmitting = false;
+                chSysLock();
+                transmitting = usbGetTransmitStatusI(SDU1.config->usbp, SDU1.config->bulk_in);
+                chSysUnlock();
+                if (!transmitting) {
+                    encoder.update_polynomial_fit();
+                    encoder.update_estimate_time(chSysGetRealtimeCounterX());
+                    printf("index: %u\tpos: %8.3f\tvel: %8.3f\tacc: %8.3f\r\n",
+                            encoder.index() == encoder_t::index_t::FOUND,
+                            encoder.position(),
+                            encoder.velocity(),
+                            encoder.acceleration());
+                }
             }
             chThdSleep(loop_time);
         }
