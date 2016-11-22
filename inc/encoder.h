@@ -31,8 +31,8 @@ class Encoder {
         };
 
         Encoder(GPTDriver* gptp, const EncoderConfig& config);
-        void start();
-        void stop();
+        virtual void start();
+        virtual void stop();
         void set_count(enccnt_t count);
         enccnt_t count() const volatile;
         bool direction() const volatile;
