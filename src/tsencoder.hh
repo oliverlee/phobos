@@ -85,12 +85,14 @@ void TSEncoder<M, N, O>::update_polynomial_fit() {
      * be less than int32_t_max as these values will be cast from uint32_t to
      * int32_t.
      */
+    chSysLock();
     m_t0 = m_events[(m_event_index + 1) % N].first;
     m_alpha = 1.0f / (m_events[m_event_index].first - m_t0);
     for (unsigned int i = 0; i < N; ++i) {
         m_A(i, M - 1) = m_alpha * (m_events[(m_event_index + i + 1) % N].first - m_t0);
         m_B(i) = m_events[(m_event_index + i + 1) % N].second;
     }
+    chSysUnlock();
     for (unsigned int i = 0; i < M - 1; ++i) {
         m_A.col(M - 2 - i) = m_A.col(M - 1 - i).cwiseProduct(m_A.col(M - 1));
     }
@@ -103,6 +105,7 @@ template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::update_estimate_time(rtcnt_t tc) {
     m_tc = tc;
     polycoeff_t tcf = m_alpha * static_cast<polycoeff_t>(tc - m_t0);
+    chDbgAssert(tcf > 1.0f, "tcf should always be ahead of last prediction");
     m_T(M - 1) = tcf;
     for (unsigned int i = 0; i < M - 1; ++i) {
         m_T(M - 2 - i) = m_T(M - 1 - i) * tcf;
