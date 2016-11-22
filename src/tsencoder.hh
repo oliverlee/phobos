@@ -42,7 +42,7 @@ void TSEncoder<M, N, O>::start() {
         m_index = index_t::NOTFOUND;
     }
     m_state = state_t::READY;
-    chVTSetI(&m_event_deadline_timer, m_event_deadline, add_event_callback, reinterpret_cast<void*>(this));
+    chVTSetI(&m_event_deadline_timer, m_event_deadline, add_event_callback, static_cast<void*>(this));
     chSysUnlock();
 }
 
@@ -150,7 +150,7 @@ template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::ab_callback(EXTDriver* extp, expchannel_t channel) {
     (void)extp;
     chSysLockFromISR();
-    TSEncoder<M, N, O>* enc = reinterpret_cast<TSEncoder<M, N, O>*>(extGetChannelCallbackObject(channel));
+    TSEncoder<M, N, O>* enc = static_cast<TSEncoder<M, N, O>*>(extGetChannelCallbackObject(channel));
     if (((channel == PAL_PAD(enc->m_config.a)) &&
                 (palReadLine(enc->m_config.a) != palReadLine(enc->m_config.b))) ||
         ((channel == PAL_PAD(enc->m_config.b)) &&
@@ -160,14 +160,14 @@ void TSEncoder<M, N, O>::ab_callback(EXTDriver* extp, expchannel_t channel) {
         --enc->m_count;
     }
     enc->add_event(chSysGetRealtimeCounterX(), enc->m_count, true);
-    chVTSetI(&enc->m_event_deadline_timer, enc->m_event_deadline, add_event_callback, reinterpret_cast<void*>(enc));
+    chVTSetI(&enc->m_event_deadline_timer, enc->m_event_deadline, add_event_callback, static_cast<void*>(enc));
     chSysUnlockFromISR();
 }
 
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::index_callback(EXTDriver* extp, expchannel_t channel) {
     chSysLockFromISR();
-    TSEncoder<M, N, O>* enc = reinterpret_cast<TSEncoder<M, N, O>*>(extGetChannelCallbackObject(channel));
+    TSEncoder<M, N, O>* enc = static_cast<TSEncoder<M, N, O>*>(extGetChannelCallbackObject(channel));
     enc->m_count = 0;
     enc->m_index = index_t::FOUND;
     extChannelDisableClearModeI(extp, PAL_PAD(enc->m_config.z));
@@ -177,7 +177,7 @@ void TSEncoder<M, N, O>::index_callback(EXTDriver* extp, expchannel_t channel) {
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::add_event_callback(void* p) {
     chSysLockFromISR();
-    TSEncoder<M, N, O>* enc = reinterpret_cast<TSEncoder<M, N, O>*>(p);
+    TSEncoder<M, N, O>* enc = static_cast<TSEncoder<M, N, O>*>(p);
     enc->add_deadline_event();
     chVTSetI(&enc->m_event_deadline_timer, enc->m_event_deadline, add_event_callback, p);
     chSysUnlockFromISR();
