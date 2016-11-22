@@ -121,7 +121,7 @@ Encoder::index_t Encoder::index() const volatile {
 void Encoder::callback(EXTDriver* extp, expchannel_t channel) {
     (void)extp;
     osalSysLockFromISR();
-    Encoder* enc = reinterpret_cast<Encoder*>(extGetChannelCallbackObject(channel));
+    Encoder* enc = static_cast<Encoder*>(extGetChannelCallbackObject(channel));
     enc->m_gptp->tim->CNT = 0U;
     enc->m_index = index_t::FOUND;
     extChannelDisableClearModeI(extp, PAL_PAD(enc->m_config.z));
