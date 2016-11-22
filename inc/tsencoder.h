@@ -45,7 +45,6 @@ class TSEncoder {
         enum class state_t {
             STOP, READY
         };
-
         enum class index_t {
             NONE, NOTFOUND, FOUND
         };
@@ -63,6 +62,10 @@ class TSEncoder {
 
     private:
         using event_t = std::pair<rtcnt_t, tsenccnt_t>;
+        enum class position_result_t {
+            NONE, ESTIMATED, ADJUSTED
+        };
+
         std::array<event_t, N> m_events; /* circular buffer for encoder events */
         uint8_t m_event_index; /* event buffer index */
         uint8_t m_skip_order_counter; /* skip order counter */
@@ -73,9 +76,10 @@ class TSEncoder {
         rtcnt_t m_t0; /* polynomial zero time */
         polycoeff_t m_alpha; /* time scaling factor */
         const TSEncoderConfig m_config;
-        tsenccnt_t m_count;
+        tsenccnt_t m_count; /* encoder count */
         state_t m_state;
         index_t m_index;
+        mutable position_result_t m_position_result;
 
         static void ab_callback(EXTDriver* extp, expchannel_t channel);
         static void index_callback(EXTDriver* extp, expchannel_t channel);

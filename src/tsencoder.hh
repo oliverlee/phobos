@@ -22,7 +22,8 @@ TSEncoder<M, N, O>::TSEncoder(const TSEncoderConfig& config) :
     m_config(config),
     m_count(0),
     m_state(state_t::STOP),
-    m_index(index_t::NONE) { }
+    m_index(index_t::NONE),
+    m_position_result(position_result_t::NONE) { }
 
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::start() {
@@ -49,6 +50,7 @@ void TSEncoder<M, N, O>::stop() {
     osalSysLock();
     m_state = state_t::STOP;
     m_index = index_t::NONE;
+    m_position_result = position_result_t::NONE;
 
     extChannelDisableClearModeI(extp, PAL_PAD(m_config.a));
     extChannelDisableClearModeI(extp, PAL_PAD(m_config.b));
@@ -91,6 +93,7 @@ void TSEncoder<M, N, O>::update_polynomial_fit() {
     }
     m_P.noalias() = (m_A.transpose() * m_A).ldlt().solve(
             (m_A.transpose() * m_B.template cast<polycoeff_t>()));
+    m_position_result = position_result_t::NONE;
 }
 
 template <size_t M, size_t N, size_t O>
@@ -100,6 +103,7 @@ void TSEncoder<M, N, O>::update_estimate_time(rtcnt_t tc) {
     for (unsigned int i = 0; i < M - 1; ++i) {
         m_T(M - 2 - i) = m_T(M - 1 - i) * tcf;
     }
+    m_position_result = position_result_t::NONE;
 }
 
 template <size_t M, size_t N, size_t O>
@@ -107,16 +111,24 @@ polycoeff_t TSEncoder<M, N, O>::position() const {
     polycoeff_t x = m_P.transpose() * m_T;
     polycoeff_t count = static_cast<polycoeff_t>(m_count);
     if (std::abs(x - count) > 1.0f) {
+        m_position_result = position_result_t::ADJUSTED;
         return count;
     }
+    m_position_result = position_result_t::ESTIMATED;
     return x;
 }
 
 // TODO: Validity of velocity and acceleration for large error in estimated
-// position (i.e. position is adjusted due to a large amount of time without
+// position (i.e. position is adjusted if a large amount of time passes without
 // an encoder event).
 template <size_t M, size_t N, size_t O>
 polycoeff_t TSEncoder<M, N, O>::velocity() const {
+    if (m_position_result == position_result_t::NONE) {
+        position();
+    }
+    if (m_position_result == position_result_t::ADJUSTED) {
+        return static_cast<polycoeff_t>(0.0);
+    }
     Eigen::Matrix<tsenccnt_t, M, 1> velocity_coefficients;
     for (unsigned int i = 0; i < M; ++i) {
         velocity_coefficients(i) = M - i;
@@ -127,6 +139,12 @@ polycoeff_t TSEncoder<M, N, O>::velocity() const {
 
 template <size_t M, size_t N, size_t O>
 polycoeff_t TSEncoder<M, N, O>::acceleration() const {
+    if (m_position_result == position_result_t::NONE) {
+        position();
+    }
+    if (m_position_result == position_result_t::ADJUSTED) {
+        return static_cast<polycoeff_t>(0.0);
+    }
     Eigen::Matrix<tsenccnt_t, M - 1 , 1> acceleration_coefficients;
     for (unsigned int i = 0; i < M - 1; ++i) {
         acceleration_coefficients(i) = (M - i) * (M - i - 1);
