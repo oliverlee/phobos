@@ -22,6 +22,7 @@
 #include "printf.h"
 
 #include "encoder.h"
+#include "foaw.h"
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
@@ -30,6 +31,7 @@ namespace {
              152000, /* counts per revolution */
              EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
                                                      * for valid edge */
+    Foaw<float, 16> foaw(5.0f/1000, 1.0f);
 } // namespace
 
 static THD_WORKING_AREA(waSerialThread, 256);
@@ -55,7 +57,7 @@ static THD_FUNCTION(SerialThread, arg) {
 
     while (true) {
         if (SDU1.config->usbp->state == USB_ACTIVE) {
-            printf("%d\r\n", encoder.count());
+            printf("%d\t%0.3f\r\n", encoder.count(), foaw.estimate_velocity());
         }
         chThdSleep(loop_time);
     }
@@ -96,6 +98,7 @@ int main(void) {
      * Normal main() thread activity. In this demo it does nothing.
      */
     while (true) {
-        chThdSleep(MS2ST(500));
+        foaw.add_position(encoder.count());
+        chThdSleep(MS2ST(5));
     }
 }
