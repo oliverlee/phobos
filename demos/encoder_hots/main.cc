@@ -25,7 +25,7 @@
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
-    using encoder_t = TSEncoder<5, 4, 3>;
+    using encoder_t = TSEncoder<2, 16, 0>;
     encoder_t encoder({
             LINE_TIM5_CH1,
             LINE_TIM5_CH2,
@@ -33,7 +33,7 @@ namespace {
             152000, /* counts per revolution */
              });
 
-    THD_WORKING_AREA(waSerialThread, 2048);
+    THD_WORKING_AREA(waSerialThread, 8192);
     THD_FUNCTION(SerialThread, arg) {
         (void)arg;
         chRegSetThreadName("serial");
@@ -55,14 +55,19 @@ namespace {
         board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
         while (true) {
-            if (SDU1.config->usbp->state == USB_ACTIVE) {
-                encoder.update_polynomial_fit();
-                encoder.update_estimate_time(chSysGetRealtimeCounterX());
-                printf("%0.2f\tindex: ", encoder.position());
-                if (encoder.index() == encoder_t::index_t::FOUND) {
-                    printf("FOUND\r\n");
-                } else {
-                    printf("NOTFOUND\r\n");
+            if ((SDU1.config->usbp->state == USB_ACTIVE) || (SDU1.state == SDU_READY)) {
+                bool transmitting = false;
+                chSysLock();
+                transmitting = usbGetTransmitStatusI(SDU1.config->usbp, SDU1.config->bulk_in);
+                chSysUnlock();
+                if (!transmitting) {
+                    encoder.update_polynomial_fit();
+                    encoder.update_estimate_time(chSysGetRealtimeCounterX());
+                    printf("index: %u\tpos: %8.3f\tvel: %8.3f\tacc: %8.3f\r\n",
+                            encoder.index() == encoder_t::index_t::FOUND,
+                            encoder.position(),
+                            encoder.velocity(),
+                            encoder.acceleration());
                 }
             }
             chThdSleep(loop_time);

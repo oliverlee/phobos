@@ -63,9 +63,9 @@ class TSEncoder {
 
     private:
         using event_t = std::pair<rtcnt_t, tsenccnt_t>;
-        std::array<event_t, N> m_events; /* circular buffer for encoder events */
-        uint8_t m_event_index; /* event buffer index */
-        uint8_t m_skip_order_counter; /* skip order counter */
+        mutable std::array<event_t, N> m_events; /* circular buffer for encoder events */
+        mutable size_t m_event_index; /* index of oldest entry */
+        mutable size_t m_skip_order_counter; /* skip order counter */
         Eigen::Matrix<polycoeff_t, N, M + 1> m_A; /* time stamp matrix */
         Eigen::Matrix<polycoeff_t, M + 1, 1> m_P; /* polynomial coefficients */
         Eigen::Matrix<tsenccnt_t, N, 1> m_B; /* position vector */
@@ -73,12 +73,18 @@ class TSEncoder {
         rtcnt_t m_t0; /* polynomial zero time */
         polycoeff_t m_alpha; /* time scaling factor */
         const TSEncoderConfig m_config;
-        tsenccnt_t m_count;
+        tsenccnt_t m_count; /* encoder count */
+        rtcnt_t m_tc; /* estimate time */
         state_t m_state;
         index_t m_index;
+        virtual_timer_t m_event_deadline_timer;
+        static constexpr systime_t m_event_deadline = MS2ST(10); /* observed event deadline */
 
         static void ab_callback(EXTDriver* extp, expchannel_t channel);
         static void index_callback(EXTDriver* extp, expchannel_t channel);
+        static void add_event_callback(void* p);
+        void add_event(rtcnt_t t, tsenccnt_t x, bool use_skip) const;
+        void add_deadline_event() const;
 };
 
 #include "tsencoder.hh"
