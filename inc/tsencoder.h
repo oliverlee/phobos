@@ -45,6 +45,7 @@ class TSEncoder {
         enum class state_t {
             STOP, READY
         };
+
         enum class index_t {
             NONE, NOTFOUND, FOUND
         };
@@ -62,10 +63,6 @@ class TSEncoder {
 
     private:
         using event_t = std::pair<rtcnt_t, tsenccnt_t>;
-        enum class position_result_t {
-            NONE, ESTIMATED, ADJUSTED
-        };
-
         mutable std::array<event_t, N> m_events; /* circular buffer for encoder events */
         mutable size_t m_event_index; /* index of oldest entry */
         mutable size_t m_skip_order_counter; /* skip order counter */
