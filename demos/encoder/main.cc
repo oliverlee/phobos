@@ -22,16 +22,18 @@
 #include "printf.h"
 
 #include "encoder.h"
-#include "foaw.h"
+#include "foawencoder.h"
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
-    Encoder encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
+    using encoder_t = FoawEncoder<float, 16>;
+    encoder_t encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
             {PAL_NOLINE, /* no index channel */
              152000, /* counts per revolution */
-             EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
+             EncoderConfig::filter_t::CAPTURE_64}, /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
                                                      * for valid edge */
-    Foaw<float, 16> foaw(5.0f/1000, 1.0f);
+             MS2ST(1),
+             1.0f);
 } // namespace
 
 static THD_WORKING_AREA(waSerialThread, 256);
@@ -57,7 +59,7 @@ static THD_FUNCTION(SerialThread, arg) {
 
     while (true) {
         if (SDU1.config->usbp->state == USB_ACTIVE) {
-            printf("%d\t%0.3f\r\n", encoder.count(), foaw.estimate_velocity());
+            printf("%d\t%0.3f\r\n", encoder.count(), encoder.velocity());
         }
         chThdSleep(loop_time);
     }
@@ -98,7 +100,6 @@ int main(void) {
      * Normal main() thread activity. In this demo it does nothing.
      */
     while (true) {
-        foaw.add_position(encoder.count());
-        chThdSleep(MS2ST(5));
+        chThdSleep(MS2ST(500));
     }
 }
