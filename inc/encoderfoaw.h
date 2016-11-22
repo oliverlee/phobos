@@ -4,10 +4,10 @@
 #include "ch.h"
 
 template <typename T, size_t N>
-class FoawEncoder: public Encoder {
+class EncoderFoaw: public Encoder {
     public:
         // TODO: GPT for higher sampling frequency instead of virtual timer?
-        FoawEncoder(GPTDriver* gptp, const EncoderConfig& config,
+        EncoderFoaw(GPTDriver* gptp, const EncoderConfig& config,
                     systime_t sample_period, T allowed_error);
         virtual void start() override;
         virtual void stop() override;
@@ -21,4 +21,4 @@ class FoawEncoder: public Encoder {
         static void sample_callback(void* p);
 };
 
-#include "foawencoder.hh"
+#include "encoderfoaw.hh"

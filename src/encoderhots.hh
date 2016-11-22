@@ -4,12 +4,12 @@
 #include <cmath>
 
 /*
- * Member function definitions of TSEncoder template class.
+ * Member function definitions of EncoderHots template class.
  * See tsencoder.h for template class declaration.
  */
 
 template <size_t M, size_t N, size_t O>
-TSEncoder<M, N, O>::TSEncoder(const TSEncoderConfig& config) :
+EncoderHots<M, N, O>::EncoderHots(const EncoderHotsConfig& config) :
     m_events(),
     m_event_index(0),
     m_skip_order_counter(0),
@@ -26,7 +26,7 @@ TSEncoder<M, N, O>::TSEncoder(const TSEncoderConfig& config) :
     m_index(index_t::NONE) { }
 
 template <size_t M, size_t N, size_t O>
-void TSEncoder<M, N, O>::start() {
+void EncoderHots<M, N, O>::start() {
     chSysLock();
     osalDbgAssert((extp->state == EXT_STOP) || (extp->state == EXT_ACTIVE),
             "invalid state");
@@ -47,7 +47,7 @@ void TSEncoder<M, N, O>::start() {
 }
 
 template <size_t M, size_t N, size_t O>
-void TSEncoder<M, N, O>::stop() {
+void EncoderHots<M, N, O>::stop() {
     chSysLock();
     m_state = state_t::STOP;
     m_index = index_t::NONE;
@@ -63,17 +63,17 @@ void TSEncoder<M, N, O>::stop() {
 }
 
 template <size_t M, size_t N, size_t O>
-typename TSEncoder<M, N, O>::state_t TSEncoder<M, N, O>::state() const {
+typename EncoderHots<M, N, O>::state_t EncoderHots<M, N, O>::state() const {
     return m_state;
 }
 
 template <size_t M, size_t N, size_t O>
-typename TSEncoder<M, N, O>::index_t TSEncoder<M, N, O>::index() const volatile {
+typename EncoderHots<M, N, O>::index_t EncoderHots<M, N, O>::index() const volatile {
     return m_index;
 }
 
 template <size_t M, size_t N, size_t O>
-void TSEncoder<M, N, O>::update_polynomial_fit() {
+void EncoderHots<M, N, O>::update_polynomial_fit() {
     /*
      * Redefine oldest event to be at time zero. Scale time so that difference
      * in time from oldest to newest event is equal to 1.
@@ -103,7 +103,7 @@ void TSEncoder<M, N, O>::update_polynomial_fit() {
 }
 
 template <size_t M, size_t N, size_t O>
-void TSEncoder<M, N, O>::update_estimate_time(rtcnt_t tc) {
+void EncoderHots<M, N, O>::update_estimate_time(rtcnt_t tc) {
     m_tc = tc;
     polycoeff_t tcf = m_alpha * static_cast<polycoeff_t>(tc - m_t0);
     chDbgAssert(tcf > 1.0f, "tcf should always be ahead of last prediction");
@@ -114,7 +114,7 @@ void TSEncoder<M, N, O>::update_estimate_time(rtcnt_t tc) {
 }
 
 template <size_t M, size_t N, size_t O>
-polycoeff_t TSEncoder<M, N, O>::position() const {
+polycoeff_t EncoderHots<M, N, O>::position() const {
     polycoeff_t x = m_P.transpose() * m_T;
     polycoeff_t count = static_cast<polycoeff_t>(m_count);
     if (std::abs(x - count) > 1.0f) {
@@ -127,8 +127,8 @@ polycoeff_t TSEncoder<M, N, O>::position() const {
 // position (i.e. position is adjusted if a large amount of time passes without
 // an encoder event).
 template <size_t M, size_t N, size_t O>
-polycoeff_t TSEncoder<M, N, O>::velocity() const {
-    Eigen::Matrix<tsenccnt_t, M, 1> velocity_coefficients;
+polycoeff_t EncoderHots<M, N, O>::velocity() const {
+    Eigen::Matrix<hotscnt_t, M, 1> velocity_coefficients;
     for (unsigned int i = 0; i < M; ++i) {
         velocity_coefficients(i) = M - i;
     }
@@ -137,8 +137,8 @@ polycoeff_t TSEncoder<M, N, O>::velocity() const {
 }
 
 template <size_t M, size_t N, size_t O>
-polycoeff_t TSEncoder<M, N, O>::acceleration() const {
-    Eigen::Matrix<tsenccnt_t, M - 1 , 1> acceleration_coefficients;
+polycoeff_t EncoderHots<M, N, O>::acceleration() const {
+    Eigen::Matrix<hotscnt_t, M - 1 , 1> acceleration_coefficients;
     for (unsigned int i = 0; i < M - 1; ++i) {
         acceleration_coefficients(i) = (M - i) * (M - i - 1);
     }
@@ -147,10 +147,10 @@ polycoeff_t TSEncoder<M, N, O>::acceleration() const {
 }
 
 template <size_t M, size_t N, size_t O>
-void TSEncoder<M, N, O>::ab_callback(EXTDriver* extp, expchannel_t channel) {
+void EncoderHots<M, N, O>::ab_callback(EXTDriver* extp, expchannel_t channel) {
     (void)extp;
     chSysLockFromISR();
-    TSEncoder<M, N, O>* enc = static_cast<TSEncoder<M, N, O>*>(extGetChannelCallbackObject(channel));
+    EncoderHots<M, N, O>* enc = static_cast<EncoderHots<M, N, O>*>(extGetChannelCallbackObject(channel));
     if (((channel == PAL_PAD(enc->m_config.a)) &&
                 (palReadLine(enc->m_config.a) != palReadLine(enc->m_config.b))) ||
         ((channel == PAL_PAD(enc->m_config.b)) &&
@@ -165,9 +165,9 @@ void TSEncoder<M, N, O>::ab_callback(EXTDriver* extp, expchannel_t channel) {
 }
 
 template <size_t M, size_t N, size_t O>
-void TSEncoder<M, N, O>::index_callback(EXTDriver* extp, expchannel_t channel) {
+void EncoderHots<M, N, O>::index_callback(EXTDriver* extp, expchannel_t channel) {
     chSysLockFromISR();
-    TSEncoder<M, N, O>* enc = static_cast<TSEncoder<M, N, O>*>(extGetChannelCallbackObject(channel));
+    EncoderHots<M, N, O>* enc = static_cast<EncoderHots<M, N, O>*>(extGetChannelCallbackObject(channel));
     enc->m_count = 0;
     enc->m_index = index_t::FOUND;
     extChannelDisableClearModeI(extp, PAL_PAD(enc->m_config.z));
@@ -175,16 +175,16 @@ void TSEncoder<M, N, O>::index_callback(EXTDriver* extp, expchannel_t channel) {
 }
 
 template <size_t M, size_t N, size_t O>
-void TSEncoder<M, N, O>::add_event_callback(void* p) {
+void EncoderHots<M, N, O>::add_event_callback(void* p) {
     chSysLockFromISR();
-    TSEncoder<M, N, O>* enc = static_cast<TSEncoder<M, N, O>*>(p);
+    EncoderHots<M, N, O>* enc = static_cast<EncoderHots<M, N, O>*>(p);
     enc->add_deadline_event();
     chVTSetI(&enc->m_event_deadline_timer, enc->m_event_deadline, add_event_callback, p);
     chSysUnlockFromISR();
 }
 
 template <size_t M, size_t N, size_t O>
-void TSEncoder<M, N, O>::add_event(rtcnt_t t, tsenccnt_t x, bool use_skip) const {
+void EncoderHots<M, N, O>::add_event(rtcnt_t t, hotscnt_t x, bool use_skip) const {
     chDbgCheckClassI();
     if (use_skip) {
         if (++m_skip_order_counter >= 0) {
@@ -203,6 +203,6 @@ void TSEncoder<M, N, O>::add_event(rtcnt_t t, tsenccnt_t x, bool use_skip) const
 }
 
 template <size_t M, size_t N, size_t O>
-void TSEncoder<M, N, O>::add_deadline_event() const {
+void EncoderHots<M, N, O>::add_deadline_event() const {
     add_event(chSysGetRealtimeCounterX(), m_count, false);
 }
