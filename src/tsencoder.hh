@@ -18,16 +18,17 @@ TSEncoder<M, N, O>::TSEncoder(const TSEncoderConfig& config) :
     m_B(decltype(m_B)::Zero()),
     m_T(decltype(m_T)::Ones()), /* last element of time vector is always 1 */
     m_t0(0),
-    m_alpha(0.0f),
+    m_alpha(0.0),
     m_config(config),
     m_count(0),
+    m_tc(0.0),
     m_state(state_t::STOP),
     m_index(index_t::NONE),
     m_position_result(position_result_t::NONE) { }
 
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::start() {
-    osalSysLock();
+    chSysLock();
     osalDbgAssert((extp->state == EXT_STOP) || (extp->state == EXT_ACTIVE),
             "invalid state");
     if (extp->state == EXT_STOP) {
@@ -42,12 +43,13 @@ void TSEncoder<M, N, O>::start() {
         m_index = index_t::NOTFOUND;
     }
     m_state = state_t::READY;
-    osalSysUnlock();
+    chVTSetI(&m_event_deadline_timer, m_event_deadline, add_event_callback, reinterpret_cast<void*>(this));
+    chSysUnlock();
 }
 
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::stop() {
-    osalSysLock();
+    chSysLock();
     m_state = state_t::STOP;
     m_index = index_t::NONE;
     m_position_result = position_result_t::NONE;
@@ -58,7 +60,8 @@ void TSEncoder<M, N, O>::stop() {
         extChannelDisableClearModeI(extp, PAL_PAD(m_config.z));
     }
     extStopIfChannelsDisabledI(extp);
-    osalSysUnlock();
+    chVTResetI(&m_event_deadline_timer);
+    chSysUnlock();
 }
 
 template <size_t M, size_t N, size_t O>
@@ -98,6 +101,7 @@ void TSEncoder<M, N, O>::update_polynomial_fit() {
 
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::update_estimate_time(rtcnt_t tc) {
+    m_tc = tc;
     polycoeff_t tcf = m_alpha * static_cast<polycoeff_t>(tc - m_t0);
     m_T(M - 1) = tcf;
     for (unsigned int i = 0; i < M - 1; ++i) {
@@ -156,7 +160,7 @@ polycoeff_t TSEncoder<M, N, O>::acceleration() const {
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::ab_callback(EXTDriver* extp, expchannel_t channel) {
     (void)extp;
-    osalSysLockFromISR();
+    chSysLockFromISR();
     TSEncoder<M, N, O>* enc = reinterpret_cast<TSEncoder<M, N, O>*>(extGetChannelCallbackObject(channel));
     if (((channel == PAL_PAD(enc->m_config.a)) &&
                 (palReadLine(enc->m_config.a) != palReadLine(enc->m_config.b))) ||
@@ -166,20 +170,49 @@ void TSEncoder<M, N, O>::ab_callback(EXTDriver* extp, expchannel_t channel) {
     } else {
         --enc->m_count;
     }
-    enc->m_events[enc->m_event_index] = std::make_pair(chSysGetRealtimeCounterX(), enc->m_count);
-    enc->m_skip_order_counter = (enc->m_skip_order_counter + 1) % O;
-    if (enc->m_skip_order_counter == 0) {
-        enc->m_event_index = (enc->m_event_index + 1) % N;
-    }
-    osalSysUnlockFromISR();
+    enc->add_event(chSysGetRealtimeCounterX(), enc->m_count, true);
+    chVTSetI(&enc->m_event_deadline_timer, enc->m_event_deadline, add_event_callback, reinterpret_cast<void*>(enc));
+    chSysUnlockFromISR();
 }
 
 template <size_t M, size_t N, size_t O>
 void TSEncoder<M, N, O>::index_callback(EXTDriver* extp, expchannel_t channel) {
-    osalSysLockFromISR();
+    chSysLockFromISR();
     TSEncoder<M, N, O>* enc = reinterpret_cast<TSEncoder<M, N, O>*>(extGetChannelCallbackObject(channel));
     enc->m_count = 0;
     enc->m_index = index_t::FOUND;
     extChannelDisableClearModeI(extp, PAL_PAD(enc->m_config.z));
-    osalSysUnlockFromISR();
+    chSysUnlockFromISR();
+}
+
+template <size_t M, size_t N, size_t O>
+void TSEncoder<M, N, O>::add_event_callback(void* p) {
+    chSysLockFromISR();
+    TSEncoder<M, N, O>* enc = reinterpret_cast<TSEncoder<M, N, O>*>(p);
+    enc->add_deadline_event();
+    chVTSetI(&enc->m_event_deadline_timer, enc->m_event_deadline, add_event_callback, p);
+    chSysUnlockFromISR();
+}
+
+template <size_t M, size_t N, size_t O>
+void TSEncoder<M, N, O>::add_event(rtcnt_t t, tsenccnt_t x, bool use_skip) const {
+    chDbgCheckClassI();
+    m_events[m_event_index] = std::make_pair(t, x);
+    if (use_skip) {
+        if (++m_skip_order_counter >= O) {
+            m_skip_order_counter = 0;
+        }
+    } else {
+        m_skip_order_counter = 0;
+    }
+    if (m_skip_order_counter == 0) {
+        if (++m_event_index >= N) {
+            m_event_index = 0;
+        }
+    }
+}
+
+template <size_t M, size_t N, size_t O>
+void TSEncoder<M, N, O>::add_deadline_event() const {
+    add_event(chSysGetRealtimeCounterX(), m_count, false);
 }
