@@ -29,7 +29,7 @@ polyorder = 2
 ##############################################################################
 
 def timestamp_matrix(polynomial_order, time_vector):
-    A = np.ones((len(time_vector), polynomial_order))
+    A = np.ones((len(time_vector), polynomial_order + 1))
     A[:, -2] = np.array(time_vector)
     for i in reversed(range(0, A.shape[1] - 2)):
         A[:, i] = A[:, i + 1] * A[:, -2]
@@ -57,7 +57,7 @@ print("polynomial coefficients P = {0}".format(P))
 
 #tc = tcf/alpha + events[0][0]
 #print("tc = {0}".format(tc))
-T = np.ones(polyorder)
+T = np.ones(polyorder + 1)
 for i in reversed(range(0, T.shape[0] - 1)):
     T[i] = tcf * T[i + 1]
 
@@ -83,8 +83,9 @@ ax[1].plot(t_fit, pd_fit(t_fit), color=colors[4], linewidth=3)
 
 # plot estimated position
 ycf = y_fit[-1]
-if abs(ycf - x[-1]) > 1:
-    ycf = x[-1]
+ecf = ycf - x[-1]
+if abs(ecf) > 1:
+    ycf = x[-1] + np.sign(ecf)
 ax[0].plot(tcf, ycf, 'o', color=colors[3])
 
 # recalculate polynomial with estimated position

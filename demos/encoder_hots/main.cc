@@ -25,7 +25,7 @@
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
-    using encoder_t = TSEncoder<5, 10, 3>;
+    using encoder_t = TSEncoder<2, 10, 0>;
     encoder_t encoder({
             LINE_TIM5_CH1,
             LINE_TIM5_CH2,
