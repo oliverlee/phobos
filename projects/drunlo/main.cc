@@ -34,7 +34,9 @@ namespace {
     /* sensors */
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
-    Encoder encoder_rear_wheel(sa::RLS_GTS35_ENC, sa::RLS_GTS35_ENC_CFG);
+    EncoderFoaw<float, 16> encoder_rear_wheel(sa::RLS_GTS35_ENC,
+                                              sa::RLS_GTS35_ENC_CFG,
+                                              MS2ST(1), 1.0f);
 } // namespace
 
 /*
@@ -115,6 +117,7 @@ int main(void) {
                 sa::MAX_KOLLMORGEN_TORQUE);
         float steer_angle = angle::encoder_count<float>(encoder_steer);
         float rear_wheel_angle = angle::encoder_count<float>(encoder_rear_wheel);
+        float forward_velocity = sa::REAR_WHEEL_RADIUS * angle::encoder_rate(encoder_rear_wheel);
 
         /* generate an example torque output for testing */
         float feedback_torque = 10.0f * std::sin(
@@ -125,8 +128,8 @@ int main(void) {
 
         printf("[%.7s] torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\t",
                 g_GITSHA1, steer_torque, motor_torque);
-        printf("steer angle: %8.3f deg\trear wheel angle: %8.3f\r\n",
-                steer_angle, rear_wheel_angle);
+        printf("steer angle: %8.3f deg\trear wheel angle: %8.3f\tforward velocity: %8.3f\r\n",
+                steer_angle, rear_wheel_angle, forward_velocity);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
 }
