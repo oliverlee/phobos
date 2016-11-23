@@ -33,7 +33,8 @@ namespace {
 
     /* sensors */
     Analog analog;
-    Encoder encoder(sa::RLS_ENC, sa::RLS_ENC_INDEX_CFG);
+    Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
+    Encoder encoder_rear_wheel(sa::RLS_GTS35_ENC, sa::RLS_GTS35_ENC_CFG);
 } // namespace
 
 /*
@@ -74,10 +75,12 @@ int main(void) {
      * Start sensors.
      * Encoder:
      *   Initialize encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
+     *   Pins for encoder driver 3 are already set in board.h.
      */
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
-    encoder.start();
+    encoder_steer.start();
+    encoder_rear_wheel.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
 
 
@@ -110,7 +113,8 @@ int main(void) {
         float motor_torque = static_cast<float>(
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
-        float steer_angle = angle::encoder_count<float>(encoder);
+        float steer_angle = angle::encoder_count<float>(encoder_steer);
+        float rear_wheel_angle = angle::encoder_count<float>(encoder_rear_wheel);
 
         /* generate an example torque output for testing */
         float feedback_torque = 10.0f * std::sin(
@@ -119,8 +123,10 @@ int main(void) {
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
 
-        printf("[%.7s] torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\tsteer angle: %8.3f deg\r\n",
-                g_GITSHA1, steer_torque, motor_torque, steer_angle);
+        printf("[%.7s] torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\t",
+                g_GITSHA1, steer_torque, motor_torque);
+        printf("steer angle: %8.3f deg\trear wheel angle: %8.3f\r\n",
+                steer_angle, rear_wheel_angle);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
 }
