@@ -13,10 +13,10 @@
  * Note: The delay option has not been implemented.
  */
 
-using tsenccnt_t = int32_t;
+using hotscnt_t = int32_t;
 using polycoeff_t = float;
 
-struct TSEncoderConfig {
+struct EncoderHotsConfig {
     /*
      * GPIO for encoder channels A, B, Z should be set in board.h.
      * ioline_t a; IO line for encoder A channel
@@ -32,11 +32,11 @@ struct TSEncoderConfig {
     ioline_t a; /* IO line for encoder A channel */
     ioline_t b; /* IO line for encoder B channel */
     ioline_t z; /* IO line for encoder Z channel or PAL_NOLINE if not used */
-    tsenccnt_t counts_per_rev; /* encoder counts per revolution */
+    hotscnt_t counts_per_rev; /* encoder counts per revolution */
 };
 
 template <size_t M, size_t N, size_t O>
-class TSEncoder {
+class EncoderHots {
     public:
         static constexpr unsigned int m = M; /* polynomial order */
         static constexpr unsigned int n = N; /* encoder event buffer length */
@@ -50,7 +50,7 @@ class TSEncoder {
             NONE, NOTFOUND, FOUND
         };
 
-        TSEncoder(const TSEncoderConfig& config);
+        EncoderHots(const EncoderHotsConfig& config);
         void start();
         void stop();
         state_t state() const;
@@ -62,18 +62,18 @@ class TSEncoder {
         polycoeff_t acceleration() const;
 
     private:
-        using event_t = std::pair<rtcnt_t, tsenccnt_t>;
+        using event_t = std::pair<rtcnt_t, hotscnt_t>;
         mutable std::array<event_t, N> m_events; /* circular buffer for encoder events */
         mutable size_t m_event_index; /* index of oldest entry */
         mutable size_t m_skip_order_counter; /* skip order counter */
         Eigen::Matrix<polycoeff_t, N, M + 1> m_A; /* time stamp matrix */
         Eigen::Matrix<polycoeff_t, M + 1, 1> m_P; /* polynomial coefficients */
-        Eigen::Matrix<tsenccnt_t, N, 1> m_B; /* position vector */
+        Eigen::Matrix<hotscnt_t, N, 1> m_B; /* position vector */
         Eigen::Matrix<polycoeff_t, M + 1, 1> m_T; /* time vector */
         rtcnt_t m_t0; /* polynomial zero time */
         polycoeff_t m_alpha; /* time scaling factor */
-        const TSEncoderConfig m_config;
-        tsenccnt_t m_count; /* encoder count */
+        const EncoderHotsConfig m_config;
+        hotscnt_t m_count; /* encoder count */
         rtcnt_t m_tc; /* estimate time */
         state_t m_state;
         index_t m_index;
@@ -83,8 +83,8 @@ class TSEncoder {
         static void ab_callback(EXTDriver* extp, expchannel_t channel);
         static void index_callback(EXTDriver* extp, expchannel_t channel);
         static void add_event_callback(void* p);
-        void add_event(rtcnt_t t, tsenccnt_t x, bool use_skip) const;
+        void add_event(rtcnt_t t, hotscnt_t x, bool use_skip) const;
         void add_deadline_event() const;
 };
 
-#include "tsencoder.hh"
+#include "encoderhots.hh"

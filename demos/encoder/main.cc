@@ -21,12 +21,11 @@
 #include "usbconfig.h"
 #include "printf.h"
 
-#include "encoder.h"
-#include "foawencoder.h"
+#include "encoderfoaw.h"
 
 namespace {
     const systime_t loop_time = MS2ST(100); /* loop at 10 Hz */
-    using encoder_t = FoawEncoder<float, 16>;
+    using encoder_t = EncoderFoaw<float, 16>;
     encoder_t encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
             {PAL_NOLINE, /* no index channel */
              152000, /* counts per revolution */
