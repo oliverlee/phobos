@@ -31,6 +31,8 @@ T EncoderFoaw<T, N>::velocity() const {
 template <typename T, size_t N>
 void EncoderFoaw<T, N>::sample_callback(void* p) {
     EncoderFoaw<T, N>* enc = static_cast<EncoderFoaw<T, N>*>(p);
+    chSysLockFromISR();
     enc->m_estimator.add_position(static_cast<T>(enc->count()));
-    chVTSet(&enc->m_sample_timer, enc->m_sample_period, sample_callback, p);
+    chVTSetI(&enc->m_sample_timer, enc->m_sample_period, sample_callback, p);
+    chSysUnlockFromISR();
 }
