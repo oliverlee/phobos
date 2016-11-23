@@ -13,13 +13,21 @@
  * algorithm execution.
  */
 
-/* forward declare template class for friend declaration of member function
+/*
+ * As EncoderHots requires HAL_USE_EXT is true, we only forward declare and
+ * friend declare in this situation. This results in an unused friend
+ * declaration if HAL_USE_EXT is true and EncoderHots is not used.
+ */
+#if HAL_USE_EXT
+/*
+ * forward declare template class for friend declaration of member function
  * M: polynomial order
  * N: encoder event buffer length
  * O: skip order
  */
 template <size_t M, size_t N, size_t O>
 class EncoderHots;
+#endif /* HAL_USE_EXT */
 
 typedef bool (*iqcond_t)(void *p);
 
@@ -55,8 +63,10 @@ class IQHandler {
         static void iqueue_handler(void* p); /* thread function */
         void insert_circular_buffer(T* element); /* insert element to circular buffer */
 
+#if HAL_USE_EXT
         template <size_t A, size_t C>
         friend void EncoderHots<A, N, C>::ab_callback(EXTDriver*, expchannel_t);
+#endif /* HAL_USE_EXT */
 };
 
 #include "iqhandler.hh"
