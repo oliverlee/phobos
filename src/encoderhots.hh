@@ -10,8 +10,6 @@
 
 template <size_t M, size_t N, size_t O>
 EncoderHots<M, N, O>::EncoderHots(const EncoderHotsConfig& config) :
-    m_events(),
-    m_event_index(0),
     m_skip_order_counter(0),
     m_A(decltype(m_A)::Ones()), /* elements in last column of time stamp matrix are always 1 */
     m_P(decltype(m_P)::Zero()),
@@ -23,7 +21,8 @@ EncoderHots<M, N, O>::EncoderHots(const EncoderHotsConfig& config) :
     m_count(0),
     m_tc(0.0),
     m_state(state_t::STOP),
-    m_index(index_t::NONE) { }
+    m_index(index_t::NONE),
+    m_iqhandler(nullptr) { }
 
 template <size_t M, size_t N, size_t O>
 void EncoderHots<M, N, O>::start() {
@@ -33,21 +32,29 @@ void EncoderHots<M, N, O>::start() {
     if (extp->state == EXT_STOP) {
         extStartI(extp);
     }
-    extChannelEnableSetModeI(extp, m_config.a, EXT_CH_MODE_BOTH_EDGES, ab_callback, this);
-    extChannelEnableSetModeI(extp, m_config.b, EXT_CH_MODE_BOTH_EDGES, ab_callback, this);
+    extChannelEnableSetModeI(extp, m_config.a, EXT_CH_MODE_BOTH_EDGES,
+                             ab_callback, this);
+    extChannelEnableSetModeI(extp, m_config.b, EXT_CH_MODE_BOTH_EDGES,
+                             ab_callback, this);
     if (m_config.z == PAL_NOLINE) {
         m_index = index_t::NONE;
     } else {
-        extChannelEnableSetModeI(extp, m_config.z, EXT_CH_MODE_RISING_EDGE, index_callback, this);
+        extChannelEnableSetModeI(extp, m_config.z, EXT_CH_MODE_RISING_EDGE,
+                                 index_callback, this);
         m_index = index_t::NOTFOUND;
     }
     m_state = state_t::READY;
-    chVTSetI(&m_event_deadline_timer, m_event_deadline, add_event_callback, static_cast<void*>(this));
     chSysUnlock();
+    m_iqhandler.start();
+    chVTSet(&m_event_deadline_timer, m_event_deadline,
+            add_event_callback, static_cast<void*>(this));
 }
 
 template <size_t M, size_t N, size_t O>
 void EncoderHots<M, N, O>::stop() {
+    chVTReset(&m_event_deadline_timer);
+    m_iqhandler.stop();
+
     chSysLock();
     m_state = state_t::STOP;
     m_index = index_t::NONE;
@@ -58,7 +65,6 @@ void EncoderHots<M, N, O>::stop() {
         extChannelDisableClearModeI(extp, PAL_PAD(m_config.z));
     }
     extStopIfChannelsDisabledI(extp);
-    chVTResetI(&m_event_deadline_timer);
     chSysUnlock();
 }
 
@@ -83,18 +89,22 @@ void EncoderHots<M, N, O>::update_polynomial_fit() {
      * be less than int32_t_max as these values will be cast from uint32_t to
      * int32_t.
      */
-    chSysLock();
-    m_t0 = m_events[m_event_index].first;
-    size_t newest_index = m_event_index - 1;
-    if (m_event_index == 0) {
+    m_iqhandler.wait();
+    auto events = m_iqhandler.circular_buffer();
+    size_t event_index = m_iqhandler.index();
+    size_t newest_index = event_index - 1;
+    if (event_index == 0) {
         newest_index = N - 1;
     }
-    m_alpha = 1.0f / (m_events[newest_index].first - m_t0);
+    m_t0 = events[event_index].first;
+    m_alpha = 1.0f / (events[newest_index].first - m_t0);
+
     for (unsigned int i = 0; i < N; ++i) {
-        m_A(i, M - 1) = m_alpha * (m_events[(m_event_index + i) % N].first - m_t0);
-        m_B(i) = m_events[(m_event_index + i) % N].second;
+        m_A(i, M - 1) = m_alpha * (events[(event_index + i) % N].first - m_t0);
+        m_B(i) = events[(event_index + i) % N].second;
     }
-    chSysUnlock();
+    m_iqhandler.signal();
+
     for (unsigned int i = 0; i < M - 1; ++i) {
         m_A.col(M - 2 - i) = m_A.col(M - 1 - i).cwiseProduct(m_A.col(M - 1));
     }
@@ -150,7 +160,7 @@ template <size_t M, size_t N, size_t O>
 void EncoderHots<M, N, O>::ab_callback(EXTDriver* extp, expchannel_t channel) {
     (void)extp;
     chSysLockFromISR();
-    EncoderHots<M, N, O>* enc = static_cast<EncoderHots<M, N, O>*>(extGetChannelCallbackObject(channel));
+    auto enc = static_cast<EncoderHots<M, N, O>*>(extGetChannelCallbackObject(channel));
     if (((channel == PAL_PAD(enc->m_config.a)) &&
                 (palReadLine(enc->m_config.a) != palReadLine(enc->m_config.b))) ||
         ((channel == PAL_PAD(enc->m_config.b)) &&
@@ -159,15 +169,27 @@ void EncoderHots<M, N, O>::ab_callback(EXTDriver* extp, expchannel_t channel) {
     } else {
         --enc->m_count;
     }
-    enc->add_event(chSysGetRealtimeCounterX(), enc->m_count, true);
-    chVTSetI(&enc->m_event_deadline_timer, enc->m_event_deadline, add_event_callback, static_cast<void*>(enc));
+    chVTSetI(&enc->m_event_deadline_timer, enc->m_event_deadline,
+            add_event_callback, static_cast<void*>(enc));
+    event_t event = std::make_pair(chSysGetRealtimeCounterX(), enc->m_count);
+    auto iqh = enc->m_iqhandler;
+    if (enc->m_skip_order_counter++ != 0) {
+        /* need to overwrite previous sample */
+        if (iqh.m_buffer_index-- == 0) {
+            iqh.m_buffer_index = iqh.m_circular_buffer.size() - 1;
+        }
+    }
+    iqh.insertI(&event);
+    if (enc->m_skip_order_counter > O) {
+        enc->m_skip_order_counter = 0;
+    }
     chSysUnlockFromISR();
 }
 
 template <size_t M, size_t N, size_t O>
 void EncoderHots<M, N, O>::index_callback(EXTDriver* extp, expchannel_t channel) {
     chSysLockFromISR();
-    EncoderHots<M, N, O>* enc = static_cast<EncoderHots<M, N, O>*>(extGetChannelCallbackObject(channel));
+    auto enc = static_cast<EncoderHots<M, N, O>*>(extGetChannelCallbackObject(channel));
     enc->m_count = 0;
     enc->m_index = index_t::FOUND;
     extChannelDisableClearModeI(extp, PAL_PAD(enc->m_config.z));
@@ -177,32 +199,11 @@ void EncoderHots<M, N, O>::index_callback(EXTDriver* extp, expchannel_t channel)
 template <size_t M, size_t N, size_t O>
 void EncoderHots<M, N, O>::add_event_callback(void* p) {
     chSysLockFromISR();
-    EncoderHots<M, N, O>* enc = static_cast<EncoderHots<M, N, O>*>(p);
-    enc->add_deadline_event();
-    chVTSetI(&enc->m_event_deadline_timer, enc->m_event_deadline, add_event_callback, p);
+    auto enc = static_cast<EncoderHots<M, N, O>*>(p);
+    chVTSetI(&enc->m_event_deadline_timer, enc->m_event_deadline,
+            add_event_callback, p);
+    event_t event = std::make_pair(chSysGetRealtimeCounterX(), enc->m_count);
+    enc->m_iqhandler.insertI(&event);
+    enc->m_skip_order_counter = 0; /* don't overwrite on next edge */
     chSysUnlockFromISR();
-}
-
-template <size_t M, size_t N, size_t O>
-void EncoderHots<M, N, O>::add_event(rtcnt_t t, hotscnt_t x, bool use_skip) const {
-    chDbgCheckClassI();
-    if (use_skip) {
-        if (++m_skip_order_counter >= 0) {
-            m_skip_order_counter = 0;
-        } else {
-            /* decrement the event index to overwrite the most recent event */
-            if (m_event_index-- == 0) {
-                m_event_index = O - 1;
-            }
-        }
-    }
-    m_events[m_event_index++] = std::make_pair(t, x);
-    if (m_event_index == N) {
-        m_event_index = 0;
-    }
-}
-
-template <size_t M, size_t N, size_t O>
-void EncoderHots<M, N, O>::add_deadline_event() const {
-    add_event(chSysGetRealtimeCounterX(), m_count, false);
 }

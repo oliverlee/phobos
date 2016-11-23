@@ -11,14 +11,23 @@
  * algorithm execution. This class adds sampled data to an input queue, allowing
  * delayed insertion to the circular buffer, which may be necessary during
  * algorithm execution.
- *
+ */
+
+/* forward declare template class for friend declaration of member function
+ * M: polynomial order
+ * N: encoder event buffer length
+ * O: skip order
+ */
+template <size_t M, size_t N, size_t O>
+class EncoderHots;
+
+typedef bool (*iqcond_t)(void *p);
+
+/*
  * T: type of element in queue/buffer
  * N: number of elements of input queue
  * M: number of elements of circular buffer
  */
-
-typedef bool (*iqcond_t)(void *p);
-
 template <typename T, size_t N, size_t M>
 class IQHandler {
     public:
@@ -45,6 +54,11 @@ class IQHandler {
 
         static void iqueue_handler(void* p); /* thread function */
         void insert_circular_buffer(T* element); /* insert element to circular buffer */
+
+        /* C++ standard does not allow partial specializations for friend declarations (can't force B == N) */
+        /* or maybe in does in this situation? need to test if this actually works*/
+        template <size_t A, size_t C>
+        friend void EncoderHots<A, M, C>::ab_callback(EXTDriver*, expchannel_t);
 };
 
 #include "iqhandler.hh"
