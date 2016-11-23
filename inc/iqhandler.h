@@ -25,10 +25,10 @@ typedef bool (*iqcond_t)(void *p);
 
 /*
  * T: type of element in queue/buffer
- * N: number of elements of input queue
- * M: number of elements of circular buffer
+ * M: number of elements of input queue
+ * N: number of elements of circular buffer
  */
-template <typename T, size_t N, size_t M>
+template <typename T, size_t M, size_t N>
 class IQHandler {
     public:
         IQHandler(iqcond_t cond_func=nullptr);
@@ -38,12 +38,12 @@ class IQHandler {
         void signal(); /* allow queue access to circular buffer */
 
         void insertI(T* element); /* insert element to input queue */
-        const std::array<T, M>& circular_buffer() const; /* read access to circular buffer */
+        const std::array<T, N>& circular_buffer() const; /* read access to circular buffer */
         size_t index() const; /* index of oldest element */
 
     private:
-        std::array<T, M> m_circular_buffer; /* circular buffer to used by other threads */
-        uint8_t m_iqueue_buffer[BQ_BUFFER_SIZE(N, sizeof(T))]; /* buffer (memory) used by input queue */
+        std::array<T, N> m_circular_buffer; /* circular buffer to used by other threads */
+        uint8_t m_iqueue_buffer[BQ_BUFFER_SIZE(M, sizeof(T))]; /* buffer (memory) used by input queue */
         THD_WORKING_AREA(m_wa_iqueue_handler_thread, 128);
 
         thread_t* m_thread;
@@ -55,10 +55,8 @@ class IQHandler {
         static void iqueue_handler(void* p); /* thread function */
         void insert_circular_buffer(T* element); /* insert element to circular buffer */
 
-        /* C++ standard does not allow partial specializations for friend declarations (can't force B == N) */
-        /* or maybe in does in this situation? need to test if this actually works*/
         template <size_t A, size_t C>
-        friend void EncoderHots<A, M, C>::ab_callback(EXTDriver*, expchannel_t);
+        friend void EncoderHots<A, N, C>::ab_callback(EXTDriver*, expchannel_t);
 };
 
 #include "iqhandler.hh"
