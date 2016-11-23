@@ -14,7 +14,7 @@ m_sample_period(sample_period) {
 
     chSysLock();
     m_sample_thread = chThdCreateI(m_wa_sample_handler_thread,
-            sizeof(m_wa_sample_handler_thread), NORMALPRIO,
+            sizeof(m_wa_sample_handler_thread), NORMALPRIO+1,
             sample_ibqueue_handler, this);
     chSysUnlock();
 
