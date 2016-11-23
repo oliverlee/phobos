@@ -36,7 +36,8 @@ namespace {
     constexpr float v = 3.0;
     /* sensors */
     Analog analog;
-    Encoder encoder(sa::RLS_ENC, sa::RLS_ENC_INDEX_CFG);
+    Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
+    Encoder encoder_rear_wheel(sa::RLS_GTS35_ENC, sa::RLS_GTS35_ENC_CFG);
 
     struct __attribute__((__packed__)) pose_t {
         float x; /* m */
@@ -95,10 +96,12 @@ int main(void) {
      * Start sensors.
      * Encoder:
      *   Initialize encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
+     *   Pins for encoder driver 3 are already set in board.h.
      */
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
-    encoder.start();
+    encoder_steer.start();
+    encoder_rear_wheel.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
 
     /*
@@ -146,9 +149,12 @@ int main(void) {
         float motor_torque = static_cast<float>(
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
-        float steer_angle = angle::encoder_count<float>(encoder);
+        float steer_angle = angle::encoder_count<float>(encoder_steer);
+        float rear_wheel_angle = angle::encoder_count<float>(encoder_rear_wheel);
 
-        (void)motor_torque; /* remove build warning for unused variable */
+        (void)motor_torque; /* remove build warning */
+        (void)rear_wheel_angle; /* remove build warning */
+        // TODO: calculate forward velocity v from rear wheel encoder
 
         /* yaw angle, just use previous state value */
         float yaw_angle = angle::wrap(bicycle.pose().yaw);

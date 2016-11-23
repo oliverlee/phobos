@@ -38,7 +38,7 @@
 namespace {
     /* sensors */
     Analog analog;
-    Encoder encoder(sa::RLS_ENC, sa::RLS_ENC_INDEX_CFG);
+    Encoder encoder(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
 
     static constexpr ClustrilMessage clustril_message_zero = ClustrilMessage_init_zero;
     ClustrilMessage sample;

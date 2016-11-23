@@ -5,18 +5,26 @@
 /* sensor and actuator configuration constants */
 namespace sa {
 
-constexpr GPTDriver* RLS_ENC = &GPTD5;
+constexpr GPTDriver* RLS_ROLIN_ENC = &GPTD5;
 
-constexpr EncoderConfig RLS_ENC_CFG = {
+constexpr EncoderConfig RLS_ROLIN_ENC_CFG = {
     .z = PAL_NOLINE, /* no index channel */
     .counts_per_rev = 152000,
-    .filter = EncoderConfig::filter_t::CAPTURE_64 /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us for valid edge */
+    .filter = EncoderConfig::filter_t::CAPTURE_64 /* 64 / 42 MHz (TIM5 on APB1) = 1.52 us for valid edge */
 };
 
-constexpr EncoderConfig RLS_ENC_INDEX_CFG = {
+constexpr EncoderConfig RLS_ROLIN_ENC_INDEX_CFG = {
     .z = PAL_LINE(GPIOA, GPIOA_PIN2),
     .counts_per_rev = 152000,
-    .filter = EncoderConfig::filter_t::CAPTURE_64 /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us for valid edge */
+    .filter = EncoderConfig::filter_t::CAPTURE_64 /* 64 / 42 MHz (TIM5 on APB1) = 1.52 us for valid edge */
+};
+
+constexpr GPTDriver* RLS_GTS35_ENC = &GPTD3;
+
+constexpr EncoderConfig RLS_GTS35_ENC_CFG = {
+    .z = PAL_NOLINE, /* no index channel */
+    .counts_per_rev = 48,
+    .filter = EncoderConfig::filter_t::CAPTURE_256 /* 256 / 42 MHz (TIM3 on APB1) = 6.09 us for valid edge */
 };
 
 constexpr float MAX_KISTLER_TORQUE = 50.0f; /* maximum measured steer torque */
