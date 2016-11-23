@@ -33,9 +33,9 @@ T Foaw<T, N>::estimate_velocity() const {
     }
 
     m_velocity = 0.0;
-    for (unsigned int n = 1; n < N; ++n) {
+    for (int n = 1; n < static_cast<int>(N); ++n) {
         T bn = 0.0;
-        for (unsigned int i = 0; i <= n; ++i) {
+        for (int i = 0; i <= n; ++i) {
             bn += (n - 2*i)*m_positions[(last_index - i + N) % N];
         }
         bn /= m_T*n*(n + 1)*(n + 2)/6;
@@ -46,7 +46,7 @@ T Foaw<T, N>::estimate_velocity() const {
          * with a best fit line).
          */
         T an = m_positions[last_index];
-        for (unsigned int j = 1; j < n; ++j) {
+        for (int j = 1; j < n; ++j) {
             T ykj = an - bn * j * m_T;
             T error = m_positions[(last_index - j + N) % N] - ykj;
             if (std::abs(error) > m_d) {
