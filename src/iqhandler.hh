@@ -23,9 +23,9 @@ void IQHandler<T, M, N>::start() {
     chSysLock();
     ibqResetI(&m_iqueue);
     chBSemResetI(&m_sem, false); /* set to not taken*/
+    chThdStartI(m_thread);
+    chSchRescheduleS();
     chSysUnlock();
-
-    chThdStart(m_thread);
 }
 
 template <typename T, size_t M, size_t N>
