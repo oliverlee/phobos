@@ -30,8 +30,8 @@ class Foaw {
         std::array<T, N> m_positions; /* circular buffer for sampled positions */
         size_t m_position_index; /* index of oldest entry */
         mutable T m_velocity; /* last calculated velocity */
-        T m_T; /* sample period */
-        T m_d; /* allowed error between sample and best fit line */
+        T m_T; /* sample period, s */
+        T m_d; /* allowed error between sample and best fit line, counts*/
 };
 
 #include "foaw.hh"

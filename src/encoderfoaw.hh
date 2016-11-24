@@ -7,7 +7,7 @@ EncoderFoaw<T, N>::EncoderFoaw(GPTDriver* gptp, const EncoderConfig& config,
                                systime_t sample_period, T allowed_error) :
 Encoder(gptp, config),
 m_iqhandler(),
-m_foaw(static_cast<T>(1.0)/sample_period, allowed_error),
+m_foaw(static_cast<T>(sample_period)/CH_CFG_ST_FREQUENCY, allowed_error),
 m_sample_period(sample_period) {
     chDbgAssert(sample_period >= 1, "sample period too small");
 }
