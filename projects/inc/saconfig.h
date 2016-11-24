@@ -27,7 +27,8 @@ constexpr EncoderConfig RLS_GTS35_ENC_CFG = {
     .filter = EncoderConfig::filter_t::CAPTURE_256 /* 256 / 42 MHz (TIM3 on APB1) = 6.09 us for valid edge */
 };
 
-constexpr float REAR_WHEEL_RADIUS = 0.108; /* m */
+constexpr float REAR_WHEEL_RADIUS = 0.66f; /* m */
+constexpr float ROLLER_TO_REAR_WHEEL_RATIO = 1.0f/6; /* rear wheel radius = 6 * roller radius */
 
 constexpr float MAX_KISTLER_TORQUE = 50.0f; /* maximum measured steer torque, N-m */
 
