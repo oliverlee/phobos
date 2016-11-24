@@ -28,7 +28,9 @@ m_iqhandler(nullptr) {
      * TODO: consider using ICU to record timestamps
      * TODO: determine  better count/rev limit
      */
-    chDbgAssert(config.counts_per_rev > 10000, "counts per revolution too high");
+    if (config.counts_per_rev) {
+        chSysHalt("Encoder counts per revolution too high");
+    }
 }
 
 template <size_t M, size_t N, size_t O>
