@@ -32,10 +32,8 @@ void EncoderFoaw<T, N>::start() {
     ibqResetI(&m_ibqueue);
     chBSemResetI(&m_buffer_semaphore, false);
     chVTSetI(&m_sample_timer, m_sample_period, sample_callback, static_cast<void*>(this));
+    chSchWakeupS(m_sample_thread, MSG_OK);
     chSysUnlock();
-
-    // TODO: start thread
-    chThdStart(m_sample_thread);
 }
 
 template <typename T, size_t N>
