@@ -33,11 +33,13 @@
 #include <array>
 
 namespace {
-    constexpr float v = 3.0;
+    float v = 3.0;
     /* sensors */
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
-    Encoder encoder_rear_wheel(sa::RLS_GTS35_ENC, sa::RLS_GTS35_ENC_CFG);
+    EncoderFoaw<float, 16> encoder_roller(sa::RLS_GTS35_ENC,
+                                              sa::RLS_GTS35_ENC_CFG,
+                                              MS2ST(1), 1.0f);
 
     struct __attribute__((__packed__)) pose_t {
         float x; /* m */
@@ -101,7 +103,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder_steer.start();
-    encoder_rear_wheel.start();
+    encoder_roller.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
 
     /*
@@ -150,16 +152,17 @@ int main(void) {
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
         float steer_angle = angle::encoder_count<float>(encoder_steer);
-        float rear_wheel_angle = angle::encoder_count<float>(encoder_rear_wheel);
+        float roller_angle = angle::encoder_count<float>(encoder_roller);
 
         (void)motor_torque; /* remove build warning */
-        (void)rear_wheel_angle; /* remove build warning */
-        // TODO: calculate forward velocity v from rear wheel encoder
+        (void)roller_angle; /* remove build warning */
+        v = sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_roller))*sa::ROLLER_TO_REAR_WHEEL_RATIO;
 
         /* yaw angle, just use previous state value */
         float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
         /* simulate bicycle */
+        bicycle.set_v(v);
         bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle);
 
         /* generate an example torque output for testing */
@@ -179,9 +182,9 @@ int main(void) {
         pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
         /*
          * Timing information
-         * (replaced chVTGetSystemTIme() with chSysGetRealtimeCounterX() and two uint32_t timing related fields added to
-         * pose_t)
-         * - Debug mode with all ChibiOS debug configuration options enabled: computation ~3.1 ms, tx ~20 us
+         * (replaced chVTGetSystemTIme() with chSysGetRealtimeCounterX() and two
+         * uint32_t timing related fields added to pose_t)
+         * - Debug mode with all ChibiOS debug config options enabled: computation ~3.1 ms, tx ~20 us
          * - Release mode: computation ~200 us, tx ~10 us
          *
          * TODO: Pose message should be transmitted asynchronously.

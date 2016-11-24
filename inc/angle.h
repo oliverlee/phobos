@@ -1,6 +1,7 @@
 #pragma once
 #include <boost/math/constants/constants.hpp>
 #include "encoder.h"
+#include "encoderfoaw.h"
 
 namespace angle {
 template <typename T>
@@ -28,5 +29,11 @@ T encoder_count(const Encoder& encoder) {
         position -= rev;
     }
     return static_cast<T>(position) / rev * boost::math::constants::two_pi<T>();
+}
+
+template <typename T, size_t N>
+T encoder_rate(const EncoderFoaw<T, N>& encoder) {
+    auto rev = static_cast<std::make_signed<enccnt_t>::type>(encoder.config().counts_per_rev);
+    return static_cast<T>(encoder.velocity()) / rev * boost::math::constants::two_pi<T>();
 }
 } // namespace angle

@@ -34,7 +34,9 @@ namespace {
     /* sensors */
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
-    Encoder encoder_rear_wheel(sa::RLS_GTS35_ENC, sa::RLS_GTS35_ENC_CFG);
+    EncoderFoaw<float, 16> encoder_roller(sa::RLS_GTS35_ENC,
+                                              sa::RLS_GTS35_ENC_CFG,
+                                              MS2ST(1), 1.0f);
 } // namespace
 
 /*
@@ -80,7 +82,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder_steer.start();
-    encoder_rear_wheel.start();
+    encoder_roller.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
 
 
@@ -114,7 +116,8 @@ int main(void) {
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
         float steer_angle = angle::encoder_count<float>(encoder_steer);
-        float rear_wheel_angle = angle::encoder_count<float>(encoder_rear_wheel);
+        float roller_angle = angle::encoder_count<float>(encoder_roller);
+        float forward_velocity = sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_roller))*sa::ROLLER_TO_REAR_WHEEL_RATIO;
 
         /* generate an example torque output for testing */
         float feedback_torque = 10.0f * std::sin(
@@ -125,8 +128,8 @@ int main(void) {
 
         printf("[%.7s] torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\t",
                 g_GITSHA1, steer_torque, motor_torque);
-        printf("steer angle: %8.3f deg\trear wheel angle: %8.3f\r\n",
-                steer_angle, rear_wheel_angle);
+        printf("steer angle: %8.3f rad\trear wheel angle: %8.3f rad\tforward velocity: %8.3f\r\n m/s",
+                steer_angle, roller_angle, forward_velocity);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
 }
