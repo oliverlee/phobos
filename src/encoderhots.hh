@@ -10,19 +10,26 @@
 
 template <size_t M, size_t N, size_t O>
 EncoderHots<M, N, O>::EncoderHots(const EncoderHotsConfig& config) :
-    m_skip_order_counter(0),
-    m_A(decltype(m_A)::Ones()), /* elements in last column of time stamp matrix are always 1 */
-    m_P(decltype(m_P)::Zero()),
-    m_B(decltype(m_B)::Zero()),
-    m_T(decltype(m_T)::Ones()), /* last element of time vector is always 1 */
-    m_t0(0),
-    m_alpha(0.0),
-    m_config(config),
-    m_count(0),
-    m_tc(0.0),
-    m_state(state_t::STOP),
-    m_index(index_t::NONE),
-    m_iqhandler(nullptr) { }
+m_skip_order_counter(0),
+m_A(decltype(m_A)::Ones()), /* elements in last column of time stamp matrix are always 1 */
+m_P(decltype(m_P)::Zero()),
+m_B(decltype(m_B)::Zero()),
+m_T(decltype(m_T)::Ones()), /* last element of time vector is always 1 */
+m_t0(0),
+m_alpha(0.0),
+m_config(config),
+m_count(0),
+m_tc(0.0),
+m_state(state_t::STOP),
+m_index(index_t::NONE),
+m_iqhandler(nullptr) {
+    /*
+     * EXT interrupts will trigger too often for high resolution encoders.
+     * TODO: consider using ICU to record timestamps
+     * TODO: determine  better count/rev limit
+     */
+    chDbgAssert(config.counts_per_rev > 10000, "counts per revolution too high");
+}
 
 template <size_t M, size_t N, size_t O>
 void EncoderHots<M, N, O>::start() {
