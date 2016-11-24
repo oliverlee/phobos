@@ -128,7 +128,7 @@ int main(void) {
 
         printf("[%.7s] torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\t",
                 g_GITSHA1, steer_torque, motor_torque);
-        printf("steer angle: %8.3f deg\trear wheel angle: %8.3f\tforward velocity: %8.3f\r\n",
+        printf("steer angle: %8.3f rad\trear wheel angle: %8.3f rad\tforward velocity: %8.3f\r\n m/s",
                 steer_angle, roller_angle, forward_velocity);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
