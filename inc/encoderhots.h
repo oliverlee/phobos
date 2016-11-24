@@ -1,7 +1,7 @@
 #pragma once
 #include "ch.h"
 #include "hal.h"
-#include <array>
+#include "iqhandler.h"
 #include <Eigen/Core>
 
 /*
@@ -35,13 +35,14 @@ struct EncoderHotsConfig {
     hotscnt_t counts_per_rev; /* encoder counts per revolution */
 };
 
+/*
+ * M: polynomial order
+ * N: encoder event buffer length
+ * O: skip order
+ */
 template <size_t M, size_t N, size_t O>
 class EncoderHots {
     public:
-        static constexpr unsigned int m = M; /* polynomial order */
-        static constexpr unsigned int n = N; /* encoder event buffer length */
-        static constexpr unsigned int o = O; /* skip order */
-
         enum class state_t {
             STOP, READY
         };
@@ -63,9 +64,7 @@ class EncoderHots {
 
     private:
         using event_t = std::pair<rtcnt_t, hotscnt_t>;
-        mutable std::array<event_t, N> m_events; /* circular buffer for encoder events */
-        mutable size_t m_event_index; /* index of oldest entry */
-        mutable size_t m_skip_order_counter; /* skip order counter */
+        size_t m_skip_order_counter; /* skip order counter */
         Eigen::Matrix<polycoeff_t, N, M + 1> m_A; /* time stamp matrix */
         Eigen::Matrix<polycoeff_t, M + 1, 1> m_P; /* polynomial coefficients */
         Eigen::Matrix<hotscnt_t, N, 1> m_B; /* position vector */
@@ -79,12 +78,11 @@ class EncoderHots {
         index_t m_index;
         virtual_timer_t m_event_deadline_timer;
         static constexpr systime_t m_event_deadline = MS2ST(10); /* observed event deadline */
+        IQHandler<event_t, 8, N> m_iqhandler;
 
         static void ab_callback(EXTDriver* extp, expchannel_t channel);
         static void index_callback(EXTDriver* extp, expchannel_t channel);
         static void add_event_callback(void* p);
-        void add_event(rtcnt_t t, hotscnt_t x, bool use_skip) const;
-        void add_deadline_event() const;
 };
 
 #include "encoderhots.hh"

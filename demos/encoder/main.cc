@@ -31,7 +31,7 @@ namespace {
              152000, /* counts per revolution */
              EncoderConfig::filter_t::CAPTURE_64}, /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
                                                      * for valid edge */
-             MS2ST(1),
+             MS2ST(1), /* encoder count sampled at 1 kHz */
              1.0f);
 } // namespace
 
