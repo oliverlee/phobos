@@ -1,6 +1,5 @@
 #pragma once
 #include "encoder.h"
-#include "foaw.h"
 #include "iqhandler.h"
 #include "ch.h"
 
@@ -16,9 +15,10 @@ class EncoderFoaw: public Encoder {
 
     private:
         IQHandler<T, 4, N> m_iqhandler;
-        Foaw<T, N> m_foaw;
         virtual_timer_t m_sample_timer;
-        const systime_t m_sample_period;
+        const systime_t m_timer_period; /* sample period in system ticks */
+        const T m_sample_period; /* converted from input, stored in seconds */
+        const T m_allowed_error; /* encoder counts */
 
         static void sample_callback(void* p);
 };
