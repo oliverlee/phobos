@@ -6,14 +6,11 @@
  */
 template <typename T, size_t M, size_t N>
 IQHandler<T, M, N>::IQHandler(iqcond_t cond_func) :
-m_cond(cond_func) {
+m_circular_buffer(),
+m_thread(nullptr),
+m_cond(cond_func),
+m_buffer_index(0) {
     static_assert(M < N, "Input queue must be smaller than circular buffer.");
-
-    chSysLock();
-    m_thread = chThdCreateI(m_wa_iqueue_handler_thread,
-            sizeof(m_wa_iqueue_handler_thread), NORMALPRIO + 1,
-            iqueue_handler, this);
-    chSysUnlock();
     ibqObjectInit(&m_iqueue, false, m_iqueue_buffer, sizeof(T), M, nullptr, nullptr);
     chBSemObjectInit(&m_sem, false); /* set to not taken */
 }
@@ -23,8 +20,12 @@ void IQHandler<T, M, N>::start() {
     chSysLock();
     ibqResetI(&m_iqueue);
     chBSemResetI(&m_sem, false); /* set to not taken*/
-    chThdStartI(m_thread);
-    chSchRescheduleS();
+    if (m_thread == nullptr) {
+        m_thread = chThdCreateI(m_wa_iqueue_handler_thread,
+                sizeof(m_wa_iqueue_handler_thread), NORMALPRIO + 1,
+                iqueue_handler, this);
+    }
+    chSchWakeupS(m_thread, MSG_OK);
     chSysUnlock();
 }
 
