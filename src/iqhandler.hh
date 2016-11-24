@@ -77,6 +77,8 @@ size_t IQHandler<T, M, N>::index() const {
 template <typename T, size_t M, size_t N>
 void IQHandler<T, M, N>::iqueue_handler(void* p) {
     auto obj = static_cast<IQHandler<T, M, N>*>(p);
+    chRegSetThreadName("iqhandler");
+
     while (!chThdShouldTerminateX()) {
         if (ibqGetFullBufferTimeout(&obj->m_iqueue, TIME_INFINITE) == MSG_OK) {
             iqcond_t condition = obj->m_cond; /* get condition to check if element should be inserted */
