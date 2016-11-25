@@ -36,9 +36,11 @@ def parse_format(source_file):
             else:
                 match = re.search('}; /\* ([0-9]+) bytes \*/', line)
                 if match: # end of pose definition
-                    pose_size = match.group(1)
+                    pose_size = int(match.group(1))
                     pose_format_text += line
-                    assert struct.Struct(pose_format).size == pose_size
+                    struct_size = struct.Struct(pose_format).size
+                    assert struct_size == pose_size, \
+                            '{0}, {1}'.format(pose_size, struct_size)
                     return (pose_format, pose_format_text)
                 else:
                     words = line.split()
@@ -57,3 +59,10 @@ def parse_format(source_file):
                         msg = 'Conversion for type {0} not handled'.format(t)
                         raise ValueError(msg)
                     pose_format_text += line
+
+
+if __name__ == '__main__':
+    local_dir = os.path.dirname(os.path.realpath(__file__))
+    project_dir = os.path.join(local_dir, os.path.pardir, os.path.pardir, 'projects')
+    flimnap_file = os.path.join(project_dir, 'flimnap', 'main.cc')
+    print(parse_format(flimnap_file))
