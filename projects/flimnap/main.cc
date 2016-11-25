@@ -48,11 +48,11 @@ namespace {
         float yaw; /* rad */
         float roll; /* rad */
         float steer; /* rad */
-        float v; /* m/s      * Wheel angle and radius are not considered here.
-                             * Computation must occur during visualization */
+        float rear_wheel; /* rad */
+        float v; /* m/s */
         uint8_t timestamp;  /* Converted from system ticks to milliseconds
                              * and contains only the least significant bits */
-    }; /* 29 bytes */
+    }; /* 33 bytes */
 
     pose_t pose = {};
 
@@ -152,10 +152,9 @@ int main(void) {
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
         float steer_angle = angle::encoder_count<float>(encoder_steer);
-        float roller_angle = angle::encoder_count<float>(encoder_roller);
+        float rear_wheel_angle = angle::encoder_count<float>(encoder_roller)*sa::ROLLER_TO_REAR_WHEEL_RATIO;
 
         (void)motor_torque; /* remove build warning */
-        (void)roller_angle; /* remove build warning */
         v = sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_roller))*sa::ROLLER_TO_REAR_WHEEL_RATIO;
 
         /* yaw angle, just use previous state value */
@@ -163,7 +162,7 @@ int main(void) {
 
         /* simulate bicycle */
         bicycle.set_v(v);
-        bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle);
+        bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         /* generate an example torque output for testing */
         float feedback_torque = bicycle.handlebar_feedback_torque();
@@ -178,6 +177,7 @@ int main(void) {
         pose.yaw = angle::wrap(bicycle.pose().yaw);
         pose.roll = angle::wrap(bicycle.pose().roll);
         pose.steer = angle::wrap(bicycle.pose().steer);
+        pose.rear_wheel = angle::wrap(bicycle.pose().rear_wheel);
         pose.v = bicycle.v();
         pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
         /*

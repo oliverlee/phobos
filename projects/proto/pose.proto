@@ -10,4 +10,5 @@ message BicyclePoseMessage {
     required float roll =       5;
     required float pitch =      6;
     required float steer =      7;
+    required float rear_wheel = 8;
 }
