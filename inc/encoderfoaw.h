@@ -11,10 +11,10 @@ class EncoderFoaw: public Encoder {
                     systime_t sample_period, T allowed_error);
         virtual void start() override;
         virtual void stop() override;
-        T velocity();
+        T velocity() const;
 
     private:
-        IQHandler<T, 4, N> m_iqhandler;
+        mutable IQHandler<T, 4, N> m_iqhandler;
         virtual_timer_t m_sample_timer;
         const systime_t m_timer_period; /* sample period in system ticks */
         const T m_sample_period; /* converted from input, stored in seconds */
