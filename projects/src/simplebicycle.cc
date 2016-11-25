@@ -48,7 +48,8 @@ void SimpleBicycle::reset_pose() {
 }
 
 void SimpleBicycle::update(real_t roll_torque_input, real_t steer_torque_input,
-    real_t yaw_angle_measurement, real_t steer_angle_measurement) {
+    real_t yaw_angle_measurement, real_t steer_angle_measurement,
+    real_t rear_wheel_angle_measurement) {
     (void)roll_torque_input;
     (void)steer_torque_input;
     (void)yaw_angle_measurement;
@@ -60,6 +61,13 @@ void SimpleBicycle::update(real_t roll_torque_input, real_t steer_torque_input,
     update_feedback_torque();
 
     set_pose();
+
+    /*
+     * The rear wheel angle is set outside of the 'set_pose' function because it has no
+     * direct influence on the dynamics. The velocity is obtained from a numerical
+     * derivative of the position signal (model-less)
+     */
+    m_pose.rear_wheel = rear_wheel_angle_measurement;
 }
 
 void SimpleBicycle::set_moore_parameters() {

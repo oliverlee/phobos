@@ -29,7 +29,8 @@ class SimpleBicycle {
         void set_dt(real_t dt);
         void reset_pose();
         void update(real_t roll_torque_input, real_t steer_torque_input,
-                    real_t yaw_angle_measurement, real_t steer_angle_measurement);
+                    real_t yaw_angle_measurement, real_t steer_angle_measurement,
+                    real_t rear_wheel_angle_measurement);
 
         const BicyclePoseMessage& pose() const; /* get most recently computed pose */
         real_t handlebar_feedback_torque() const; /* get most recently computed feedback torque */
