@@ -140,6 +140,7 @@ int main(void) {
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
+    float temp_angle = 0.0f;
     while (true) {
         systime_t starttime = chVTGetSystemTime();
 
@@ -156,12 +157,13 @@ int main(void) {
 
         (void)motor_torque; /* remove build warning */
         v = sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_roller))*sa::ROLLER_TO_REAR_WHEEL_RATIO;
+        temp_angle = angle::wrap(bicycle.v()*bicycle.dt()/bicycle.rear_wheel_radius() + temp_angle); // FIXME
 
         /* yaw angle, just use previous state value */
         float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
         /* simulate bicycle */
-        bicycle.set_v(v);
+        //bicycle.set_v(v); FIXME remove when done testing
         bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         /* generate an example torque output for testing */
@@ -177,7 +179,8 @@ int main(void) {
         pose.yaw = angle::wrap(bicycle.pose().yaw);
         pose.roll = angle::wrap(bicycle.pose().roll);
         pose.steer = angle::wrap(bicycle.pose().steer);
-        pose.rear_wheel = angle::wrap(bicycle.pose().rear_wheel);
+        //pose.rear_wheel = angle::wrap(bicycle.pose().rear_wheel); FIXME
+        pose.rear_wheel = temp_angle;
         pose.v = bicycle.v();
         pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
         /*
