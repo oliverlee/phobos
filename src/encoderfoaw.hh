@@ -20,7 +20,7 @@ void EncoderFoaw<T, N>::start() {
     Encoder::start();
     m_iqhandler.start();
     chSysLock();
-    chVTSetI(&m_sample_timer, m_sample_period, sample_callback, static_cast<void*>(this));
+    chVTSetI(&m_sample_timer, m_timer_period, sample_callback, static_cast<void*>(this));
     chSysUnlock();
 }
 
