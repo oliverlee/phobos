@@ -37,7 +37,7 @@ namespace {
     /* sensors */
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
-    EncoderFoaw<float, 16> encoder_roller(sa::RLS_GTS35_ENC,
+    EncoderFoaw<float, 16> encoder_rear_wheel(sa::RLS_GTS35_ENC,
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1), 1.0f);
 
@@ -103,7 +103,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder_steer.start();
-    encoder_roller.start();
+    encoder_rear_wheel.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
 
     /*
@@ -152,10 +152,10 @@ int main(void) {
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
         float steer_angle = angle::encoder_count<float>(encoder_steer);
-        float rear_wheel_angle = angle::encoder_count<float>(encoder_roller)*sa::ROLLER_TO_REAR_WHEEL_RATIO;
+        float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
 
         (void)motor_torque; /* remove build warning */
-        v = sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_roller))*sa::ROLLER_TO_REAR_WHEEL_RATIO;
+        v = -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel));
 
         /* yaw angle, just use previous state value */
         float yaw_angle = angle::wrap(bicycle.pose().yaw);
@@ -199,9 +199,11 @@ int main(void) {
         systime_t dt = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
         systime_t sleeptime = dt + starttime - chVTGetSystemTime();
         if (sleeptime >= dt) {
-            chDbgAssert(false, "deadline missed");
+            //chDbgAssert(false, "deadline missed");
             continue;
         }
-        chThdSleep(sleeptime);
+        if (sleeptime != 0) {
+            chThdSleep(sleeptime);
+        }
     }
 }
