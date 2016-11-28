@@ -105,3 +105,19 @@ include_directories(src) # definitions for template classes are placed in src di
 add_subdirectory(src)
 add_subdirectory(demos)
 add_subdirectory(projects)
+
+option(PHOBOS_BUILD_TOOLS "Build various tools" TRUE)
+if(PHOBOS_BUILD_TOOLS)
+    include(ExternalProject)
+    ExternalProject_Add(phobos_tools
+        PREFIX ${PROJECT_BINARY_DIR}
+        TMP_DIR ""
+        STAMP_DIR ""
+        DOWNLOAD_DIR ""
+        SOURCE_DIR ${PROJECT_SOURCE_DIR}/tools
+        BINARY_DIR ${PROJECT_BINARY_DIR}/tools
+        CMAKE_ARGS ""
+        INSTALL_COMMAND "")
+    set_directory_properties(PROPERTY
+        ADDITIONAL_MAKE_CLEAN_FILES ${PROJECT_BINARY_DIR}/tools)
+endif()
