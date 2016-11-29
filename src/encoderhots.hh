@@ -199,7 +199,7 @@ template <size_t M, size_t N, size_t O>
 void EncoderHots<M, N, O>::index_callback(EXTDriver* extp, expchannel_t channel) {
     chSysLockFromISR();
     auto enc = static_cast<EncoderHots<M, N, O>*>(extGetChannelCallbackObject(channel));
-    enc->m_count = 0;
+    enc->m_count = enc->m_config.z_count;
     enc->m_index = index_t::FOUND;
     extChannelDisableClearModeI(extp, PAL_PAD(enc->m_config.z));
     chSysUnlockFromISR();

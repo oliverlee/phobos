@@ -33,6 +33,7 @@ struct EncoderHotsConfig {
     ioline_t b; /* IO line for encoder B channel */
     ioline_t z; /* IO line for encoder Z channel or PAL_NOLINE if not used */
     hotscnt_t counts_per_rev; /* encoder counts per revolution */
+    hotscnt_t z_count; /* count value at Z */
 };
 
 /*
