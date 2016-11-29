@@ -20,7 +20,7 @@ constexpr EncoderConfig RLS_ROLIN_ENC_INDEX_CFG = {
 };
 
 
-constexpr float REAR_WHEEL_RADIUS = 0.66f; /* m */
+constexpr float REAR_WHEEL_RADIUS = 0.3f; /* m */
 constexpr float ROLLER_TO_REAR_WHEEL_RATIO = 1.0f/6; /* rear wheel radius = 6 * roller radius */
 
 constexpr GPTDriver* RLS_GTS35_ENC = &GPTD3;
