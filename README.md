@@ -59,7 +59,13 @@ be viewed using any serial terminal program. Here's an example using screen
     oliver@canopus:~$ screen /dev/tty.usbmodem311
 
 As a virtual serial port is established, baud rate is ignored and has no impact
-on USB transfer speed.
+on USB transfer speed. The serial data can also be logged to file with screen
+
+    oliver@canopus:~$ screen -L /dev/tty.usbmodem311
+
+Using screen to log serial data to file can occasionally result in missing
+bytes. In this case, `seriallog` in the tools directory can be used to log to
+file.
 
 Some projects output serial data just as bytes (not ASCII). Cutecom can be used
 to view the data as hex. You can download it
