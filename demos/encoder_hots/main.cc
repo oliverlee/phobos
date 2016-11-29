@@ -31,7 +31,7 @@ namespace {
             LINE_TIM5_CH2,
             PAL_LINE(GPIOA, GPIOA_PIN2), /* GPIOA_PIN2 is unused */
             152000, /* counts per revolution */
-             });
+            0});
 
     THD_WORKING_AREA(waSerialThread, 8192);
     THD_FUNCTION(SerialThread, arg) {

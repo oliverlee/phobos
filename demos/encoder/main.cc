@@ -29,8 +29,9 @@ namespace {
     encoder_t encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
             {PAL_NOLINE, /* no index channel */
              152000, /* counts per revolution */
-             EncoderConfig::filter_t::CAPTURE_64}, /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
-                                                     * for valid edge */
+             EncoderConfig::filter_t::CAPTURE_64, /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us
+                                                   * for valid edge */
+             0},
              MS2ST(1), /* encoder count sampled at 1 kHz */
              1.0f);
 } // namespace

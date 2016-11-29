@@ -27,7 +27,8 @@ namespace {
     Encoder encoder(&GPTD5, /* CH1, CH2 connected to PA0, PA1 and NOT enabled by board.h */
             {PAL_LINE(GPIOA, GPIOA_PIN2), /* GPIOA_PIN2 is available */
              152000, /* counts per revolution */
-             EncoderConfig::filter_t::CAPTURE_64}); /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us for valid edge */
+             EncoderConfig::filter_t::CAPTURE_64, /* 64 * 42 MHz (TIM3 on APB1) = 1.52 us for valid edge */
+             0});
 } // namespace
 
 static THD_WORKING_AREA(waSerialThread, 256);

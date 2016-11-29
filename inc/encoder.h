@@ -18,6 +18,7 @@ struct EncoderConfig {
     ioline_t z; /* IO line for encoder index (Z) channel or PAL_NOLINE if not used */
     enccnt_t counts_per_rev; /* encoder counts per revolution */
     filter_t filter; /* minimum consecutive clock cycles for a valid transition */
+    enccnt_t z_count; /* count value at Z */
 };
 
 class Encoder {
