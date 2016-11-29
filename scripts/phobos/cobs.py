@@ -34,12 +34,15 @@ class DecodeError(Exception):
 
 
 def _get_buffer_view(in_bytes):
+    if isinstance(in_bytes, memoryview):
+        return in_bytes
+
     mv = memoryview(in_bytes)
     if mv.ndim > 1 or mv.itemsize > 1:
         raise BufferError('object must be a single-dimension buffer of bytes.')
     return mv
 
-def encode(in_bytes):
+def encode(in_bytes, bytearray_output=False):
     """Encode a string using Consistent Overhead Byte Stuffing (COBS).
 
     Input is any byte string. Output is also a byte string.
@@ -48,8 +51,13 @@ def encode(in_bytes):
     string will be expanded slightly, by a predictable amount.
 
     An empty string is encoded to '\\x01'"""
-    if isinstance(in_bytes, str):
-        raise TypeError('Unicode-objects must be encoded as bytes first')
+    if isinstance(in_bytes, memoryview):
+        in_bytes_mv = in_bytes
+    else:
+        if isinstance(in_bytes, str):
+            raise TypeError('Unicode-objects must be encoded as bytes first')
+        in_bytes_mv = _get_buffer_view(in_bytes)
+
     in_bytes_mv = _get_buffer_view(in_bytes)
     final_zero = True
     out_bytes = bytearray()
@@ -71,10 +79,12 @@ def encode(in_bytes):
     if idx != search_start_idx or final_zero:
         out_bytes.append(idx - search_start_idx + 1)
         out_bytes += in_bytes_mv[search_start_idx:idx]
+    if bytearray_output:
+        return out_bytes
     return bytes(out_bytes)
 
 
-def decode(in_bytes):
+def decode(in_bytes, bytearray_output=False):
     """Decode a string using Consistent Overhead Byte Stuffing (COBS).
 
     Input should be a byte string that has been COBS encoded. Output
@@ -82,13 +92,18 @@ def decode(in_bytes):
 
     A cobs.DecodeError exception will be raised if the encoded data
     is invalid."""
-    if isinstance(in_bytes, str):
-        raise TypeError('Unicode-objects are not supported; byte buffer objects only')
-    in_bytes_mv = _get_buffer_view(in_bytes)
+    if isinstance(in_bytes, memoryview):
+        in_bytes_mv = in_bytes
+    else:
+        if isinstance(in_bytes, str):
+            raise TypeError('Unicode-objects are not supported; byte buffer objects only')
+        in_bytes_mv = _get_buffer_view(in_bytes)
+
     out_bytes = bytearray()
     idx = 0
 
-    if len(in_bytes_mv) > 0:
+    in_bytes_len = len(in_bytes_mv)
+    if in_bytes_len > 0:
         while True:
             length = in_bytes_mv[idx]
             if length == 0:
@@ -100,11 +115,13 @@ def decode(in_bytes):
                 raise DecodeError("zero byte found in input")
             out_bytes += copy_mv
             idx = end
-            if idx > len(in_bytes_mv):
+            if idx > in_bytes_len:
                 raise DecodeError("not enough input bytes for length code")
-            if idx < len(in_bytes_mv):
+            if idx < in_bytes_len:
                 if length < 0xFF:
                     out_bytes.append(0)
             else:
                 break
+    if bytearray_output:
+        return out_bytes
     return bytes(out_bytes)

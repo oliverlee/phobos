@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import math
 import os
+import struct
 import sys
 import numpy as np
 import matplotlib as mpl
@@ -12,49 +13,7 @@ import seaborn as sns
 
 from phobos import pose
 from phobos import cobs
-
-
-script_dir = os.path.dirname(os.path.realpath(__file__))
-project_dir = os.path.join(script_dir, os.path.pardir, 'projects')
-flimnap_file = os.path.join(project_dir, 'flimnap', 'main.cc')
-
-flatgrey = '#95a5a6'
-
-
-def process_file(filename, dtype):
-    with open(filename, 'rb') as f:
-        gitsha1 = None
-        num_errors = 0
-        packet = b''
-        pose_data = b''
-
-        byte = f.read(1)
-        while byte:
-            if byte == b'\x00': # COBS packet delimiter
-                try:
-                    data = cobs.decode(packet)
-                except cobs.DecodeError as e:
-                    # further testing necessary to determine cause of:
-                    # 'not enough input bytes for length code'
-                    # print(e)
-                    num_errors += 1
-                    # add a packet with all floats as nan
-                    pose_data += b'\xff' * dtype.itemsize
-                else:
-                    if len(data) != dtype.itemsize:
-                        if len(data) == 7: # this is sent as the first packet
-                            gitsha1 = data.decode('ascii')
-                        else:
-                            print('invalid packet size: {0} not {1}'.format(
-                                len(data), dtype.itemsize))
-                    else:
-                        pose_data += data
-                finally:
-                    packet = b''
-            else:
-                packet += byte
-            byte = f.read(1)
-    return gitsha1, np.frombuffer(pose_data, dtype), num_errors
+from phobos import load
 
 
 def get_time_vector(data):
@@ -139,7 +98,6 @@ def plot_pose(data, filename=None):
 
 
 if __name__ == '__main__':
-    _, dtype, desc = pose.parse_format(flimnap_file)
     if len(sys.argv) < 2:
         print('Usage: {} <pose_log_file>\n\nPlot pose data'.format(__file__))
         print('    <pose_log_file>\tFile containing samples in ' +
@@ -154,7 +112,7 @@ if __name__ == '__main__':
 
     #samples = convert.load_sample_log(sys.argv[1])
     filename = os.path.realpath(sys.argv[1])
-    gitsha1, pose_data, num_errors = process_file(filename, dtype)
+    gitsha1, pose_data, num_errors = load.pose_logfile(filename)
     print('firmware version {0}'.format(gitsha1))
     print('read {0} total packets, {1} decode errors'.format(
         len(pose_data), num_errors))
