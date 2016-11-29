@@ -128,6 +128,10 @@ def plot_pose(data, filename=None):
                 labelname = name + ' [m/s]'
             ax.plot(t, x, label=labelname, color=colors[n])
             ax.legend()
+
+    axes[-1].set_xlabel('time [ms]')
+    axes[-2].set_xlabel('time [ms]')
+
     title = 'bicycle pose'
     if filename is not None:
         title += ' (file \'{}\')'.format(filename)
