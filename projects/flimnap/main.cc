@@ -30,6 +30,7 @@
 
 #include "parameters.h"
 
+#include <algorithm>
 #include <array>
 
 namespace {
@@ -166,8 +167,9 @@ int main(void) {
 
         /* generate an example torque output for testing */
         float feedback_torque = bicycle.handlebar_feedback_torque();
-        dacsample_t aout = static_cast<dacsample_t>(
-                (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
+        int32_t saturated_value = (feedback_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
+        saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
+        dacsample_t aout = static_cast<dacsample_t>(saturated_value);
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
 
         pose = pose_t{}; /* reset pose to zero */
