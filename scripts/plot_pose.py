@@ -16,13 +16,6 @@ from phobos import cobs
 from phobos import load
 
 
-script_dir = os.path.dirname(os.path.realpath(__file__))
-project_dir = os.path.join(script_dir, os.path.pardir, 'projects')
-flimnap_file = os.path.join(project_dir, 'flimnap', 'main.cc')
-
-flatgrey = '#95a5a6'
-
-
 def get_time_vector(data):
     ts = data['timestamp']
     ts_shift = np.roll(ts, -1).astype('int')
@@ -105,7 +98,6 @@ def plot_pose(data, filename=None):
 
 
 if __name__ == '__main__':
-    _, dtype, desc = pose.parse_format(flimnap_file)
     if len(sys.argv) < 2:
         print('Usage: {} <pose_log_file>\n\nPlot pose data'.format(__file__))
         print('    <pose_log_file>\tFile containing samples in ' +
@@ -120,7 +112,7 @@ if __name__ == '__main__':
 
     #samples = convert.load_sample_log(sys.argv[1])
     filename = os.path.realpath(sys.argv[1])
-    gitsha1, pose_data, num_errors = load.pose_logfile(filename, dtype)
+    gitsha1, pose_data, num_errors = load.pose_logfile(filename)
     print('firmware version {0}'.format(gitsha1))
     print('read {0} total packets, {1} decode errors'.format(
         len(pose_data), num_errors))

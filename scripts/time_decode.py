@@ -12,9 +12,8 @@ project_dir = os.path.join(script_dir, os.path.pardir, 'projects')
 flimnap_file = os.path.join(project_dir, 'flimnap', 'main.cc')
 
 if __name__ == '__main__':
-    _, dtype, _ = pose.parse_format(flimnap_file)
     filename = 'pose5.log'
-    profile_exec = 'load.pose_logfile(filename, dtype)'
+    profile_exec = 'load.pose_logfile(filename)'
 
     cProfile.run(profile_exec, 'output_stats')
     p = pstats.Stats('output_stats')

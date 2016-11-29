@@ -1,7 +1,16 @@
-from phobos import cobs
+import os
 import numpy as np
+from phobos import cobs
+from phobos import pose
 
-def pose_logfile(filename, dtype):
+script_dir = os.path.dirname(os.path.realpath(__file__))
+project_dir = os.path.join(script_dir,
+        os.path.pardir, os.path.pardir, 'projects')
+flimnap_file = os.path.join(project_dir, 'flimnap', 'main.cc')
+
+def pose_logfile(filename):
+    _, dtype, _ = pose.parse_format(flimnap_file)
+
     bytedata = None
     gitsha1 = None
     num_errors = 0
@@ -20,7 +29,7 @@ def pose_logfile(filename, dtype):
                       # 'bytes' object??
             packet_end = i
             try:
-                pose = cobs.decode(mv[packet_start:packet_end], True)
+                p = cobs.decode(mv[packet_start:packet_end], True)
             except cobs.DecodeError as e:
                 # further testing necessary to determine cause of:
                 # 'not enough input bytes for length code'
@@ -29,14 +38,14 @@ def pose_logfile(filename, dtype):
                 # add a packet with all floats as nan
                 data.extend(bytearray([0xff] * dtype.itemsize))
             else:
-                if len(pose) != dtype.itemsize:
-                    if len(pose) == 7: # this is sent as the first packet
-                        gitsha1 = pose.decode('ascii')
+                if len(p) != dtype.itemsize:
+                    if len(p) == 7: # this is sent as the first packet
+                        gitsha1 = p.decode('ascii')
                     else:
                         print('invalid packet size: {0} not {1}'.format(
-                            len(pose), dtype.itemsize))
+                            len(p), dtype.itemsize))
                 else:
-                    data.extend(pose)
+                    data.extend(p)
             finally:
                 packet_start = i + 1
                 packet_end = i + 1
