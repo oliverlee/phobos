@@ -39,7 +39,7 @@ def _get_buffer_view(in_bytes):
         raise BufferError('object must be a single-dimension buffer of bytes.')
     return mv
 
-def encode(in_bytes):
+def encode(in_bytes, bytearray_output=False):
     """Encode a string using Consistent Overhead Byte Stuffing (COBS).
 
     Input is any byte string. Output is also a byte string.
@@ -71,10 +71,12 @@ def encode(in_bytes):
     if idx != search_start_idx or final_zero:
         out_bytes.append(idx - search_start_idx + 1)
         out_bytes += in_bytes_mv[search_start_idx:idx]
+    if bytearray_output:
+        return out_bytes
     return bytes(out_bytes)
 
 
-def decode(in_bytes):
+def decode(in_bytes, bytearray_output=False):
     """Decode a string using Consistent Overhead Byte Stuffing (COBS).
 
     Input should be a byte string that has been COBS encoded. Output
@@ -107,4 +109,6 @@ def decode(in_bytes):
                     out_bytes.append(0)
             else:
                 break
+    if bytearray_output:
+        return out_bytes
     return bytes(out_bytes)
