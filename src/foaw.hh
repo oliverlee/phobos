@@ -4,21 +4,49 @@
 namespace foaw {
 
 template <typename T, size_t N>
-T estimate_velocity(const std::array<T, N>& circular_buffer, size_t oldest_index, T sample_period, T allowed_error) {
+T estimate_velocity(const std::array<T, N>& circular_buffer, size_t oldest_index,
+        T sample_period, T allowed_error, T overflow_value) {
     assert(sample_period > static_cast<T>(0));
     assert(allowed_error > static_cast<T>(0));
     assert(oldest_index < N);
+    assert(overflow_value > static_cast<T>(0));
 
     size_t newest_index = oldest_index - 1;
     if (oldest_index == 0) {
         newest_index = N - 1;
     }
+    T x0 = circular_buffer[newest_index];
+    bool overflow = false;
+    bool done = false;
 
     T velocity = 0.0;
     for (int n = 1; n < static_cast<int>(N); ++n) {
         T bn = 0.0;
         for (int i = 0; i <= n; ++i) {
-            bn += (n - 2*i)*circular_buffer[(newest_index - i + N) % N];
+            T* xp = const_cast<T*>(&circular_buffer[(newest_index - i + N) % N]);
+            /*
+             * If overflow value is greater than 0, account for position
+             * being able to overflow or underflow. Check each new sample
+             * to determine if overflow/underflow has occurred and modify the
+             * buffer accordingly.
+             *
+             * This check only occurs to the last element in the inner loop to
+             * avoid checking a specific index multiple times.
+             */
+            if ((i == n) && (overflow_value > static_cast<T>(0))) {
+                /*
+                 * Assume a difference of 'overflow_value' cannot occurs between
+                 * two adjacent samples. If so, the signal is not sampled fast
+                 * enough.
+                 */
+                T dx = x0 - *xp;
+                if (std::abs(dx) > (overflow_value/2)) {
+                    *xp += std::copysign(overflow_value, dx);
+                    overflow = true;
+                }
+                x0 = *xp;
+            }
+            bn += (n - 2*i)*(*xp);
         }
         bn /= sample_period*n*(n + 1)*(n + 2)/6;
 
@@ -30,13 +58,30 @@ T estimate_velocity(const std::array<T, N>& circular_buffer, size_t oldest_index
         T an = circular_buffer[newest_index];
         for (int j = 1; j < n; ++j) {
             T ykj = an - bn * j * sample_period;
-            T error = circular_buffer[(newest_index - j + N) % N] - ykj;
+            T x = circular_buffer[(newest_index - j + N) % N];
+            T error = x - ykj;
             if (std::abs(error) > allowed_error) {
-                return velocity;
+                done = true;
+                break;
             }
 
         }
+        if (done) {
+            break;
+        }
         velocity = bn;
+    }
+
+    /* Restore buffer values if overflow occurred. */
+    if (overflow) {
+        for (unsigned int i = 0; i < N; ++i) {
+            T* xp = const_cast<T*>(&circular_buffer[i]);
+            if (*xp < static_cast<T>(0)) {
+                *xp += overflow_value;
+            } else if (*xp >= overflow_value) {
+                *xp -= overflow_value;
+            }
+        }
     }
     return velocity;
 }
