@@ -35,7 +35,8 @@ template <typename T, size_t N>
 T EncoderFoaw<T, N>::velocity() const {
     m_iqhandler.wait();
     T vel = foaw::estimate_velocity(m_iqhandler.circular_buffer(),
-            m_iqhandler.index(), m_sample_period, m_allowed_error);
+            m_iqhandler.index(), m_sample_period, m_allowed_error,
+            static_cast<T>(config().counts_per_rev));
     m_iqhandler.signal();
     return vel;
 }

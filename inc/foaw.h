@@ -20,7 +20,8 @@ namespace foaw {
 
 template <typename T, size_t N>
 T estimate_velocity(const std::array<T, N>& circular_buffer,
-        size_t oldest_index, T sample_period, T allowed_error);
+        size_t oldest_index, T sample_period, T allowed_error,
+        T overflow_value=static_cast<T>(0));
 
 } // namespace foaw
 
