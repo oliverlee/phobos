@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import math
 import os
-import struct
 import sys
 import numpy as np
 import matplotlib as mpl
@@ -11,8 +9,6 @@ from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap
 import seaborn as sns
 
-from phobos import pose
-from phobos import cobs
 from phobos import load
 
 
@@ -29,6 +25,54 @@ def get_time_vector(data):
     ts_offset = np.cumsum(overflow) * 256
     ts_offset[nan_index] = -255 # nan values have time set to 0
     return ts + ts_offset
+
+def plot_pose_vispy(data):
+    t = get_time_vector(data)
+    rows = 5
+    cols = 2
+    fields = data.dtype.names
+    colors = np.array(sns.color_palette('husl', len(fields)))
+
+    # plot all lines using my hacky fig and plot widget
+    from phobos.vispy.fig import Fig
+    fig = Fig(show=False, sharex=True)
+
+    print('plotting the following fields:')
+    print_name = lambda r, c, name: print('[{}, {}] {}'.format(r, c, name))
+
+    # plot trajectory
+    p = fig[0, 0]
+    chunks = 100
+    trajectory_colors = np.array(sns.color_palette('husl', chunks))
+    for x, y, color in zip(np.array_split(data['x'], chunks),
+                           np.array_split(data['y'], chunks),
+                           trajectory_colors):
+        p.plot((x, y), color=color, linked=False)
+    print_name(0, 0, 'trajectory')
+
+    for n, (name, color) in enumerate(zip(fields, colors), 1):
+        if n == 1:
+            name = 'y'
+            color = colors[1]
+        elif n == 2:
+            name = 'x'
+            color = colors[0]
+        row = n // cols
+        col = n % cols
+        p = fig[row, col]
+        if name == 'timestamp':
+            # plot histogram of sample time instead
+            dt = (data[name] - np.roll(data[name], 1))[1:]
+            p.histogram(dt, t=t[:-1], color=color)
+            name = 'timestamp histogram'
+        else:
+            p.plot((t, data[name]), color=color)
+        p.xaxis.visible = True
+        print_name(row, col, name)
+
+    if sys.flags.interactive == 0:
+        fig.show(run=True)
+    return fig
 
 
 def plot_pose(data, filename=None):
@@ -110,14 +154,16 @@ if __name__ == '__main__':
     mpl.rcParams['font.weight'] = 'light'
     mpl.rcParams['axes.labelweight'] = 'light'
 
-    #samples = convert.load_sample_log(sys.argv[1])
     filename = os.path.realpath(sys.argv[1])
     gitsha1, pose_data, num_errors = load.pose_logfile(filename)
     print('firmware version {0}'.format(gitsha1))
     print('read {0} total packets, {1} decode errors'.format(
         len(pose_data), num_errors))
 
-    plot_pose(pose_data, filename)
-    plt.show(block=False)
+    if len(sys.argv) > 2 and sys.argv[2]:
+        plot_vispy(pose_data)
+    else:
+        plot_pose_vispy(pose_data, filename)
+        plt.show()
 
     sys.exit(0)
