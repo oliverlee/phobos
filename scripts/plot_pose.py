@@ -101,8 +101,7 @@ class TimeseriesDisplay(object):
         self.title_func = title_func
 
     def decimate(self, time_range):
-        # let's try to keep the data length at 1000 points
-        decimate_target_length = 1000
+        decimate_target_length = 5000
         tmin, tmax = time_range
         indices = np.where((self.t >= tmin) & (self.t <= tmax))[0]
         decimation_factor = int(len(indices) / decimate_target_length)
@@ -174,6 +173,7 @@ def plot_pose(data, filename=None):
         ax.legend()
         ax.set_autoscale_on(False)
         ax.callbacks.connect('xlim_changed', ts_display.ax_update)
+    axes[9].callbacks.connect('xlim_changed', ts_display.ax_update)
 
     ts_display.lines = lines
 
