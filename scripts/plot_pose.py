@@ -106,9 +106,10 @@ class TimeseriesDisplay(object):
         tmin, tmax = time_range
         indices = np.where((self.t >= tmin) & (self.t <= tmax))[0]
         decimation_factor = int(len(indices) / decimate_target_length)
-        f = lambda x: x
+        f = lambda x: x[indices]
         if decimation_factor > 0:
-            f = lambda x: scipy.signal.decimate(x, decimation_factor,
+            f = lambda x: scipy.signal.decimate(x[indices],
+                                                decimation_factor,
                                                 zero_phase=True)
 
         return f(self.t), (f(d) for d in self.data), decimation_factor
@@ -140,6 +141,7 @@ def plot_pose(data, filename=None):
             title = '{}\ndecimation factor {}'.format(base_title, x)
         f.suptitle(title, size=title_size)
 
+    # convert angle data from radians to degrees
     angle_names = ('pitch', 'yaw', 'roll', 'steer', 'rear_wheel')
     data = tuple(data[name] if name not in angle_names else
                  data[name]*180/np.pi for name in names)
@@ -155,7 +157,6 @@ def plot_pose(data, filename=None):
         name = names[n]
 
         if name in angle_names:
-            #d *= 180 / np.pi # convert radians to degrees
             labelname = name + ' [°]'
         elif name in ('x', 'y'):
             labelname = name + ' [m]'
