@@ -119,6 +119,11 @@ class TimeseriesDisplay(object):
         t, data, dfactor = self.decimate(time_range)
         for line, d in zip(self.lines, data):
             line.set_data(t, d)
+            ymin = d.min()
+            ymax = d.max()
+            dy = ymax - ymin
+            margin = dy * 0.1
+            line.axes.set_ylim(d.min() - margin, d.max() + margin)
         self.title_func(ax.figure, dfactor)
 
 def plot_pose(data, filename=None):
