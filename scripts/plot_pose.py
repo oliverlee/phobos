@@ -163,7 +163,7 @@ def _plot_histogram(ax, data, logscale=True, **kwargs):
         ax.legend()
 
 
-def plot_pose(data, filename=None):
+def plot_pose(data, filename=None, gitsha1=None):
     t = get_time_vector(data)
     ts = data['timestamp']
     dt = (ts - np.roll(ts, 1))[1:] # length is now 1 shorter than data
@@ -176,7 +176,11 @@ def plot_pose(data, filename=None):
 
     base_title = 'bicycle pose'
     if filename is not None:
-        base_title += ' (file \'{}\')'.format(filename)
+        base_title += ' (file \'{}\''.format(filename)
+        if gitsha1 is not None:
+            base_title += ', {}'.format(gitsha1)
+        base_title += ')'
+
     title_size = mpl.rcParams['font.size'] + 2
 
     def set_title_func(f, x):
@@ -269,7 +273,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 2 and sys.argv[2]:
         plot_pose_vispy(pose_data)
     else:
-        fig = plot_pose(pose_data, filename)
+        fig = plot_pose(pose_data, filename, gitsha1)
         plt.show()
 
     sys.exit(0)
