@@ -11,7 +11,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import seaborn as sns
 
 from phobos import load
-from phobos.display import TimeseriesDisplay
+from phobos.display import DecimatingDisplay
 
 
 def get_time_vector(data):
@@ -110,6 +110,12 @@ def _plot_trajectory(ax, x, y, t=None, t_label=None,
     ax.plot(trajectory[-1, 0, 0], trajectory[-1, 0, 1],
             label='rear contact point trajectory',
             color=color)
+    # plot start and end points in the legend
+    colors = sns.color_palette('deep', 3)
+    marker_start = ax.plot(x[0], y[0], color=colors[1], linestyle='None',
+                           marker='o', markersize=6, label='start')[0]
+    marker_end = ax.plot(x[-1], y[-1], color=colors[2], linestyle='None',
+                         marker='o', markersize=6, label='end')[0]
     ax.legend()
 
     # flip around axes if requested
@@ -134,6 +140,7 @@ def _plot_trajectory(ax, x, y, t=None, t_label=None,
         if t_label is not None:
             cbar.set_label(t_label)
         ax._colorbar = cax
+    return lc, (marker_start, marker_end)
 
     # set plot limits and set x and y aspect to be equal
     ax.set_aspect('equal', 'datalim')
@@ -169,8 +176,8 @@ def plot_pose(data, filename=None):
                  data[name]*180/np.pi for name in names)
 
     full_time_range = (t.min(), t.max()) # start with full range of data
-    ts_display = TimeseriesDisplay(None, data_np, t, set_title_func)
-    td, datad, dfactor = ts_display.decimate(full_time_range)
+    dd_display = DecimatingDisplay(None, data_np, t, set_title_func, None, None)
+    td, datad, dfactor = dd_display.decimate(full_time_range)
     set_title_func(fig, dfactor)
 
     lines = []
@@ -192,21 +199,25 @@ def plot_pose(data, filename=None):
         lines.append(ax.plot(td, dd, label=labelname, color=colors[n])[0])
         ax.legend()
         ax.set_autoscale_on(False)
-        ax.callbacks.connect('xlim_changed', ts_display.ax_update)
+        ax.callbacks.connect('xlim_changed', dd_display.ax_update)
+        if name == 'y':
+            ax.invert_yaxis()
 
     axes[-1].set_xlabel('time [ms]')
     axes[-2].set_xlabel('time [ms]')
 
-    ts_display.lines = lines
-
     # display trajectory plot
-    ax = plt.subplot2grid((rows, cols), (0, 0), rowspan=2)
-    husl20 = mpl.colors.ListedColormap(sns.color_palette('husl', 20))
-    _plot_trajectory(ax, data['x'][::100], data['y'][::100], t[::100],
-                     yinvert=True, cmap=husl20)
+    ax = plt.subplot2grid((rows, cols), (0, 0), rowspan=2, sharey=axes[5])
+    husl100 = mpl.colors.ListedColormap(sns.color_palette('husl', 100))
+    lc, markers = _plot_trajectory(ax, data['x'][::100], data['y'][::100],
+                                   t[::100], xpos='top', yinvert=True,
+                                   cmap=husl100)
     axes[0] = ax # overwrite original axes
 
-    fig._timeseries_display = ts_display
+    dd_display.lines = lines
+    dd_display.lc = lc
+    dd_display.markers = markers
+    fig._timeseries_display = dd_display
     return fig
 
 
