@@ -3,8 +3,6 @@
 import os
 import sys
 import numpy as np
-import scipy
-import scipy.signal
 import matplotlib as mpl
 import matplotlib.pylab as plt
 from matplotlib.collections import LineCollection
@@ -12,6 +10,7 @@ from matplotlib.colors import ListedColormap
 import seaborn as sns
 
 from phobos import load
+from phobos.display import TimeseriesDisplay
 
 
 def get_time_vector(data):
@@ -27,6 +26,7 @@ def get_time_vector(data):
     ts_offset = np.cumsum(overflow) * 256
     ts_offset[nan_index] = -255 # nan values have time set to 0
     return ts + ts_offset
+
 
 def plot_pose_vispy(data):
     t = get_time_vector(data)
@@ -76,54 +76,6 @@ def plot_pose_vispy(data):
         fig.show(run=True)
     return fig
 
-
-class TrajectoryDisplay(object):
-    def __init__(self, ax, t, x, y):
-        self.ax = ax
-        self.t = t
-        self.x = x
-        self.y = y
-
-    def ax_update(self, ax):
-        tmin, tmax = ax.get_xlim()
-        imin = np.argmax(self.t >= tmin)
-        imax = self.t.shape[0] - np.argmax(self.t[::-1] < tmax)
-        x = self.x[imin:imax]
-        y = self.y[imin:imax]
-        self.ax.set_xlim(np.min(x), np.max(x))
-        self.ax.set_ylim(np.min(y), np.max(y))
-
-class TimeseriesDisplay(object):
-    def __init__(self, lines, data, t, title_func):
-        self.lines = lines
-        self.data = data
-        self.t = t
-        self.title_func = title_func
-
-    def decimate(self, time_range):
-        decimate_target_length = 5000
-        tmin, tmax = time_range
-        indices = np.where((self.t >= tmin) & (self.t <= tmax))[0]
-        decimation_factor = int(len(indices) / decimate_target_length)
-        f = lambda x: x[indices]
-        if decimation_factor > 0:
-            f = lambda x: scipy.signal.decimate(x[indices],
-                                                decimation_factor,
-                                                zero_phase=True)
-
-        return f(self.t), (f(d) for d in self.data), decimation_factor
-
-    def ax_update(self, ax):
-        time_range = ax.get_xlim()
-        t, data, dfactor = self.decimate(time_range)
-        for line, d in zip(self.lines, data):
-            line.set_data(t, d)
-            ymin = d.min()
-            ymax = d.max()
-            dy = ymax - ymin
-            margin = dy * 0.1
-            line.axes.set_ylim(d.min() - margin, d.max() + margin)
-        self.title_func(ax.figure, dfactor)
 
 def plot_pose(data, filename=None):
     t = get_time_vector(data)
