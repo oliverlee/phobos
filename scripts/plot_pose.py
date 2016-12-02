@@ -192,8 +192,7 @@ def plot_pose(data, filename=None):
         elif name == 'v':
             labelname = name + ' [m/s]'
         elif name == 'timestamp':
-            axes_index = 3
-            labelname = name + ' [ms]'
+            continue
 
         ax = axes[axes_index]
         lines.append(ax.plot(td, dd, label=labelname, color=colors[n])[0])
@@ -213,6 +212,16 @@ def plot_pose(data, filename=None):
                                    t[::100], xpos='top', yinvert=True,
                                    cmap=husl100)
     axes[0] = ax # overwrite original axes
+
+    # display histogram of sample time
+    ts = data['timestamp']
+    dt = (ts - np.roll(ts, 1))[1:] # length is now 1 shorter than data
+    ax = plt.subplot2grid((rows, cols), (0, 1), rowspan=2)
+    ax.hist(dt, color=colors[-1], label='loop time [ms]',
+            alpha=0.9, linewidth=0)
+    ax.set_yscale('log')
+    ax.legend()
+    axes[1] = ax
 
     dd_display.lines = lines
     dd_display.lc = lc
