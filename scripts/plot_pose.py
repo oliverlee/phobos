@@ -150,8 +150,23 @@ def _plot_trajectory(ax, x, y, t=None, t_label=None,
     ax.set_ylim(minima[1], maxima[1])
 
 
+def _plot_histogram(ax, data, logscale=True, **kwargs):
+    ax.clear()
+    if 'alpha' not in kwargs:
+        kwargs['alpha'] = 0.9
+    if 'linewidth' not in kwargs:
+        kwargs['linewidth'] = 0
+    ax.hist(data, **kwargs)
+    if logscale:
+        ax.set_yscale('log')
+    if 'label' in kwargs:
+        ax.legend()
+
+
 def plot_pose(data, filename=None):
     t = get_time_vector(data)
+    ts = data['timestamp']
+    dt = (ts - np.roll(ts, 1))[1:] # length is now 1 shorter than data
     rows = 6
     cols = 2
     names = data.dtype.names
@@ -175,9 +190,12 @@ def plot_pose(data, filename=None):
     data_np = tuple(data[name] if name not in angle_names else
                  data[name]*180/np.pi for name in names)
 
+    # plot objects to be added later
+    dd_display = DecimatingDisplay(data_np, t, dt, set_title_func,
+                                   None, None, None, None)
+
     full_time_range = (t.min(), t.max()) # start with full range of data
-    dd_display = DecimatingDisplay(None, data_np, t, set_title_func, None, None)
-    td, datad, dfactor = dd_display.decimate(full_time_range)
+    td, datad, dfactor, _ = dd_display.decimate(full_time_range)
     set_title_func(fig, dfactor)
 
     lines = []
@@ -214,18 +232,17 @@ def plot_pose(data, filename=None):
     axes[0] = ax # overwrite original axes
 
     # display histogram of sample time
-    ts = data['timestamp']
-    dt = (ts - np.roll(ts, 1))[1:] # length is now 1 shorter than data
     ax = plt.subplot2grid((rows, cols), (0, 1), rowspan=2)
-    ax.hist(dt, color=colors[-1], label='loop time [ms]',
-            alpha=0.9, linewidth=0)
-    ax.set_yscale('log')
-    ax.legend()
+    histf = lambda dt: _plot_histogram(
+            ax, dt, logscale=True, color=colors[-1],
+            label='loop time [ms]\nmax time = {}'.format(dt.max()))
+    histf(dt)
     axes[1] = ax
 
     dd_display.lines = lines
     dd_display.lc = lc
     dd_display.markers = markers
+    dd_display.histf = histf
     fig._timeseries_display = dd_display
     return fig
 
