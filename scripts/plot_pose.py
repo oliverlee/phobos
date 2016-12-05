@@ -15,23 +15,8 @@ from phobos import pose
 from phobos.display import DecimatingDisplay
 
 
-def get_time_vector(data):
-    ts = data['timestamp']
-    ts_shift = np.roll(ts, -1).astype('int')
-    overflow = np.roll(np.array(ts - ts_shift > 0).astype('int'), 1)
-    overflow[0] = 0
-    nan_index = np.where(np.isnan(data['x']))[0]
-    try:
-        overflow[nan_index + 1] = 0
-    except IndexError:
-        overflow[nan_index[:-1]] = 0
-    ts_offset = np.cumsum(overflow) * 256
-    ts_offset[nan_index] = -255 # nan values have time set to 0
-    return ts + ts_offset
-
-
 def plot_pose_vispy(data):
-    t = get_time_vector(data)
+    t = pose.get_time_vector(data)
     rows = 5
     cols = 2
     fields = data.dtype.names
@@ -165,7 +150,7 @@ def _plot_histogram(ax, data, logscale=True, **kwargs):
 
 
 def plot_pose(data, filename=None, gitsha1=None):
-    t = get_time_vector(data)
+    t = pose.get_time_vector(data)
     ts = data['timestamp']
     dt = (ts - np.roll(ts, 1))[1:] # length is now 1 shorter than data
     rows = 6

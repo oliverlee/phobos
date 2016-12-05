@@ -8,21 +8,6 @@ from phobos import load
 from phobos import pose
 
 
-def get_time_vector(data):
-    ts = data['timestamp']
-    ts_shift = np.roll(ts, -1).astype('int')
-    overflow = np.roll(np.array(ts - ts_shift > 0).astype('int'), 1)
-    overflow[0] = 0
-    nan_index = np.where(np.isnan(data['x']))[0]
-    try:
-        overflow[nan_index + 1] = 0
-    except IndexError:
-        overflow[nan_index[:-1]] = 0
-    ts_offset = np.cumsum(overflow) * 256
-    ts_offset[nan_index] = -255 # nan values have time set to 0
-    return ts + ts_offset
-
-
 if __name__ == '__main__':
     _, dtype, desc = pose.parse_format(load.flimnap_file)
     if len(sys.argv) < 2:
