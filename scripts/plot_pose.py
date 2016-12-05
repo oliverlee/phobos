@@ -11,6 +11,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import seaborn as sns
 
 from phobos import load
+from phobos import pose
 from phobos.display import DecimatingDisplay
 
 
@@ -252,6 +253,7 @@ def plot_pose(data, filename=None, gitsha1=None):
 
 
 if __name__ == '__main__':
+    _, dtype, desc = pose.parse_format(load.flimnap_file)
     if len(sys.argv) < 2:
         print('Usage: {} <pose_log_file>\n\nPlot pose data'.format(__file__))
         print('    <pose_log_file>\tFile containing samples in ' +
@@ -265,7 +267,7 @@ if __name__ == '__main__':
     mpl.rcParams['axes.labelweight'] = 'light'
 
     filename = os.path.realpath(sys.argv[1])
-    gitsha1, pose_data, num_errors = load.pose_logfile(filename)
+    gitsha1, pose_data, num_errors = load.pose_logfile(filename, dtype)
     print('firmware version {0}'.format(gitsha1))
     print('read {0} total packets, {1} decode errors'.format(
         len(pose_data), num_errors))

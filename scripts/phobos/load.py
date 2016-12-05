@@ -8,8 +8,9 @@ project_dir = os.path.join(script_dir,
         os.path.pardir, os.path.pardir, 'projects')
 flimnap_file = os.path.join(project_dir, 'flimnap', 'main.cc')
 
-def pose_logfile(filename):
-    _, dtype, _ = pose.parse_format(flimnap_file)
+def pose_logfile(filename, dtype=None):
+    if dtype is None:
+        _, dtype, _ = pose.parse_format(flimnap_file)
 
     bytedata = None
     gitsha1 = None
