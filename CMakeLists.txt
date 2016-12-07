@@ -33,6 +33,9 @@ set(BICYCLE_SOURCE
 set(BICYCLE_INCLUDE_DIR ${BICYCLE_SOURCE_DIR} ${BICYCLE_SOURCE_DIR}/../inc)
 add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=false")
 
+# use Eigen3 submodule nested in bicycle submodule
+set(EIGEN3_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/external/eigen)
+
 # define nanopb variables if later needed
 set(NANOPB_SRC_ROOT_FOLDER ${PROJECT_SOURCE_DIR}/external/nanopb)
 
@@ -59,7 +62,7 @@ macro(add_phobos_executable target_name)
                 set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
             endif()
             # suppress deprecated warnings from Eigen
-            if(EIGEN3_INCLUDE_DIR)
+            if(USE_BICYCLE_EIGEN3_SUBMODULE)
                 set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated")
             endif()
             math(EXPR source_file_properties_modified
@@ -88,7 +91,7 @@ macro(add_phobos_executable target_name)
         # suppress boost undef warnings
         set_property(SOURCE ${BICYCLE_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
     endif()
-    if(EIGEN3_INCLUDE_DIR)
+    if(USE_BICYCLE_EIGEN3_SUBMODULE)
         # Any request from Eigen to allocate memory from heap results in an assertion failure
         add_definitions("-DEIGEN_NO_MALLOC")
         # suppress deprecated warnings from Eigen
