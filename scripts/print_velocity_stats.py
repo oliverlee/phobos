@@ -11,11 +11,11 @@ from phobos import pose
 from phobos import util
 from plot_pose import plot_pose
 
-def print_velocity_stats(data, filename='', gitsha1=''):
+def print_velocity_stats(data, target, margin, filename=None, gitsha1=None):
     t = pose.get_time_vector(data)
     v = data['v']
-    v_target = 2.5
-    v_margin = 1.0
+    v_target = target
+    v_margin = margin
     print('determining positive velocity subset about {} m/s...'.format(
         v_target))
     indices = util.find_continguous_regions((v > 0) &
@@ -52,21 +52,26 @@ def print_velocity_stats(data, filename='', gitsha1=''):
 
 if __name__ == '__main__':
     _, dtype, desc = pose.parse_format(load.flimnap_file)
-    if len(sys.argv) < 2:
-        print('Usage: {} <pose_log_file>\n\n'.format(__file__) +
+    if len(sys.argv) < 4:
+        print('Usage: {} '.format(__file__) +
+              '<pose_log_file> <target> <margin>\n\n' +
               'Print velocity stats for a given pose log.\n\n' +
               'Arguments:\n')
         print('    <pose_log_file>\tFile containing samples in ' +
-              'the given packed struct binary format:\n')
+              'the packed struct binary format detailed below.')
+        print('    <target>\tVelocity target.')
+        print('    <margin>\tAllowed velocity bounds around target.\n')
         print(desc)
         sys.exit(1)
 
     filename = os.path.realpath(sys.argv[1])
+    target = float(sys.argv[2])
+    margin = float(sys.argv[3])
     gitsha1, data, num_errors = load.pose_logfile(filename, dtype)
     print('firmware version {0}'.format(gitsha1))
     print('read {0} total packets, {1} decode errors'.format(
         len(data), num_errors))
 
-    print_velocity_stats(data, filename, gitsha1)
+    print_velocity_stats(data, target, margin, filename, gitsha1)
 
     sys.exit(0)
