@@ -20,7 +20,7 @@
 #include "analog.h"
 #include "encoder.h"
 #include "packet/frame.h"
-#include "filter/movingaverage.h"
+#include "filter/median.h"
 
 #include "gitsha1.h"
 #include "angle.h"
@@ -42,7 +42,7 @@ namespace {
     EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC,
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1), 3.0f);
-    filter::MovingAverage<float, 5> velocity_filter;
+    filter::Median<float, 5> velocity_filter;
 
     struct __attribute__((__packed__)) pose_t {
         float x; /* m */
