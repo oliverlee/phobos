@@ -38,9 +38,9 @@ namespace {
     /* sensors */
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
-    EncoderFoaw<float, 16> encoder_rear_wheel(sa::RLS_GTS35_ENC,
+    EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC,
                                               sa::RLS_GTS35_ENC_CFG,
-                                              MS2ST(1), 1.0f);
+                                              MS2ST(1), 3.0f);
 
     struct __attribute__((__packed__)) pose_t {
         float x; /* m */
