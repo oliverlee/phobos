@@ -19,6 +19,22 @@ import re
 import struct
 import numpy as np
 
+
+def get_time_vector(data):
+    ts = data['timestamp']
+    ts_shift = np.roll(ts, -1).astype('int')
+    overflow = np.roll(np.array(ts - ts_shift > 0).astype('int'), 1)
+    overflow[0] = 0
+    nan_index = np.where(np.isnan(data['x']))[0]
+    try:
+        overflow[nan_index + 1] = 0
+    except IndexError:
+        overflow[nan_index[:-1]] = 0
+    ts_offset = np.cumsum(overflow) * 256
+    ts_offset[nan_index] = -255 # nan values have time set to 0
+    return ts + ts_offset
+
+
 def parse_format(source_file):
     with open(source_file, 'r') as f:
         start_pose_definition = False

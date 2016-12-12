@@ -11,26 +11,12 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import seaborn as sns
 
 from phobos import load
+from phobos import pose
 from phobos.display import DecimatingDisplay
 
 
-def get_time_vector(data):
-    ts = data['timestamp']
-    ts_shift = np.roll(ts, -1).astype('int')
-    overflow = np.roll(np.array(ts - ts_shift > 0).astype('int'), 1)
-    overflow[0] = 0
-    nan_index = np.where(np.isnan(data['x']))[0]
-    try:
-        overflow[nan_index + 1] = 0
-    except IndexError:
-        overflow[nan_index[:-1]] = 0
-    ts_offset = np.cumsum(overflow) * 256
-    ts_offset[nan_index] = -255 # nan values have time set to 0
-    return ts + ts_offset
-
-
 def plot_pose_vispy(data):
-    t = get_time_vector(data)
+    t = pose.get_time_vector(data)
     rows = 5
     cols = 2
     fields = data.dtype.names
@@ -164,7 +150,7 @@ def _plot_histogram(ax, data, logscale=True, **kwargs):
 
 
 def plot_pose(data, filename=None, gitsha1=None):
-    t = get_time_vector(data)
+    t = pose.get_time_vector(data)
     ts = data['timestamp']
     dt = (ts - np.roll(ts, 1))[1:] # length is now 1 shorter than data
     rows = 6
@@ -252,6 +238,7 @@ def plot_pose(data, filename=None, gitsha1=None):
 
 
 if __name__ == '__main__':
+    _, dtype, desc = pose.parse_format(load.flimnap_file)
     if len(sys.argv) < 2:
         print('Usage: {} <pose_log_file>\n\nPlot pose data'.format(__file__))
         print('    <pose_log_file>\tFile containing samples in ' +
@@ -265,7 +252,7 @@ if __name__ == '__main__':
     mpl.rcParams['axes.labelweight'] = 'light'
 
     filename = os.path.realpath(sys.argv[1])
-    gitsha1, pose_data, num_errors = load.pose_logfile(filename)
+    gitsha1, pose_data, num_errors = load.pose_logfile(filename, dtype)
     print('firmware version {0}'.format(gitsha1))
     print('read {0} total packets, {1} decode errors'.format(
         len(pose_data), num_errors))
