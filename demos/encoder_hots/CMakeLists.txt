@@ -1,4 +1,4 @@
-find_host_package(Eigen3 3.2.4 REQUIRED)
+set(USE_BICYCLE_EIGEN3_SUBMODULE TRUE)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${EIGEN3_INCLUDE_DIR})
