@@ -20,6 +20,7 @@
 #include "analog.h"
 #include "encoder.h"
 #include "packet/frame.h"
+#include "filter/movingaverage.h"
 
 #include "gitsha1.h"
 #include "angle.h"
@@ -38,9 +39,10 @@ namespace {
     /* sensors */
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
-    EncoderFoaw<float, 16> encoder_rear_wheel(sa::RLS_GTS35_ENC,
+    EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC,
                                               sa::RLS_GTS35_ENC_CFG,
-                                              MS2ST(1), 1.0f);
+                                              MS2ST(1), 3.0f);
+    filter::MovingAverage<float, 5> velocity_filter;
 
     struct __attribute__((__packed__)) pose_t {
         float x; /* m */
@@ -156,7 +158,8 @@ int main(void) {
         float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
 
         (void)motor_torque; /* remove build warning */
-        v = -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel));
+        v = velocity_filter.output(
+                -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
 
         /* yaw angle, just use previous state value */
         float yaw_angle = angle::wrap(bicycle.pose().yaw);
