@@ -1,5 +1,5 @@
 set(BOOST_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/include)
-find_host_package(Eigen3 3.2.4 REQUIRED)
+set(USE_BICYCLE_EIGEN3_SUBMODULE TRUE)
 find_host_package(Boost 1.58 REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
