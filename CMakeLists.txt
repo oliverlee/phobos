@@ -33,8 +33,10 @@ set(BICYCLE_SOURCE
 set(BICYCLE_INCLUDE_DIR ${BICYCLE_SOURCE_DIR} ${BICYCLE_SOURCE_DIR}/../inc)
 add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=false")
 
-# use Eigen3 submodule nested in bicycle submodule
+# use nested submodules in bicycle submodule
 set(EIGEN3_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/external/eigen)
+include(${PROJECT_SOURCE_DIR}/external/bicycle/cmake/boost.cmake) # set Boost_INCLUDE_DIR
+#set(Boost_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/external/boost)
 
 # define nanopb variables if later needed
 set(NANOPB_SRC_ROOT_FOLDER ${PROJECT_SOURCE_DIR}/external/nanopb)
@@ -58,7 +60,7 @@ macro(add_phobos_executable target_name)
             # Disable format warnings for printf as we use parameters types defined by ChibiOS
             set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-format")
             # suppress Boost undef warnings
-            if(Boost_INCLUDE_DIR)
+            if(USE_BICYCLE_BOOST_SUBMODULE)
                 set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
             endif()
             # suppress deprecated warnings from Eigen
@@ -87,7 +89,7 @@ macro(add_phobos_executable target_name)
         endif()
     endforeach()
 
-    if(Boost_INCLUDE_DIR)
+    if(USE_BICYCLE_BOOST_SUBMODULE)
         # suppress boost undef warnings
         set_property(SOURCE ${BICYCLE_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
     endif()
