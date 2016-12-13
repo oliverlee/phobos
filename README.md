@@ -1,4 +1,4 @@
-#PHOBOS
+# PHOBOS
 The larger and innermost of the two natural satellites of Mars, Phobos is the
 embedded system that controls the static (fixed-base) bicycle simulator and
 steer-by-wire bicycle.
@@ -86,6 +86,9 @@ together with a set of [PCBs](https://github.com/oliverlee/gyropcb)
 ([v0.1](https://github.com/oliverlee/gyropcb/releases)) in order to interface
 with a number of sensors and actuators. When using the PCBs, please make sure to
 check the errata in the project README.
+
+*Windows users may need to install STMicroelectronics Virtual COM Port driver
+1.3.1.*
 
 ## Debugging
 The microcontroller can be debugged with OpenOCD and GDB.
