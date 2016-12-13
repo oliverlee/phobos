@@ -21,7 +21,7 @@ Ubuntu, this can be installed with the `gcc-multilib` package.
 As this project is dependent on a number of git submodules, as well as nested
 submodules, they should be initialized when the repository is first cloned.
 
-    oliver@canopus:~/repos/phobos$ git submodule update --init --recursive
+    oliver@canopus:~/repos/phobos$ git submodule update --init --recursive --recommend-shallow
 
 When creating the CMake build tree, the compiler must be set to the target
 toolchain to allow cross-compilation.  CMake cannot change the compiler after
