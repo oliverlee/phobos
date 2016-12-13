@@ -129,7 +129,7 @@ real_t SimpleBicycle::solve_constraint_pitch(const state_t& x, real_t guess) con
     static constexpr int digits = std::numeric_limits<real_t>::digits*2/3;
     static constexpr real_t two = static_cast<real_t>(2.0);
     static constexpr real_t one_point_five = static_cast<real_t>(1.5);
-    static const real_t min = -constants::pi/2;
+    static const real_t min = static_cast<real_t>(0.0);
     static const real_t max = constants::pi/2;
     auto constraint_function = [this, x](real_t pitch)->boost::math::tuple<real_t, real_t> {
         return boost::math::make_tuple(
