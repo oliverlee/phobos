@@ -95,7 +95,7 @@ class SimpleBicycle {
         void update_state(real_t steer_angle_measurement);
         void update_feedback_torque();
         auxiliary_state_t integrate_auxiliary_state(const state_t& x, const auxiliary_state_t& x_aux);
-        real_t solve_constraint_pitch(const state_t& x, real_t guess) const;
+        real_t solve_constraint_pitch(const state_t& x, real_t guess, size_t iteration_limit = 0) const;
 }; // class SimpleBicycle
 
 // define simple member functions using inline
