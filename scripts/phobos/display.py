@@ -53,6 +53,16 @@ class DecimatingDisplay(object):
             elif y is None:
                 y = d
 
+        # last line is 'dt' which doesn't have a corresponding data element
+        line = self.lines[-1]
+        dt = self.dt[indices[:-1]]
+        line.set_data(t[:-1], dt)
+        ymin = dt.min()
+        ymax = dt.max()
+        dy = ymax - ymin
+        margin = dy * 0.1
+        line.axes.set_ylim(dt.min() - margin, dt.max() + margin)
+
         if self.lc is not None:
             trajectory = np.array([x, y]).T.reshape(-1, 1, 2)
             segments = np.concatenate([trajectory[:-1], trajectory[1:]],

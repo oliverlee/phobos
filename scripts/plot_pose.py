@@ -185,7 +185,7 @@ def plot_pose(data, filename=None, gitsha1=None):
                                    None, None, None, None)
 
     full_time_range = (t.min(), t.max()) # start with full range of data
-    td, datad, dfactor, _ = dd_display.decimate(full_time_range)
+    td, datad, dfactor, indices = dd_display.decimate(full_time_range)
     set_title_func(fig, dfactor)
 
     lines = []
@@ -210,6 +210,14 @@ def plot_pose(data, filename=None, gitsha1=None):
         if name == 'y':
             ax.invert_yaxis()
 
+    # create dt plot
+    ax = axes[3]
+    lines.append(ax.plot(t[:-1], dt[indices[:-1]],
+                 label='dt [ms]', color=colors[-1])[0])
+    ax.legend()
+    ax.set_autoscale_on(False)
+    ax.callbacks.connect('xlim_changed', dd_display.ax_update)
+
     axes[-1].set_xlabel('time [ms]')
     axes[-2].set_xlabel('time [ms]')
 
@@ -222,7 +230,7 @@ def plot_pose(data, filename=None, gitsha1=None):
     axes[0] = ax # overwrite original axes
 
     # display histogram of sample time
-    ax = plt.subplot2grid((rows, cols), (0, 1), rowspan=2)
+    ax = plt.subplot2grid((rows, cols), (0, 1))
     histf = lambda dt: _plot_histogram(
             ax, dt, logscale=True, color=colors[-1],
             label='loop time [ms]\nmax time = {}'.format(dt.max()))
