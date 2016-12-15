@@ -268,7 +268,11 @@ if __name__ == '__main__':
     if len(sys.argv) > 2 and sys.argv[2]:
         plot_pose_vispy(pose_data)
     else:
-        fig = plot_pose(pose_data, filename, gitsha1)
+        # if there is 1 decode error, assume it is the first packet
+        if num_errors == 1:
+            fig = plot_pose(pose_data[1:], filename, gitsha1)
+        else:
+            fig = plot_pose(pose_data, filename, gitsha1)
         plt.show()
 
     sys.exit(0)
