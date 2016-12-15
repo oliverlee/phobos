@@ -10,9 +10,11 @@
 #     float steer; /* rad */
 #     float rear_wheel; /* rad */
 #     float v; /* m/s */
-#     uint8_t timestamp;  /* Converted from system ticks to milliseconds
-#                          * and contains only the least significant bits */
-# }; /* 33 bytes */
+#     uint16_t computation_time; /* time to acquire sensor data,
+#                                   update bicycle model,
+#                                   and command actuators */
+#     uint16_t timestamp;  /* Converted from system ticks to microseconds */
+# }; /* 40 bytes */
 
 import os
 import re
@@ -30,8 +32,9 @@ def get_time_vector(data):
         overflow[nan_index + 1] = 0
     except IndexError:
         overflow[nan_index[:-1]] = 0
-    ts_offset = np.cumsum(overflow) * 256
-    ts_offset[nan_index] = -255 # nan values have time set to 0
+    discont = 2**16
+    ts_offset = np.cumsum(overflow) * discont
+    ts_offset[nan_index] = -(discont - 1) # nan values have time set to 0
     return ts + ts_offset
 
 
@@ -75,6 +78,12 @@ def parse_format(source_file):
                     elif t == 'uint8_t':
                         struct_format += 'B'
                         np_dtype.append((words[1][:-1], 'u1'))
+                    elif t == 'uint16_t':
+                        struct_format += 'H'
+                        np_dtype.append((words[1][:-1], 'u2'))
+                    elif t == 'uint32_t':
+                        struct_format += 'I'
+                        np_dtype.append((words[1][:-1], 'u4'))
                     else:
                         msg = 'Conversion for type {0} not handled'.format(t)
                         raise ValueError(msg)
