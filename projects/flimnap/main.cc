@@ -56,7 +56,8 @@ namespace {
         uint16_t computation_time; /* time to acquire sensor data,
                                     * update bicycle model,
                                     * and command actuators */
-        uint16_t timestamp;  /* Converted from system ticks to microseconds */
+        uint16_t timestamp;  /* system ticks
+                              * (normally 10 kHz, see CH_CFG_ST_FREQUENCY) */
     }; /* 36 bytes */
 
     pose_t pose = {};
@@ -180,10 +181,7 @@ int main(void) {
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
         chTMStopMeasurementX(&dt);
 
-         /*
-          * timestamp value is cast down to uint16_t to bypass overflow errors at non-standard
-          * values as we convert from realtime counter cycles to microseconds
-          */
+        /* timestamp value is cast down to uint16_t as we don't need all 32 bits */
         pose = pose_t{}; /* reset pose to zero */
         pose.x = bicycle.pose().x;
         pose.y = bicycle.pose().y;
@@ -194,7 +192,7 @@ int main(void) {
         pose.rear_wheel = angle::wrap(bicycle.pose().rear_wheel);
         pose.v = bicycle.v();
         pose.computation_time = static_cast<uint16_t>(RTC2US(STM32_SYSCLK, dt.last));
-        pose.timestamp = static_cast<uint16_t>(RTC2US(STM32_SYSCLK, chSysGetRealtimeCounterX()));
+        pose.timestamp = static_cast<uint16_t>(chVTGetSystemTime());
         /*
          * TODO: Pose message should be transmitted asynchronously.
          * After starting transmission, the simulation should start to calculate pose for the next timestep.

@@ -153,6 +153,11 @@ def plot_pose(data, filename=None, gitsha1=None):
     t = pose.get_time_vector(data)
     ts = data['timestamp']
     dt = (ts - np.roll(ts, 1))[1:] # length is now 1 shorter than data
+
+    # convert from system ticks to us
+    t = t.astype('int') * 1000 * 1000 / 10000
+    dt = dt.astype('int') * 1000 * 1000 / 10000
+
     rows = round((len(data.dtype.names) + 4) / 2)
     cols = 2
     names = data.dtype.names
@@ -206,7 +211,9 @@ def plot_pose(data, filename=None, gitsha1=None):
             labelname = name + ' [m]'
         elif name == 'v':
             labelname = name + ' [m/s]'
-        elif 'time' in name:
+        elif name == 'timestamp':
+            labelname = name + ' [system ticks @ 10 kHz]'
+        elif name == 'computation_time':
             labelname = name + ' [us]'
         else:
             labelname = name
