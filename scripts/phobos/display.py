@@ -57,9 +57,7 @@ class DecimatingDisplay(object):
                 y = d
 
         # last line is 'dt' which doesn't have a corresponding data element
-        line = self.lines[-1]
-        dt = self.dt[indices[:-1]]
-        replot(line, t[:-1], dt)
+        replot(self.lines[-1], self.t[indices[:-1]], self.dt[indices[:-1]])
 
         if self.lc is not None:
             trajectory = np.array([x, y]).T.reshape(-1, 1, 2)
