@@ -53,9 +53,11 @@ namespace {
         float steer; /* rad */
         float rear_wheel; /* rad */
         float v; /* m/s */
-        uint8_t timestamp;  /* Converted from system ticks to milliseconds
-                             * and contains only the least significant bits */
-    }; /* 33 bytes */
+        uint32_t computation_time; /* time to acquire sensor data,
+                                      update bicycle model,
+                                      and command actuators */
+        uint32_t timestamp;  /* Converted from system ticks to microseconds */
+    }; /* 40 bytes */
 
     pose_t pose = {};
 
@@ -143,9 +145,11 @@ int main(void) {
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
+    time_measurement_t dt;
+    chTMObjectInit(&dt);
     while (true) {
         systime_t starttime = chVTGetSystemTime();
-
+        chTMStartMeasurementX(&dt);
         constexpr float roll_torque = 0.0f;
 
         /* get sensor measurements */
@@ -174,6 +178,7 @@ int main(void) {
         saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
         dacsample_t aout = static_cast<dacsample_t>(saturated_value);
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+        chTMStopMeasurementX(&dt);
 
         pose = pose_t{}; /* reset pose to zero */
         pose.x = bicycle.pose().x;
@@ -184,14 +189,9 @@ int main(void) {
         pose.steer = angle::wrap(bicycle.pose().steer);
         pose.rear_wheel = angle::wrap(bicycle.pose().rear_wheel);
         pose.v = bicycle.v();
-        pose.timestamp = static_cast<decltype(pose.timestamp)>(ST2MS(chVTGetSystemTime()));
+        pose.computation_time = RTC2US(STM32_SYSCLK, dt.last);
+        pose.timestamp = RTC2US(STM32_SYSCLK, chSysGetRealtimeCounterX());
         /*
-         * Timing information
-         * (replaced chVTGetSystemTIme() with chSysGetRealtimeCounterX() and two
-         * uint32_t timing related fields added to pose_t)
-         * - Debug mode with all ChibiOS debug config options enabled: computation ~3.1 ms, tx ~20 us
-         * - Release mode: computation ~200 us, tx ~10 us
-         *
          * TODO: Pose message should be transmitted asynchronously.
          * After starting transmission, the simulation should start to calculate pose for the next timestep.
          * This is currently not necessary given the observed timings.
