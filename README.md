@@ -179,4 +179,4 @@ executable is given below:
     +-- projects
         +-- clustril        - Runs development static simulator code. Requires usage of SDIO which prevents usage of serial over USB.
         +-- drunlo          - Prints sensor values as ASCII. Requires usage of serial over USB.
-        +-- flimnap         - Runs static simulator code interfacing with Unity environment Bikesim(d76a2fa or newer). Cannot log data via SDIO.
+        +-- flimnap         - Runs static simulator code interfacing with Unity environment Bikesim(5ade352 or newer). Cannot log data via SDIO.
