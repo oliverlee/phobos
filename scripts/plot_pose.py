@@ -153,7 +153,7 @@ def plot_pose(data, filename=None, gitsha1=None):
     t = pose.get_time_vector(data)
     ts = data['timestamp']
     dt = (ts - np.roll(ts, 1))[1:] # length is now 1 shorter than data
-    rows = 6
+    rows = round((len(data.dtype.names) + 4) / 2)
     cols = 2
     names = data.dtype.names
     colors = sns.color_palette('husl', len(names))
@@ -177,8 +177,15 @@ def plot_pose(data, filename=None, gitsha1=None):
 
     # convert angle data from radians to degrees
     angle_names = ('pitch', 'yaw', 'roll', 'steer', 'rear_wheel')
-    data_np = tuple(data[name] if name not in angle_names else
-                 data[name]*180/np.pi for name in names)
+    data_np = []
+    for name in names:
+        if name in angle_names:
+            data_np.append(data[name] * 180/np.pi)
+        #elif name == 'timestamp':
+        #    continue
+        else:
+            data_np.append(data[name])
+        print('appending', name, 'to data')
 
     # plot objects to be added later
     dd_display = DecimatingDisplay(data_np, t, dt, set_title_func,
@@ -199,8 +206,11 @@ def plot_pose(data, filename=None, gitsha1=None):
             labelname = name + ' [m]'
         elif name == 'v':
             labelname = name + ' [m/s]'
-        elif name == 'timestamp':
-            continue
+        elif 'time' in name:
+            labelname = name + ' [us]'
+        else:
+            labelname = name
+        print('creating line for', name)
 
         ax = axes[axes_index]
         lines.append(ax.plot(td, dd, label=labelname, color=colors[n])[0])
@@ -213,13 +223,13 @@ def plot_pose(data, filename=None, gitsha1=None):
     # create dt plot
     ax = axes[3]
     lines.append(ax.plot(t[:-1], dt[indices[:-1]],
-                 label='dt [ms]', color=colors[-1])[0])
+                 label='dt [us]', color=colors[-1])[0])
     ax.legend()
     ax.set_autoscale_on(False)
     ax.callbacks.connect('xlim_changed', dd_display.ax_update)
 
-    axes[-1].set_xlabel('time [ms]')
-    axes[-2].set_xlabel('time [ms]')
+    axes[-1].set_xlabel('time [us]')
+    axes[-2].set_xlabel('time [us]')
 
     # display trajectory plot
     ax = plt.subplot2grid((rows, cols), (0, 0), rowspan=2, sharey=axes[5])
@@ -233,7 +243,7 @@ def plot_pose(data, filename=None, gitsha1=None):
     ax = plt.subplot2grid((rows, cols), (0, 1))
     histf = lambda dt: _plot_histogram(
             ax, dt, logscale=True, color=colors[-1],
-            label='loop time [ms]\nmax time = {}'.format(dt.max()))
+            label='loop time [us]\nmax time = {}'.format(dt.max()))
     histf(dt)
     axes[1] = ax
 
