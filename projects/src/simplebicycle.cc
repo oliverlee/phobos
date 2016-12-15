@@ -130,7 +130,7 @@ real_t SimpleBicycle::solve_constraint_pitch(const state_t& x, real_t guess, siz
     static constexpr real_t two = static_cast<real_t>(2.0);
     static constexpr real_t one_point_five = static_cast<real_t>(1.5);
     static const real_t min = static_cast<real_t>(0.0);
-    static const real_t max = constants::pi/2;
+    static const real_t max = constants::pi/4;
     boost::uintmax_t max_iterations;
 
     if (iteration_limit > 0) {
