@@ -57,7 +57,7 @@ void SimpleBicycle::update(real_t roll_torque_input, real_t steer_torque_input,
     update_state(steer_angle_measurement);
     m_x_aux = integrate_auxiliary_state(m_x, m_x_aux);
     m_x_aux[auxiliary_state_index_t::pitch_angle] =
-        solve_constraint_pitch(m_x, m_x_aux[auxiliary_state_index_t::pitch_angle]);
+        solve_constraint_pitch(m_x, m_x_aux[auxiliary_state_index_t::pitch_angle], 3);
     update_feedback_torque();
 
     set_pose();
@@ -130,13 +130,13 @@ real_t SimpleBicycle::solve_constraint_pitch(const state_t& x, real_t guess, siz
     static constexpr real_t two = static_cast<real_t>(2.0);
     static constexpr real_t one_point_five = static_cast<real_t>(1.5);
     static const real_t min = static_cast<real_t>(0.0);
-    static const real_t max = constants::pi/2;
+    static const real_t max = constants::pi/4;
     boost::uintmax_t max_iterations;
 
     if (iteration_limit > 0) {
         max_iterations = iteration_limit;
     } else {
-        // use a "reasonable" default number of this case
+        // use a "reasonable" default number in this case
         max_iterations = 7;
     }
 
