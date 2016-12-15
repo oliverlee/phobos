@@ -35,23 +35,29 @@ class DecimatingDisplay(object):
         t, data, dfactor, indices = self.decimate(time_range)
         self.title_func(ax.figure, dfactor)
 
+        def replot(line, t, d):
+            line.set_data(t, d)
+            ymin = d.min()
+            ymax = d.max()
+            dy = ymax - ymin
+            margin = max(dy * 0.1, 0.001)
+            line.axes.set_ylim(ymin - margin, ymax + margin)
+
         x = None
         y = None
         xlim = None
         for line, d in zip(self.lines, data):
             if line is not None:
-                line.set_data(t, d)
-                ymin = d.min()
-                ymax = d.max()
-                dy = ymax - ymin
-                margin = dy * 0.1
-                line.axes.set_ylim(d.min() - margin, d.max() + margin)
+                replot(line, t, d)
             # save decimated x and y samples
             if x is None:
                 x = d
                 xlim = line.axes.get_ylim()
             elif y is None:
                 y = d
+
+        # last line is 'dt' which doesn't have a corresponding data element
+        replot(self.lines[-1], self.t[indices[:-1]], self.dt[indices[:-1]])
 
         if self.lc is not None:
             trajectory = np.array([x, y]).T.reshape(-1, 1, 2)
