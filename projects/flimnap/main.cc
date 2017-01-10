@@ -25,7 +25,6 @@
 #include "gitsha1.h"
 #include "angle.h"
 #include "blink.h"
-#include "simplebicycle.h"
 #include "usbconfig.h"
 #include "saconfig.h"
 
@@ -34,8 +33,13 @@
 #include <algorithm>
 #include <array>
 
+#include "bicycle.h" /* whipple bicycle model */
+#include "oracle.h" /* oracle observer */
+#include "simbicycle.h"
+
 namespace {
-    float v = 3.0;
+    using bicycle_t = sim::Bicycle<model::Bicycle, observer::Oracle<model::Bicycle>>;
+
     /* sensors */
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
@@ -61,6 +65,29 @@ namespace {
     }; /* 36 bytes */
 
     pose_t pose = {};
+
+    void set_handlebar_torque(float handlebar_torque) {
+        int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
+        saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
+        dacsample_t aout = static_cast<dacsample_t>(saturated_value);
+        dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+    }
+
+    void set_pose(bicycle_t bicycle, time_measurement_t computation_time_measurement) {
+        pose = pose_t{}; /* reset pose to zero */
+
+        pose.timestamp = bicycle.pose().timestamp;
+        pose.x = bicycle.pose().x;
+        pose.y = bicycle.pose().y;
+        pose.rear_wheel = angle::wrap(bicycle.pose().rear_wheel);
+        pose.pitch = angle::wrap(bicycle.pose().pitch);
+        pose.yaw = angle::wrap(bicycle.pose().yaw);
+        pose.roll = angle::wrap(bicycle.pose().roll);
+        pose.steer = angle::wrap(bicycle.pose().steer);
+        pose.v = bicycle.v();
+        pose.computation_time = static_cast<uint16_t>(RTC2US(STM32_SYSCLK,
+                    computation_time_measurement.last));
+    }
 
     using namespace packet::frame;
     std::array<uint8_t, sizeof(pose_t) + PACKET_OVERHEAD> packet_buffer;
@@ -132,8 +159,9 @@ int main(void) {
 
     /*
      * Initialize bicycle with default parameters, dt = 0.005 s.
+     * TODO: change observer to Kalman
      */
-    model::SimpleBicycle bicycle(v);
+    bicycle_t bicycle;
 
     /* transmit git sha information, block until receiver is ready */
     uint8_t bytes_written = packet::frame::stuff(g_GITSHA1, packet_buffer.data(), 7);
@@ -161,38 +189,24 @@ int main(void) {
                 sa::MAX_KOLLMORGEN_TORQUE);
         float steer_angle = angle::encoder_count<float>(encoder_steer);
         float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
-
-        (void)motor_torque; /* remove build warning */
-        v = velocity_filter.output(
+        float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
+        (void)motor_torque; /* remove build warning */
 
         /* yaw angle, just use previous state value */
         float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
         /* simulate bicycle */
         bicycle.set_v(v);
-        bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+        bicycle.update_kinematics(); // TODO move this into a separate loop
 
-        /* generate an example torque output for testing */
-        float feedback_torque = bicycle.handlebar_feedback_torque();
-        int32_t saturated_value = (feedback_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
-        saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
-        dacsample_t aout = static_cast<dacsample_t>(saturated_value);
-        dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+        /* generate handlebar torque output */
+        set_handlebar_torque(bicycle.handlebar_feedback_torque());
         chTMStopMeasurementX(&dt);
 
         /* timestamp value is cast down to uint16_t as we don't need all 32 bits */
-        pose = pose_t{}; /* reset pose to zero */
-        pose.x = bicycle.pose().x;
-        pose.y = bicycle.pose().y;
-        pose.pitch = angle::wrap(bicycle.pose().pitch);
-        pose.yaw = angle::wrap(bicycle.pose().yaw);
-        pose.roll = angle::wrap(bicycle.pose().roll);
-        pose.steer = angle::wrap(bicycle.pose().steer);
-        pose.rear_wheel = angle::wrap(bicycle.pose().rear_wheel);
-        pose.v = bicycle.v();
-        pose.computation_time = static_cast<uint16_t>(RTC2US(STM32_SYSCLK, dt.last));
-        pose.timestamp = static_cast<uint16_t>(chVTGetSystemTime());
+        set_pose(bicycle, dt);
         /*
          * TODO: Pose message should be transmitted asynchronously.
          * After starting transmission, the simulation should start to calculate pose for the next timestep.

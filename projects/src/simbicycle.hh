@@ -55,7 +55,7 @@ void Bicycle<T, U>::update_dynamics(real_t roll_torque_input, real_t steer_torqu
     constexpr uint8_t steer_angle_index = static_cast<uint8_t>(model_t::output_index_t::steer_angle);
 
     input_t input = input_t::Zero();
-    output_t measurement = output_t::Zero();
+    measurement_t measurement = measurement_t::Zero();
 
     input[roll_torque_index] = roll_torque_input;
     input[steer_torque_index] = steer_torque_input;
@@ -67,6 +67,7 @@ void Bicycle<T, U>::update_dynamics(real_t roll_torque_input, real_t steer_torqu
     //       observer state?
     chBSemWait(&m_kstate_sem);
     m_observer.update_state(input, measurement);
+    m_T_m = 0;
     chBSemSignal(&m_kstate_sem);
 }
 
