@@ -8,9 +8,9 @@ set(PHOBOS_COMMON_SRC
     ${PROJECT_SOURCE_DIR}/src/blink.cc)
 
 # suppress Boost undef warnings and Eigen deprecated warnings
-set_property(SOURCE
-    ${PHOBOS_PROJECT_SOURCE_DIR}/simplebicycle.cc
-    APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef -Wno-deprecated")
+#set_property(SOURCE
+#    ${PHOBOS_PROJECT_SOURCE_DIR}/simplebicycle.cc
+#    APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef -Wno-deprecated")
 
 add_phobos_executable(flimnap
     chconf.h
@@ -18,7 +18,7 @@ add_phobos_executable(flimnap
     mcuconf.h
     main.cc
     usbconfig.c # add USB config file without input/output buffer queues
-    ${PHOBOS_PROJECT_SOURCE_DIR}/simplebicycle.cc
+    #${PHOBOS_PROJECT_SOURCE_DIR}/simplebicycle.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc

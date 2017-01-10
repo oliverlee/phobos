@@ -31,7 +31,7 @@ class Bicycle {
         using state_t = typename model_t::state_t;
         using auxiliary_state_t = typename model_t::auxiliary_state_t;
         using input_t = typename model_t::input_t;
-        using output_t = typename model_t::output_t;
+        using measurement_t = typename model_t::output_t;
         using full_state_index_t = typename model_t::full_state_index_t;
 
         /* default bicycle model parameters */
@@ -75,6 +75,7 @@ class Bicycle {
         auxiliary_state_t m_kstate; /* auxiliary state for kinematics */
         BicyclePoseMessage m_pose; /* Unity visualization message */
         binary_semaphore_t m_kstate_sem; /* bsem for synchronizing kinematics update */
+        real_t m_T_m; /* handlebar feedback torque */
 
         real_t get_state_element(full_state_index_t field);
 };
