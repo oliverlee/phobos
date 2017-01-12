@@ -17,6 +17,17 @@ As most computers will be running a 64-bit kernel, libraries for ia32/i386
 architecture will need to be installed if not already. For recent versions of
 Ubuntu, this can be installed with the `gcc-multilib` package.
 
+## Dependencies
+The only dependency required for building is protobuf. The protobuf libraries,
+compiler, and python bindings must be installed. On OSX this can be done with
+brew (optionally with c++11 support)
+
+    oliver@canopus:~$ brew install protobuf --c++11
+
+On Ubuntu, this can be installed from the official repositories
+
+    mick@MOBISTORM-UBUNTU:~$ sudo apt-get install libprotobuf-dev protobuf-compiler python-protobuf
+
 ## Building
 As this project is dependent on a number of git submodules, as well as nested
 submodules, they should be initialized when the repository is first cloned.
