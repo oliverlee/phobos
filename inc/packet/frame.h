@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <cstddef>
 
 /*
  * Packet framing uses the Consistent Overhead Byte Stuffing algorithm for
@@ -25,19 +26,19 @@ constexpr auto PACKET_DELIMITER = COBS_PACKET_DELIMITER;
  * Returns number of bytes in dest buffer after stuffing,
  * including packet frame overhead and delimiter.
  */
-uint8_t stuff(const void* source, void* dest, uint8_t source_byte_size);
+size_t stuff(const void* source, void* dest, size_t source_byte_size);
 
 /*
  * Returns number of bytes in dest buffer after unstuffing.
  * Requires a priori knowledge of number of bytes in source.
  */
-uint8_t unstuff(const void* source, void* dest, uint8_t source_byte_size);
+size_t unstuff(const void* source, void* dest, size_t source_byte_size);
 
 /*
  * Returns number of bytes in dest buffer after unstuffing.
  * Assumes source is valid: number of bytes <= COBS_MAX_SIZE_DATA_SET + COBS_PACKET_OVERHEAD.
  */
-uint8_t unstuff(const void* source, void* dest);
+size_t unstuff(const void* source, void* dest);
 
 } // namespace frame
 } // namespace packet

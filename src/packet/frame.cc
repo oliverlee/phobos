@@ -10,7 +10,7 @@
 namespace packet {
 namespace frame {
 
-uint8_t stuff(const void* source, void* dest, uint8_t source_byte_size) {
+size_t stuff(const void* source, void* dest, size_t source_byte_size) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
     osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET,
@@ -45,7 +45,7 @@ uint8_t stuff(const void* source, void* dest, uint8_t source_byte_size) {
     return source_byte_size + PACKET_OVERHEAD;
 }
 
-uint8_t unstuff(const void* source, void* dest, uint8_t source_byte_size) {
+size_t unstuff(const void* source, void* dest, size_t source_byte_size) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
     // osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET + 1,
@@ -73,7 +73,7 @@ uint8_t unstuff(const void* source, void* dest, uint8_t source_byte_size) {
     return source_byte_size - PACKET_OVERHEAD;
 }
 
-uint8_t unstuff(const void* source, void* dest) {
+size_t unstuff(const void* source, void* dest) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
 
