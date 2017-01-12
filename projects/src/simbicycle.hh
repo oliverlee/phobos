@@ -1,3 +1,5 @@
+#include <cmath>
+#include <boost/math/special_functions/round.hpp>
 /*
  * Member function definitions of sim::Bicycle template class.
  * See simbicycle.h for template class declaration.
@@ -20,12 +22,22 @@ m_pose() {
 
 template <typename T, typename U>
 void Bicycle<T, U>::set_v(real_t v)  {
-    m_model.set_v_dt(v, m_model.dt());
+    using namespace boost::math::policies;
+    using quantize_policy = policy<rounding_error<ignore_error>>;
+    static constexpr quantize_policy policy;
+
+    real_t v_quantized = v_quantization_resolution *
+        boost::math::round(v/v_quantization_resolution, policy);
+    if (v_quantized != this->v()) {
+        m_model.set_v_dt(v_quantized, m_model.dt());
+    }
 }
 
 template <typename T, typename U>
 void Bicycle<T, U>::set_dt(real_t dt)  {
-    m_model.set_v_dt(m_model.v(), dt);
+    if (dt != this->dt()) {
+        m_model.set_v_dt(m_model.v(), dt);
+    }
 }
 
 template <typename T, typename U>

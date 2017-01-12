@@ -38,6 +38,7 @@ class Bicycle {
         static constexpr real_t default_fs = 200.0; /* sample rate [Hz] */
         static constexpr real_t default_dt = 1.0/default_fs; /* sample period [s] */
         static constexpr real_t default_v = 5.0; /* forward speed [m/s] */
+        static constexpr real_t v_quantization_resolution = 0.1; /* [m/s] */
 
         Bicycle(real_t v = default_v, real_t dt = default_dt);
 
