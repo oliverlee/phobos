@@ -94,11 +94,11 @@ int main(void) {
 
     /* initialize Kalman filter */
     kalman_t kalman(bicycle,
+            bicycle_t::state_t::Zero(), /* set initial state estimate to zero */
             parameters::defaultvalue::kalman::Q(dt), /* process noise cov */
             (kalman_t::measurement_noise_covariance_t() <<
              sigma0,      0,
                   0, sigma1).finished(),
-            bicycle_t::state_t::Zero(), /* set initial state estimate to zero */
             std::pow(x[1]/2, 2) * bicycle_t::state_matrix_t::Identity()); /* error cov */
 
     /*
@@ -125,20 +125,20 @@ int main(void) {
 
         /* advance bicycle model (~30 us) */
         state_update_time = chSysGetRealtimeCounterX();
-        x = bicycle.x_next(x, u);
+        x = bicycle.update_state(x, u);
         state_update_time = chSysGetRealtimeCounterX() - state_update_time;
 
         /* observer time/measurement update (~512 us) */
         kalman_update_time = chSysGetRealtimeCounterX();
         kalman.time_update(u);
-        kalman.measurement_update(bicycle.y(x)); /* use noiseless bicycle system output */
+        kalman.measurement_update(bicycle.calculate_output(x)); /* use noiseless bicycle system output */
         x_hat = kalman.x();
         kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
 
         /* update auxiliary state and auxiliary state estimate (~2.4 ms - ~9.5 ms) */
         aux_update_time = chSysGetRealtimeCounterX();
-        aux = bicycle.x_aux_next(x, aux);
-        aux_hat = bicycle.x_aux_next(x_hat, aux_hat);
+        aux = bicycle.update_auxiliary_state(x, aux);
+        aux_hat = bicycle.update_auxiliary_state(x_hat, aux_hat);
         aux_update_time = chSysGetRealtimeCounterX() - aux_update_time;
 
         printf("error:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",

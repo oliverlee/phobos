@@ -15,11 +15,11 @@ namespace {
 VirtualBicycle::VirtualBicycle(float v, float dt, float sigma0, float sigma1) :
 m_bicycle(v , dt),
 m_kalman(m_bicycle, /* bicycle model used in Kalman filter */
+        bicycle_t::state_t::Zero(), /* initial state estimate */
         parameters::defaultvalue::kalman::Q(dt), /* process noise cov */
         (kalman_t::measurement_noise_covariance_t() << /* measurement noise cov */
          sigma0,      0,
               0, sigma1).finished(),
-        bicycle_t::state_t::Zero(), /* initial state estimate */
         std::pow(sigma0, 2)*bicycle_t::state_matrix_t::Identity()), /* error cov */ // FIXME
 m_pose_size(0) {
     m_u.setZero();
@@ -41,7 +41,7 @@ void VirtualBicycle::update(float roll_torque_input, float steer_torque_input, /
     m_kalman.time_update(m_u);
     m_kalman.measurement_update(m_z);
 
-    m_x_aux = m_bicycle.x_aux_next(m_kalman.x(), m_x_aux);
+    m_x_aux = m_bicycle.update_auxiliary_state(m_kalman.x(), m_x_aux);
 
     m_pose.timestamp = 1; // FIXME when running at a different rate
     m_pose.x = m_x_aux[0];
