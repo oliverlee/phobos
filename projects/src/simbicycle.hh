@@ -79,6 +79,15 @@ void Bicycle<T, U>::update_dynamics(real_t roll_torque_input, real_t steer_torqu
     //       observer state?
     chBSemWait(&m_kstate_sem);
     m_observer.update_state(input, measurement);
+
+    constexpr uint8_t roll_angle_index = static_cast<uint8_t>(model_t::state_index_t::roll_angle);
+    const real_t state_roll_angle = m_observer.state()[roll_angle_index];
+    if (std::abs(state_roll_angle) > roll_angle_limit) {
+        state_t x = m_observer.state();
+        x[roll_angle_index] = std::copysign(roll_angle_limit, state_roll_angle);
+        m_observer.set_state(x);
+    }
+
     m_T_m = 0;
     chBSemSignal(&m_kstate_sem);
 }

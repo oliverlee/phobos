@@ -39,6 +39,7 @@ class Bicycle {
         static constexpr real_t default_dt = 1.0/default_fs; /* sample period [s] */
         static constexpr real_t default_v = 5.0; /* forward speed [m/s] */
         static constexpr real_t v_quantization_resolution = 0.1; /* [m/s] */
+        static constexpr real_t roll_angle_limit = 60.0 * constants::as_radians; /* [rad] */
 
         Bicycle(real_t v = default_v, real_t dt = default_dt);
 
