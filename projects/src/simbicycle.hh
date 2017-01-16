@@ -184,7 +184,7 @@ model::real_t Bicycle<T, U, V>::dt() const {
 }
 
 template <typename T, typename U, typename V>
-model::real_t Bicycle<T, U, V>::get_state_element(full_state_index_t field) {
+model::real_t Bicycle<T, U, V>::get_state_element(Bicycle<T, U, V>::full_state_index_t field) {
     /*
      * a field may be a state_t element or an auxiliary_state_t element
      * depending on what model is used.
