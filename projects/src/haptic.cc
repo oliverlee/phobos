@@ -36,4 +36,46 @@ model::real_t HandlebarStatic::feedback_torque(const model::Bicycle::state_t& x,
     return -(K(1, 1) - K(0, 1)*K(1, 0)/K(0, 0))*x[steer_index];
 }
 
+HandlebarDynamic::HandlebarDynamic(model::Bicycle& bicycle, model::real_t moment_of_inertia) :
+    m_bicycle(bicycle),
+    m_I_delta(moment_of_inertia) { }
+
+/*
+ * The equations of motion for the Whipple model can be written as:
+ *   M [phi_dd  ] + v*C1 [phi_d  ] + K [phi  ] = [T_phi  ]
+ *     [delta_dd]        [delta_d]     [delta] = [T_delta]
+ * where v*C1 is used to distinguish the "damping" matrix from the state
+ * space output matrix C. In this simulation, T_phi defined to be 0 as there
+ * is no way for the user nor the environment to supply a roll torque.
+ *
+ * The dynamics of the handlebar are governed by the following equation of
+ * motion:
+ *  I_delta * delta_dd = T_delta + T_m.
+ *
+ * Note: Positive torque and steer angle is clockwise as seen from the rider
+ * looking down at the handlebars.
+ *
+ * In standard state space form, the equations of motion for the system are:
+ *  [phi_d   ] = A [phi    ] + B [T_phi]
+ *  [delta_d ]     [delta  ]     [T_delta]
+ *  [phi_dd  ]     [phi_d  ]
+ *  [delta_dd]     [delta_d]
+ *
+ * As we need an estimate of the steer angle acceleration, we use the last row
+ * of A and B _with_ the assumption that the full state is available. As the
+ * state vector is appended with yaw angle in this implementation, this must be
+ * accounted for when calculating delta_dd.
+ *
+ * The output of this function is very susceptible to error/noise in the
+ * state or noise in the input. For use with equipment, it is suggested to
+ * filter the returned value.
+ */
+model::real_t HandlebarDynamic::feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
+    const uint8_t steer_rate_index = static_cast<uint8_t>(model::Bicycle::state_index_t::steer_rate);
+    const uint8_t steer_torque_index = static_cast<uint8_t>(model::Bicycle::input_index_t::steer_torque);
+
+    model::real_t steer_acceleration = (m_bicycle.A().row(steer_rate_index)*x + m_bicycle.B().row(steer_rate_index)*u).value();
+    return steer_acceleration*m_I_delta - u[steer_torque_index];
+}
+
 } //namespace haptic

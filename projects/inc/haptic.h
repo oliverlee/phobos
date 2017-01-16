@@ -30,4 +30,17 @@ class HandlebarStatic final : public HandlebarBase {
         virtual model::real_t feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const override;
 };
 
-} // namespace haptic
+/*
+ * This class calculates handlebar feedback torque using the bicycle state
+ * transition equation and physical moment of inertia of the steering assembly.
+ */
+class HandlebarDynamic final : public HandlebarBase {
+    public:
+        HandlebarDynamic(model::Bicycle& bicycle, model::real_t moment_of_inertia);
+        virtual model::real_t feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const override;
+
+    private:
+        model::real_t m_I_delta;
+};
+
+} // namespace  // namespace haptic
