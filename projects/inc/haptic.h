@@ -21,6 +21,7 @@ class HandlebarBase {
 class null_t final : public HandlebarBase {
     public:
         null_t(model::Bicycle& bicycle);
+        null_t(model::Bicycle& bicycle, model::real_t moment_of_inertia);
         virtual model::real_t feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const override;
 };
 
@@ -32,6 +33,7 @@ class null_t final : public HandlebarBase {
 class HandlebarStatic final : public HandlebarBase {
     public:
         HandlebarStatic(model::Bicycle& bicycle);
+        HandlebarStatic(model::Bicycle& bicycle, model::real_t moment_of_inertia);
         virtual model::real_t feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const override;
 
     private:

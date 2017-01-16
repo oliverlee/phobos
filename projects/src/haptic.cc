@@ -8,6 +8,11 @@ null_t::null_t(model::Bicycle& bicycle) {
     (void)bicycle;
 }
 
+null_t::null_t(model::Bicycle& bicycle, model::real_t moment_of_inertia) {
+    (void)bicycle;
+    (void)moment_of_inertia;
+}
+
 model::real_t null_t::feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
     (void)x;
     (void)u;
@@ -16,6 +21,10 @@ model::real_t null_t::feedback_torque(const model::Bicycle::state_t& x, const mo
 
 HandlebarStatic::HandlebarStatic(model::Bicycle& bicycle) :
     m_bicycle(bicycle) { }
+
+HandlebarStatic::HandlebarStatic(model::Bicycle& bicycle, model::real_t moment_of_inertia) : HandlebarStatic(bicycle) {
+    (void)moment_of_inertia;
+}
 
 /*
  * Simplified equations of motion are used to simulate the bicycle dynamics.
