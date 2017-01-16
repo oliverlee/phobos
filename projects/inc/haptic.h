@@ -15,8 +15,13 @@ class HandlebarBase {
         virtual model::real_t feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const = 0;
 
     protected:
-        model::Bicycle& m_bicycle;
         ~HandlebarBase() { }
+};
+
+class null_t final : public HandlebarBase {
+    public:
+        null_t(model::Bicycle& bicycle);
+        virtual model::real_t feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const override;
 };
 
 /*
@@ -28,6 +33,9 @@ class HandlebarStatic final : public HandlebarBase {
     public:
         HandlebarStatic(model::Bicycle& bicycle);
         virtual model::real_t feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const override;
+
+    private:
+        model::Bicycle& m_bicycle;
 };
 
 /*
@@ -40,6 +48,7 @@ class HandlebarDynamic final : public HandlebarBase {
         virtual model::real_t feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const override;
 
     private:
+        model::Bicycle& m_bicycle;
         model::real_t m_I_delta;
 };
 

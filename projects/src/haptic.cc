@@ -4,6 +4,16 @@
 
 namespace haptic {
 
+null_t::null_t(model::Bicycle& bicycle) {
+    (void)bicycle;
+}
+
+model::real_t null_t::feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
+    (void)x;
+    (void)u;
+    return 0;
+}
+
 HandlebarStatic::HandlebarStatic(model::Bicycle& bicycle) :
     m_bicycle(bicycle) { }
 

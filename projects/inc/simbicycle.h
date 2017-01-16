@@ -17,7 +17,7 @@ namespace sim {
  *  - provides a single interface for using different bicycle models
  *  - allows simulation of dynamics and kinematics separately
  */
-template <typename T, typename U, typename V>
+template <typename T, typename U, typename V = haptic::null_t>
 class Bicycle {
     static_assert(std::is_base_of<model::Bicycle, T>::value,
             "Invalid template parameter type for sim::Bicycle");
