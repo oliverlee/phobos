@@ -50,4 +50,7 @@ constexpr DACConfig dac1cfg1 = {
 };
 constexpr const DACConfig* KOLLM_DAC_CFG = &dac1cfg1;
 
+// TODO: measure the real value
+constexpr float STEER_ASSEMBLY_INERTIA = 0.1f; /* moment of inertia of steering assembly about the steer axis, kg-m^2 */
+
 } // namespace

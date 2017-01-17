@@ -7,12 +7,18 @@ set(PHOBOS_COMMON_SRC
     ${PROJECT_BINARY_DIR}/src/gitsha1.cc
     ${PROJECT_SOURCE_DIR}/src/blink.cc)
 
+# suppress Boost undef warnings and Eigen deprecated warnings
+set_property(SOURCE
+    ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
+    APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef -Wno-deprecated")
+
 add_phobos_executable(flimnap
     chconf.h
     halconf.h
     mcuconf.h
     main.cc
     usbconfig.c # add USB config file without input/output buffer queues
+    ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc

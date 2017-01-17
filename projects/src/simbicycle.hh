@@ -7,10 +7,11 @@
 
 namespace sim {
 
-template <typename T, typename U>
-Bicycle<T, U>::Bicycle(real_t v, real_t dt) :
+template <typename T, typename U, typename V>
+Bicycle<T, U, V>::Bicycle(real_t v, real_t dt, real_t steer_inertia) :
 m_model(v, dt),
 m_observer(m_model),
+m_haptic(m_model, steer_inertia),
 m_dstate(state_t::Zero()),
 m_kstate(auxiliary_state_t::Zero()),
 m_pose() {
@@ -20,8 +21,8 @@ m_pose() {
 }
 
 
-template <typename T, typename U>
-void Bicycle<T, U>::set_v(real_t v)  {
+template <typename T, typename U, typename V>
+void Bicycle<T, U, V>::set_v(real_t v)  {
     using namespace boost::math::policies;
     using quantize_policy = policy<rounding_error<ignore_error>>;
     static constexpr quantize_policy policy;
@@ -33,20 +34,20 @@ void Bicycle<T, U>::set_v(real_t v)  {
     }
 }
 
-template <typename T, typename U>
-void Bicycle<T, U>::set_dt(real_t dt)  {
+template <typename T, typename U, typename V>
+void Bicycle<T, U, V>::set_dt(real_t dt)  {
     if (dt != this->dt()) {
         m_model.set_v_dt(m_model.v(), dt);
     }
 }
 
-template <typename T, typename U>
-void Bicycle<T, U>::reset() {
+template <typename T, typename U, typename V>
+void Bicycle<T, U, V>::reset() {
     m_observer.reset();
 }
 
-template <typename T, typename U>
-void Bicycle<T, U>::update_dynamics(real_t roll_torque_input, real_t steer_torque_input,
+template <typename T, typename U, typename V>
+void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_torque_input,
     real_t yaw_angle_measurement,
     real_t steer_angle_measurement,
     real_t rear_wheel_angle_measurement) {
@@ -104,12 +105,12 @@ void Bicycle<T, U>::update_dynamics(real_t roll_torque_input, real_t steer_torqu
         m_observer.set_state(x);
     }
 
-    m_T_m = 0;
+    m_T_m = m_haptic.feedback_torque(m_observer.state(), input);
     chBSemSignal(&m_kstate_sem);
 }
 
-template <typename T, typename U>
-void Bicycle<T, U>::update_kinematics() {
+template <typename T, typename U, typename V>
+void Bicycle<T, U, V>::update_kinematics() {
     /* prevent copy of observer state during update_dynamics() */
     chBSemWait(&m_kstate_sem);
     m_dstate = m_observer.state();
@@ -128,79 +129,78 @@ void Bicycle<T, U>::update_kinematics() {
 }
 
 
-template <typename T, typename U>
-const BicyclePoseMessage& Bicycle<T, U>::pose() const {
+template <typename T, typename U, typename V>
+const BicyclePoseMessage& Bicycle<T, U, V>::pose() const {
     return m_pose;
 }
 
-template <typename T, typename U>
-model::real_t Bicycle<T, U>::handlebar_feedback_torque() const {
-    // TODO: implement handlebar feedback torque
-    return 0;
+template <typename T, typename U, typename V>
+model::real_t Bicycle<T, U, V>::handlebar_feedback_torque() const {
+    return m_T_m;
 }
 
-template <typename T, typename U>
-typename Bicycle<T, U>::model_t& Bicycle<T, U>::model() const {
+template <typename T, typename U, typename V>
+typename Bicycle<T, U, V>::model_t& Bicycle<T, U, V>::model() const {
     return m_model;
 };
 
-template <typename T, typename U>
-const typename Bicycle<T, U>::second_order_matrix_t& Bicycle<T, U>::M() const {
+template <typename T, typename U, typename V>
+const typename Bicycle<T, U, V>::second_order_matrix_t& Bicycle<T, U, V>::M() const {
     return m_model.M();
 }
 
-template <typename T, typename U>
-const typename Bicycle<T, U>::second_order_matrix_t& Bicycle<T, U>::C1() const {
+template <typename T, typename U, typename V>
+const typename Bicycle<T, U, V>::second_order_matrix_t& Bicycle<T, U, V>::C1() const {
     return m_model.C1();
 }
 
-template <typename T, typename U>
-const typename Bicycle<T, U>::second_order_matrix_t& Bicycle<T, U>::K0() const {
+template <typename T, typename U, typename V>
+const typename Bicycle<T, U, V>::second_order_matrix_t& Bicycle<T, U, V>::K0() const {
     return m_model.K0();
 }
 
-template <typename T, typename U>
-const typename Bicycle<T, U>::second_order_matrix_t& Bicycle<T, U>::K2() const {
+template <typename T, typename U, typename V>
+const typename Bicycle<T, U, V>::second_order_matrix_t& Bicycle<T, U, V>::K2() const {
     return m_model.K2();
 }
 
-template <typename T, typename U>
-model::real_t Bicycle<T, U>::wheelbase() const {
+template <typename T, typename U, typename V>
+model::real_t Bicycle<T, U, V>::wheelbase() const {
     return m_model.wheelbase();
 }
 
-template <typename T, typename U>
-model::real_t Bicycle<T, U>::trail() const {
+template <typename T, typename U, typename V>
+model::real_t Bicycle<T, U, V>::trail() const {
     return m_model.trail();
 }
 
-template <typename T, typename U>
-model::real_t Bicycle<T, U>::steer_axis_tilt() const {
+template <typename T, typename U, typename V>
+model::real_t Bicycle<T, U, V>::steer_axis_tilt() const {
     return m_model.steer_axis_tilt();
 }
 
-template <typename T, typename U>
-model::real_t Bicycle<T, U>::rear_wheel_radius() const {
+template <typename T, typename U, typename V>
+model::real_t Bicycle<T, U, V>::rear_wheel_radius() const {
     return m_model.rear_wheel_radius();
 }
 
-template <typename T, typename U>
-model::real_t Bicycle<T, U>::front_wheel_radius() const {
+template <typename T, typename U, typename V>
+model::real_t Bicycle<T, U, V>::front_wheel_radius() const {
     return m_model.front_wheel_radius();
 }
 
-template <typename T, typename U>
-model::real_t Bicycle<T, U>::v() const {
+template <typename T, typename U, typename V>
+model::real_t Bicycle<T, U, V>::v() const {
     return m_model.v();
 }
 
-template <typename T, typename U>
-model::real_t Bicycle<T, U>::dt() const {
+template <typename T, typename U, typename V>
+model::real_t Bicycle<T, U, V>::dt() const {
     return m_model.dt();
 }
 
-template <typename T, typename U>
-model::real_t Bicycle<T, U>::get_state_element(full_state_index_t field) {
+template <typename T, typename U, typename V>
+model::real_t Bicycle<T, U, V>::get_state_element(Bicycle<T, U, V>::full_state_index_t field) {
     /*
      * a field may be a state_t element or an auxiliary_state_t element
      * depending on what model is used.

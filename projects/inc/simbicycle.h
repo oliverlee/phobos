@@ -1,6 +1,7 @@
 #pragma once
 #include "ch.h"
 #include "pose.pb.h"
+#include "saconfig.h"
 /* bicycle submodule imports */
 #include "bicycle.h"
 #include "observer.h"
@@ -11,21 +12,24 @@ namespace sim {
 
 /*
  * This template class simulates a bicycle model (template argument T)
- * with an observer type (template argument U)
+ * with an observer type (template argument U) and a handlebar feedback type V
  *  - incorporates fields necessary for visualization, such as wheel angle
  *  - provides a single interface for using different bicycle models
  *  - allows simulation of dynamics and kinematics separately
  */
-template <typename T, typename U>
+template <typename T, typename U, typename V = haptic::null_t>
 class Bicycle {
     static_assert(std::is_base_of<model::Bicycle, T>::value,
             "Invalid template parameter type for sim::Bicycle");
     static_assert(std::is_base_of<observer::ObserverBase, U>::value,
             "Invalid template parameter type for sim::Bicycle");
+    static_assert(std::is_base_of<haptic::HandlebarBase, V>::value,
+            "Invalid template parameter type for sim::Bicycle");
 
     public:
         using model_t = T;
         using observer_t = U;
+        using haptic_t = V; /* right now we only have handlebar feedback with pedaling feedback to be implemented */
         using real_t = model::real_t;
         using second_order_matrix_t = typename model_t::second_order_matrix_t;
         using state_t = typename model_t::state_t;
@@ -38,12 +42,11 @@ class Bicycle {
         static constexpr real_t default_fs = 200.0; /* sample rate, Hz */
         static constexpr real_t default_dt = 1.0/default_fs; /* sample period, s */
         static constexpr real_t default_v = 5.0; /* forward speed, m/s */
+        static constexpr real_t default_steer_inertia = sa::STEER_ASSEMBLY_INERTIA; /* kg-m^2 */
         static constexpr real_t v_quantization_resolution = 0.1; /* m/s */
-        static constexpr real_t roll_angle_limit = 60.0 * constants::as_radians; /*  60 deg as rad */
-        static constexpr real_t roll_rate_limit = 1e10; /* rad */
-        static constexpr real_t steer_rate_limit = 1e10 * constants::as_radians; /* rad */
+        static constexpr real_t roll_angle_limit = 60.0 * constants::as_radians; /* 60 deg in rad */
 
-        Bicycle(real_t v = default_v, real_t dt = default_dt);
+        Bicycle(real_t v = default_v, real_t dt = default_dt, real_t steer_inertia = default_steer_inertia);
 
         void set_v(real_t v);
         void set_dt(real_t dt);
@@ -75,6 +78,7 @@ class Bicycle {
     private:
         model_t m_model; /* bicycle model object */
         observer_t m_observer; /* observer object */
+        haptic_t m_haptic; /* handlebar feedback calculation object */
         state_t m_dstate; /* _copy_ of dynamic state used for kinematics update */
         auxiliary_state_t m_kstate; /* auxiliary state for kinematics */
         BicyclePoseMessage m_pose; /* Unity visualization message */
