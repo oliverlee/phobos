@@ -80,11 +80,27 @@ void Bicycle<T, U>::update_dynamics(real_t roll_torque_input, real_t steer_torqu
     chBSemWait(&m_kstate_sem);
     m_observer.update_state(input, measurement);
 
-    constexpr uint8_t roll_angle_index = static_cast<uint8_t>(model_t::state_index_t::roll_angle);
-    const real_t state_roll_angle = m_observer.state()[roll_angle_index];
-    if (std::abs(state_roll_angle) > roll_angle_limit) {
+    { /* limit allowed bicycle state */
         state_t x = m_observer.state();
-        x[roll_angle_index] = std::copysign(roll_angle_limit, state_roll_angle);
+
+        constexpr uint8_t roll_angle_index = static_cast<uint8_t>(model_t::state_index_t::roll_angle);
+        constexpr uint8_t steer_angle_index = static_cast<uint8_t>(model_t::state_index_t::steer_angle);
+        constexpr uint8_t roll_rate_index = static_cast<uint8_t>(model_t::state_index_t::roll_rate);
+        constexpr uint8_t steer_rate_index = static_cast<uint8_t>(model_t::state_index_t::steer_rate);
+
+        real_t roll_angle = m_observer.state()[roll_angle_index];
+        if (std::abs(roll_angle) > constants::pi) {
+            /* state normalization limits angles to the range [-2*pi, 2*pi] */
+            roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
+        }
+
+        if (roll_angle > roll_angle_limit) {
+            x[roll_angle_index] = std::copysign(roll_angle_limit, roll_angle);
+            x[steer_angle_index] = steer_angle_measurement;
+            x[roll_rate_index] = m_dstate[roll_rate_index];
+            x[steer_rate_index] = m_dstate[steer_rate_index];
+        }
+
         m_observer.set_state(x);
     }
 
