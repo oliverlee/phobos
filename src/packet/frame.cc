@@ -48,8 +48,8 @@ size_t stuff(const void* source, void* dest, size_t source_byte_size) {
 size_t unstuff(const void* source, void* dest, size_t source_byte_size) {
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
-    // osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET + 1,
-    // "invalid data size"); always true due to data type
+    osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET + 1,
+            "invalid data size");
 
     const char* source_ = static_cast<const char*>(source);
     char* dest_ = static_cast<char*>(dest);
