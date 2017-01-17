@@ -35,11 +35,13 @@ class Bicycle {
         using full_state_index_t = typename model_t::full_state_index_t;
 
         /* default bicycle model parameters */
-        static constexpr real_t default_fs = 200.0; /* sample rate [Hz] */
-        static constexpr real_t default_dt = 1.0/default_fs; /* sample period [s] */
-        static constexpr real_t default_v = 5.0; /* forward speed [m/s] */
-        static constexpr real_t v_quantization_resolution = 0.1; /* [m/s] */
-        static constexpr real_t roll_angle_limit = 60.0 * constants::as_radians; /* [rad] */
+        static constexpr real_t default_fs = 200.0; /* sample rate, Hz */
+        static constexpr real_t default_dt = 1.0/default_fs; /* sample period, s */
+        static constexpr real_t default_v = 5.0; /* forward speed, m/s */
+        static constexpr real_t v_quantization_resolution = 0.1; /* m/s */
+        static constexpr real_t roll_angle_limit = 60.0 * constants::as_radians; /*  60 deg as rad */
+        static constexpr real_t roll_rate_limit = 1e10; /* rad */
+        static constexpr real_t steer_rate_limit = 1e10 * constants::as_radians; /* rad */
 
         Bicycle(real_t v = default_v, real_t dt = default_dt);
 
