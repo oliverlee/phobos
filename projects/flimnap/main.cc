@@ -51,6 +51,7 @@ namespace {
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
 
+    /* transmission */
     struct __attribute__((__packed__)) pose_t {
         float x; /* m */
         float y; /* m */
@@ -66,8 +67,15 @@ namespace {
         uint16_t timestamp;  /* system ticks
                               * (normally 10 kHz, see CH_CFG_ST_FREQUENCY) */
     }; /* 36 bytes */
-
     pose_t pose = {};
+    std::array<uint8_t, sizeof(pose_t) + packet::frame::PACKET_OVERHEAD> packet_buffer;
+
+    /* kinematics loop */
+    constexpr systime_t kinematics_loop_time = US2ST(8333); /* update kinematics at 120 Hz */
+
+    /* dynamics loop */
+    constexpr model::real_t dynamics_period = 0.005; /* 5 ms -> 200 Hz */
+    time_measurement_t dynamics_time_measurement;
 
     void set_handlebar_torque(float handlebar_torque) {
         int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
@@ -76,7 +84,7 @@ namespace {
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
     }
 
-    void set_pose(bicycle_t bicycle, time_measurement_t computation_time_measurement) {
+    void set_pose(const bicycle_t& bicycle, uint32_t computation_time_measurement) {
         pose = pose_t{}; /* reset pose to zero */
 
         pose.timestamp = bicycle.pose().timestamp;
@@ -89,11 +97,49 @@ namespace {
         pose.steer = angle::wrap(bicycle.pose().steer);
         pose.v = bicycle.v();
         pose.computation_time = static_cast<uint16_t>(RTC2US(STM32_SYSCLK,
-                    computation_time_measurement.last));
+                    computation_time_measurement));
     }
 
-    using namespace packet::frame;
-    std::array<uint8_t, sizeof(pose_t) + PACKET_OVERHEAD> packet_buffer;
+    void transmit_gitsha1() {
+        size_t bytes_written = packet::frame::stuff(g_GITSHA1, packet_buffer.data(), 7);
+        while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
+            chThdSleepMilliseconds(10);
+        }
+        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+    }
+
+    void update_and_transmit_kinematics(bicycle_t& bicycle) {
+        bicycle.update_kinematics();
+        /* time measurement value is cast down to uint16_t as we don't need all 32 bits */
+        set_pose(bicycle, dynamics_time_measurement.last);
+
+        /*
+         * TODO: Pose message should be transmitted asynchronously.
+         * After starting transmission, the simulation should start to calculate pose for the next timestep.
+         * This is currently not necessary given the observed timings.
+         */
+        size_t bytes_written = packet::frame::stuff(&pose, packet_buffer.data(), sizeof(pose));
+        if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
+            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+        }
+    }
+
+    THD_WORKING_AREA(wa_kinematics_thread, 2048);
+    THD_FUNCTION(kinematics_thread, arg) {
+        bicycle_t& bicycle = *static_cast<bicycle_t*>(arg);
+
+        chRegSetThreadName("kinematics");
+        while (true) {
+            systime_t starttime = chVTGetSystemTime();
+            update_and_transmit_kinematics(bicycle);
+            systime_t sleeptime = kinematics_loop_time + starttime - chVTGetSystemTime();
+            if (sleeptime >= kinematics_loop_time) {
+                continue;
+            } else {
+                chThdSleep(sleeptime);
+            }
+        }
+    }
 } // namespace
 
 /*
@@ -161,27 +207,24 @@ int main(void) {
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
 
     /*
-     * Initialize bicycle with default parameters, dt = 0.005 s.
+     * Initialize bicycle. Velocity doesn't matter as we immediately use the measured value.
      * TODO: change observer to Kalman
      */
-    bicycle_t bicycle;
+    bicycle_t bicycle(0.0, dynamics_period);
 
     /* transmit git sha information, block until receiver is ready */
-    uint8_t bytes_written = packet::frame::stuff(g_GITSHA1, packet_buffer.data(), 7);
-    while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
-        chThdSleepMilliseconds(10);
-    }
-    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+    transmit_gitsha1();
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
-    time_measurement_t dt;
-    chTMObjectInit(&dt);
+    chTMObjectInit(&dynamics_time_measurement);
+    chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread), NORMALPRIO - 1,
+            kinematics_thread, static_cast<void*>(&bicycle));
     while (true) {
         systime_t starttime = chVTGetSystemTime();
-        chTMStartMeasurementX(&dt);
+        chTMStartMeasurementX(&dynamics_time_measurement);
         constexpr float roll_torque = 0.0f;
 
         /* get sensor measurements */
@@ -202,31 +245,17 @@ int main(void) {
         /* simulate bicycle */
         bicycle.set_v(v);
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
-        bicycle.update_kinematics(); // TODO move this into a separate loop
 
         /* generate handlebar torque output */
         set_handlebar_torque(bicycle.handlebar_feedback_torque());
-        chTMStopMeasurementX(&dt);
+        chTMStopMeasurementX(&dynamics_time_measurement);
 
-        /* timestamp value is cast down to uint16_t as we don't need all 32 bits */
-        set_pose(bicycle, dt);
-        /*
-         * TODO: Pose message should be transmitted asynchronously.
-         * After starting transmission, the simulation should start to calculate pose for the next timestep.
-         * This is currently not necessary given the observed timings.
-         */
-        bytes_written = packet::frame::stuff(&pose, packet_buffer.data(), sizeof(pose));
-        if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-        }
-
-        systime_t dt = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
-        systime_t sleeptime = dt + starttime - chVTGetSystemTime();
-        if (sleeptime >= dt) {
+        systime_t looptime = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
+        systime_t sleeptime = looptime + starttime - chVTGetSystemTime();
+        if (sleeptime >= looptime) {
             //chDbgAssert(false, "deadline missed");
             continue;
-        }
-        if (sleeptime != 0) {
+        } else {
             chThdSleep(sleeptime);
         }
     }
