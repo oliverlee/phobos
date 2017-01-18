@@ -45,6 +45,8 @@ class Bicycle {
         static constexpr real_t default_steer_inertia = sa::STEER_ASSEMBLY_INERTIA; /* kg-m^2 */
         static constexpr real_t v_quantization_resolution = 0.1; /* m/s */
         static constexpr real_t roll_angle_limit = 60.0 * constants::as_radians; /* 60 deg in rad */
+        static constexpr real_t roll_rate_limit = 1e10; /* rad */
+        static constexpr real_t steer_rate_limit = 1e10; /* rad */
 
         Bicycle(real_t v = default_v, real_t dt = default_dt, real_t steer_inertia = default_steer_inertia);
 
