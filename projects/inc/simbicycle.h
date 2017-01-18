@@ -82,10 +82,11 @@ class Bicycle {
         state_t m_dstate; /* _copy_ of dynamic state used for kinematics update */
         auxiliary_state_t m_kstate; /* auxiliary state for kinematics */
         BicyclePoseMessage m_pose; /* Unity visualization message */
-        binary_semaphore_t m_kstate_sem; /* bsem for synchronizing kinematics update */
+        binary_semaphore_t m_dstate_sem; /* bsem for synchronizing kinematics update */
         real_t m_T_m; /* handlebar feedback torque */
 
-        real_t get_state_element(full_state_index_t field);
+        static real_t get_state_element(full_state_index_t field,
+                const state_t& dynamic_state, const auxiliary_state_t& kinematic_state);
 };
 
 } // namespace sim

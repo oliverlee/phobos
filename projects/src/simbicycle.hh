@@ -17,7 +17,7 @@ m_kstate(auxiliary_state_t::Zero()),
 m_pose() {
     // Note: User must initialize Kalman matrices in application.
     // TODO: Do this automatically with default values?
-    chBSemObjectInit(&m_kstate_sem, false); /* initialize to not taken */
+    chBSemObjectInit(&m_dstate_sem, false); /* initialize to not taken */
 }
 
 
@@ -75,10 +75,6 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
     measurement[yaw_angle_index] = yaw_angle_measurement;
     measurement[steer_angle_index] = steer_angle_measurement;
 
-    /* prevent observer state change at beginning of update_kinematics() */
-    // TODO: maybe pass semaphore to update_state to take right before setting
-    //       observer state?
-    chBSemWait(&m_kstate_sem);
     m_observer.update_state(input, measurement);
 
     { /* limit allowed bicycle state */
@@ -106,26 +102,28 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
     }
 
     m_T_m = m_haptic.feedback_torque(m_observer.state(), input);
-    chBSemSignal(&m_kstate_sem);
+
+    chBSemWait(&m_dstate_sem);
+    m_dstate = m_observer.state();
+    chBSemSignal(&m_dstate_sem);
 }
 
 template <typename T, typename U, typename V>
 void Bicycle<T, U, V>::update_kinematics() {
-    /* prevent copy of observer state during update_dynamics() */
-    chBSemWait(&m_kstate_sem);
-    m_dstate = m_observer.state();
-    chBSemSignal(&m_kstate_sem);
+    chBSemWait(&m_dstate_sem);
+    state_t dstate = m_dstate;
+    chBSemSignal(&m_dstate_sem);
 
-    m_kstate = m_model.update_auxiliary_state(m_dstate, m_kstate);
+    m_kstate = m_model.update_auxiliary_state(dstate, m_kstate);
 
     m_pose.timestamp = chVTGetSystemTime();
-    m_pose.x = get_state_element(full_state_index_t::x);
-    m_pose.y = get_state_element(full_state_index_t::y);
-    m_pose.rear_wheel = get_state_element(full_state_index_t::rear_wheel_angle);
-    m_pose.pitch = get_state_element(full_state_index_t::pitch_angle);
-    m_pose.yaw = get_state_element(full_state_index_t::yaw_angle);
-    m_pose.roll = get_state_element(full_state_index_t::roll_angle);
-    m_pose.steer = get_state_element(full_state_index_t::steer_angle);
+    m_pose.x = get_state_element(full_state_index_t::x, dstate, m_kstate);
+    m_pose.y = get_state_element(full_state_index_t::y, dstate, m_kstate);
+    m_pose.rear_wheel = get_state_element(full_state_index_t::rear_wheel_angle, dstate, m_kstate);
+    m_pose.pitch = get_state_element(full_state_index_t::pitch_angle, dstate, m_kstate);
+    m_pose.yaw = get_state_element(full_state_index_t::yaw_angle, dstate, m_kstate);
+    m_pose.roll = get_state_element(full_state_index_t::roll_angle, dstate, m_kstate);
+    m_pose.steer = get_state_element(full_state_index_t::steer_angle, dstate, m_kstate);
 }
 
 
@@ -200,17 +198,19 @@ model::real_t Bicycle<T, U, V>::dt() const {
 }
 
 template <typename T, typename U, typename V>
-model::real_t Bicycle<T, U, V>::get_state_element(Bicycle<T, U, V>::full_state_index_t field) {
+model::real_t Bicycle<T, U, V>::get_state_element(Bicycle<T, U, V>::full_state_index_t field,
+        const Bicycle<T, U, V>::state_t& dynamic_state,
+        const Bicycle<T, U, V>::auxiliary_state_t& kinematic_state) {
     /*
      * a field may be a state_t element or an auxiliary_state_t element
      * depending on what model is used.
      */
-    if (m_model.auxiliary_state_field(field)) {
-        return m_kstate[static_cast<uint8_t>(field)];
+    if (model_t::is_auxiliary_state_field(field)) {
+        return kinematic_state[static_cast<uint8_t>(field)];
     } else {
         uint8_t i = static_cast<uint8_t>(field) -
             static_cast<uint8_t>(model_t::auxiliary_state_index_t::number_of_types);
-        return m_dstate[i];
+        return dynamic_state[i];
     }
 }
 
