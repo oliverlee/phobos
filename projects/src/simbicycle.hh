@@ -17,7 +17,7 @@ m_kstate(auxiliary_state_t::Zero()),
 m_pose() {
     // Note: User must initialize Kalman matrices in application.
     // TODO: Do this automatically with default values?
-    chBSemObjectInit(&m_kstate_sem, false); /* initialize to not taken */
+    chBSemObjectInit(&m_dstate_sem, false); /* initialize to not taken */
 }
 
 
@@ -103,16 +103,16 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
 
     m_T_m = m_haptic.feedback_torque(m_observer.state(), input);
 
-    chBSemWait(&m_kstate_sem);
+    chBSemWait(&m_dstate_sem);
     m_dstate = m_observer.state();
-    chBSemSignal(&m_kstate_sem);
+    chBSemSignal(&m_dstate_sem);
 }
 
 template <typename T, typename U, typename V>
 void Bicycle<T, U, V>::update_kinematics() {
-    chBSemWait(&m_kstate_sem);
+    chBSemWait(&m_dstate_sem);
     state_t dstate = m_dstate;
-    chBSemSignal(&m_kstate_sem);
+    chBSemSignal(&m_dstate_sem);
 
     m_kstate = m_model.update_auxiliary_state(dstate, m_kstate);
 
