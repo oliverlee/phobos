@@ -22,7 +22,7 @@ void IQHandler<T, M, N>::start() {
     chBSemResetI(&m_sem, false); /* set to not taken*/
     if (m_thread == nullptr) {
         m_thread = chThdCreateI(m_wa_iqueue_handler_thread,
-                sizeof(m_wa_iqueue_handler_thread), NORMALPRIO + 1,
+                sizeof(m_wa_iqueue_handler_thread), HIGHPRIO,
                 iqueue_handler, this);
     }
     chSchWakeupS(m_thread, MSG_OK);
