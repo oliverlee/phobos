@@ -19,6 +19,7 @@
 
 #include "analog.h"
 #include "encoder.h"
+#include "encoderfoaw.h"
 #include "packet/frame.h"
 #include "filter/movingaverage.h"
 
@@ -228,19 +229,19 @@ int main(void) {
         constexpr float roll_torque = 0.0f;
 
         /* get sensor measurements */
-        float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
+        const float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
                 sa::MAX_KISTLER_TORQUE);
-        float motor_torque = static_cast<float>(
+        const float motor_torque = static_cast<float>(
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
-        float steer_angle = angle::encoder_count<float>(encoder_steer);
-        float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
-        float v = velocity_filter.output(
+        const float steer_angle = angle::encoder_count<float>(encoder_steer);
+        const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
+        const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
         (void)motor_torque; /* remove build warning */
 
         /* yaw angle, just use previous state value */
-        float yaw_angle = angle::wrap(bicycle.pose().yaw);
+        const float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
         /* simulate bicycle */
         bicycle.set_v(v);
@@ -250,8 +251,8 @@ int main(void) {
         set_handlebar_torque(bicycle.handlebar_feedback_torque());
         chTMStopMeasurementX(&dynamics_time_measurement);
 
-        systime_t looptime = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
-        systime_t sleeptime = looptime + starttime - chVTGetSystemTime();
+        const systime_t looptime = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
+        const systime_t sleeptime = looptime + starttime - chVTGetSystemTime();
         if (sleeptime >= looptime) {
             //chDbgAssert(false, "deadline missed");
             continue;

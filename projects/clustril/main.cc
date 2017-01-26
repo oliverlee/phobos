@@ -19,11 +19,11 @@
 
 #include "analog.h"
 #include "encoder.h"
+#include "encoderfoaw.h"
 
 #include "gitsha1.h"
 #include "angle.h"
 #include "filesystem.h"
-#include "virtualbicycle.h"
 #include "saconfig.h"
 
 #include "packet/serialize.h"
@@ -35,19 +35,35 @@
 
 #include <array>
 
+#include "bicycle/whipple.h" /* whipple bicycle model */
+#include "oracle.h" /* oracle observer */
+#include "haptic.h" /* handlebar feedback */
+#include "simbicycle.h"
+
 // FIXME: This program will not run correctly as VirtualBicycle has not (and will not)
 // been updated after changes to the bicycle submodule. This class has been replaced
 // by sim::Bicycle<T, U, V> and those changes will be reflected here eventually.
 
 namespace {
+    using bicycle_t = sim::Bicycle<model::BicycleWhipple,
+                                   observer::Oracle<model::BicycleWhipple>,
+                                   haptic::HandlebarStatic>;
     /* sensors */
     Analog analog;
     Encoder encoder(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
+    EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC, sa::RLS_GTS35_ENC_CFG, MS2ST(1), 3.0f);
 
     static constexpr ClustrilMessage clustril_message_zero = ClustrilMessage_init_zero;
     ClustrilMessage sample;
 
     std::array<uint8_t, ClustrilMessage_size> encode_buffer;
+
+    void set_handlebar_torque(float handlebar_torque) {
+        int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
+        saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
+        dacsample_t aout = static_cast<dacsample_t>(saturated_value);
+        dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+    }
 } // namespace
 
 /*
@@ -75,6 +91,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder.start();
+    encoder_rear_wheel.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
 
     /*
@@ -95,7 +112,7 @@ int main(void) {
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
 
-    VirtualBicycle bicycle;
+    bicycle_t bicycle(5.0f, 1.0f/200); /* (v [m/s], dt [s]) */
 
     /* write firmware gitsha1, bicycle and Kalman settings to file */
     rtcnt_t bicycle_simulation_time = chSysGetRealtimeCounterX();
@@ -105,7 +122,7 @@ int main(void) {
     std::memcpy(sample.firmware_version, g_GITSHA1,
             sizeof(sample.firmware_version)*sizeof(sample.firmware_version[0]));
     sample.has_firmware_version = true;
-    message::set_clustril_initial_values(&sample, bicycle);
+    //message::set_clustril_initial_values(&sample, bicycle);
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -134,7 +151,8 @@ int main(void) {
             res = f_lseek(&f, f_size(&f));
             chDbgAssert(res == FR_OK, "file seek failed");
 
-            uint8_t bytes_encoded = packet::serialize::encode_delimited(sample, encode_buffer.data(), encode_buffer.size());
+            uint8_t bytes_encoded = packet::serialize::encode_delimited(
+                    sample, encode_buffer.data(), encode_buffer.size());
             res = f_write(&f, encode_buffer.data(), bytes_encoded, &bytes_written);
             chDbgAssert(res == FR_OK, "file write failed");
 
@@ -147,32 +165,25 @@ int main(void) {
         constexpr float roll_torque = 0;
 
         /* get torque measurements */
-        float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
+        const float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
                 sa::MAX_KISTLER_TORQUE);
-        float motor_torque = static_cast<float>(
-                analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
-                sa::MAX_KOLLMORGEN_TORQUE);
 
         /* get angle measurements */
-        float yaw_angle = angle::wrap(bicycle.x()[0]); /* yaw angle, just use previous state value */
-        float steer_angle = angle::encoder_count<float>(encoder);
+        const float yaw_angle = angle::wrap(bicycle.pose().yaw);
+        const float steer_angle = angle::encoder_count<float>(encoder);
+        const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
 
         /* observer time/measurement update (~80 us with real_t = float) */
-        bicycle.update(roll_torque, steer_torque, yaw_angle, steer_angle);
-        bicycle.encode_and_stuff_pose();
+        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+        bicycle.update_kinematics();
 
-        /* generate a simple torque output (sine wave) for peripheral testing */
-        float feedback_torque = 10.0f * std::sin(constants::two_pi *
-                ST2S(static_cast<float>(chVTGetSystemTime())));
-        dacsample_t aout = static_cast<dacsample_t>(
-                (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
-        dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+        set_handlebar_torque(bicycle.handlebar_feedback_torque());
 
         sample = clustril_message_zero;
         sample.timestamp = chSysGetRealtimeCounterX();
-        message::set_clustril_loop_values(&sample, bicycle, steer_torque, motor_torque, encoder.count(), feedback_torque);
+        //message::set_clustril_loop_values(&sample, bicycle, steer_torque, motor_torque, encoder.count(), feedback_torque);
 
         // TODO: fix sleep amount
-        chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.model().dt()));
+        chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.dt()));
     }
 }
