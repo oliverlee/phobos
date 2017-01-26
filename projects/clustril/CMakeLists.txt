@@ -12,8 +12,8 @@ set(PHOBOS_COMMON_SRC ${PROJECT_BINARY_DIR}/src/gitsha1.cc)
 
 # suppress Boost undef warnings and Eigen deprecated warnings
 set_property(SOURCE
+    ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
-    ${PHOBOS_PROJECT_SOURCE_DIR}/virtualbicycle.cc
     APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef -Wno-deprecated")
 
 add_phobos_executable(clustril
@@ -23,9 +23,9 @@ add_phobos_executable(clustril
     mcuconf.h
     main.cc
     serialize.cc
-    ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/filesystem.cc
-    ${PHOBOS_PROJECT_SOURCE_DIR}/virtualbicycle.cc
+    ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
+    ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc
