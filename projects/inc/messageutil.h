@@ -1,11 +1,11 @@
 #pragma once
 #include "clustril.pb.h"
-#include "bicycle.h"
+#include "bicycle/whipple.h"
 #include "kalman.h"
 #include "virtualbicycle.h"
 
 namespace message {
-    using bicycle_t = model::Bicycle;
+    using bicycle_t = model::BicycleWhipple;
     using kalman_t = observer::Kalman<bicycle_t>;
 
     void set_state_matrix(StateMatrixMessage* pb, const bicycle_t::state_matrix_t& m);

@@ -27,10 +27,10 @@ m_pose_size(0) {
     m_x_aux.setZero();
 
     /* use an initial guess of 30 degrees for pitch */
-    m_x_aux[2] = m_bicycle.solve_constraint_pitch(m_kalman.x(), 30 * constants::as_radians);
+    m_x_aux[2] = m_bicycle.solve_constraint_pitch(0, 0, 30 * constants::as_radians); // FIXME
 
     m_pose = BicyclePoseMessage_init_zero;
-    m_pose.pitch = m_x_aux[2];
+    m_pose.pitch = m_x_aux[2]; // FIXME
 }
 
 void VirtualBicycle::update(float roll_torque_input, float steer_torque_input, /* u[0], u[1] */
@@ -41,10 +41,10 @@ void VirtualBicycle::update(float roll_torque_input, float steer_torque_input, /
     m_kalman.time_update(m_u);
     m_kalman.measurement_update(m_z);
 
-    m_x_aux = m_bicycle.update_auxiliary_state(m_kalman.x(), m_x_aux);
+    //m_x_aux = m_bicycle.update_auxiliary_state(m_kalman.x(), m_x_aux); FIXME
 
     m_pose.timestamp = 1; // FIXME when running at a different rate
-    m_pose.x = m_x_aux[0];
+    m_pose.x = m_x_aux[0]; // FIXME these indices are incorrect
     m_pose.y = m_x_aux[1];
     m_pose.pitch = m_x_aux[2];
     m_pose.yaw = m_kalman.x()[0];

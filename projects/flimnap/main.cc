@@ -33,14 +33,14 @@
 #include <algorithm>
 #include <array>
 
-#include "bicycle.h" /* whipple bicycle model */
+#include "bicycle/whipple.h" /* whipple bicycle model */
 #include "oracle.h" /* oracle observer */
 #include "haptic.h" /* handlebar feedback */
 #include "simbicycle.h"
 
 namespace {
-    using bicycle_t = sim::Bicycle<model::Bicycle,
-                                   observer::Oracle<model::Bicycle>,
+    using bicycle_t = sim::Bicycle<model::BicycleWhipple,
+                                   observer::Oracle<model::BicycleWhipple>,
                                    haptic::HandlebarStatic>;
 
     /* sensors */

@@ -35,6 +35,10 @@
 
 #include <array>
 
+// FIXME: This program will not run correctly as VirtualBicycle has not (and will not)
+// been updated after changes to the bicycle submodule. This class has been replaced
+// by sim::Bicycle<T, U, V> and those changes will be reflected here eventually.
+
 namespace {
     /* sensors */
     Analog analog;

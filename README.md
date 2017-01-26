@@ -188,7 +188,7 @@ executable is given below:
     |   +-- usb_serial      - Runs ChibiOS usb-serial demo and runs tests.
     |
     +-- projects
-        +-- clustril        - Runs development static simulator code. Requires usage of SDIO which prevents usage of serial over USB.
+        +-- clustril        - Runs development static simulator code. Requires usage of SDIO which prevents usage of serial over USB. (OUT OF DATE)
         +-- drunlo          - Prints sensor values as ASCII. Requires usage of serial over USB.
         +-- flimnap         - Runs static simulator code interfacing with Unity environment Bikesim(5ade352 or newer). Cannot log data via SDIO.
-        +-- gulliver           - Prints realtime counter and steer encoder count. Used for determining steering column inertia. Transmits value as ASCII using serial over USB.
+        +-- gulliver        - Prints realtime counter and steer encoder count. Used for determining steering column inertia. Transmits value as ASCII using serial over USB.

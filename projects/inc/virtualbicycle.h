@@ -1,12 +1,12 @@
 #pragma once
-#include "bicycle.h"
+#include "bicycle/whipple.h"
 #include "kalman.h"
 #include "pose.pb.h"
 #include "constants.h"
 
 class VirtualBicycle {
     public:
-        using bicycle_t = model::Bicycle;
+        using bicycle_t = model::BicycleWhipple;
         using kalman_t = observer::Kalman<bicycle_t>;
 
         /* Bicycle model parameters */

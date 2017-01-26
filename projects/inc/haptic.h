@@ -1,6 +1,6 @@
 #pragma once
 /* bicycle submodule imports */
-#include "bicycle.h"
+#include "bicycle/bicycle.h"
 
 /*
  * The haptic namespace includes classes used to calculate feedback torques at
