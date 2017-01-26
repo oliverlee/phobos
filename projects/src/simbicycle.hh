@@ -179,8 +179,13 @@ model::real_t Bicycle<T, U, V>::handlebar_feedback_torque() const {
 }
 
 template <typename T, typename U, typename V>
-typename Bicycle<T, U, V>::model_t& Bicycle<T, U, V>::model() const {
+const typename Bicycle<T, U, V>::model_t& Bicycle<T, U, V>::model() const {
     return m_model;
+};
+
+template <typename T, typename U, typename V>
+const typename Bicycle<T, U, V>::observer_t& Bicycle<T, U, V>::observer() const {
+    return m_observer;
 };
 
 template <typename T, typename U, typename V>

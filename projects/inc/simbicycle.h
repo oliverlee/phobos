@@ -2,6 +2,7 @@
 #include "ch.h"
 #include "pose.pb.h"
 #include "saconfig.h"
+#include "haptic.h"
 /* bicycle submodule imports */
 #include "bicycle/bicycle.h"
 #include "observer.h"
@@ -67,7 +68,8 @@ class Bicycle {
         real_t handlebar_feedback_torque() const; /* get most recently computed feedback torque */
 
         /* common bicycle model member variables */
-        model_t& model() const;
+        const model_t& model() const;
+        const observer_t& observer() const;
         const second_order_matrix_t& M() const;
         const second_order_matrix_t& C1() const;
         const second_order_matrix_t& K0() const;

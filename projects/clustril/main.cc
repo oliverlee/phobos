@@ -36,7 +36,7 @@
 #include <array>
 
 #include "bicycle/whipple.h" /* whipple bicycle model */
-#include "oracle.h" /* oracle observer */
+#include "kalman.h" /* kalman observer */
 #include "haptic.h" /* handlebar feedback */
 #include "simbicycle.h"
 
@@ -46,7 +46,7 @@
 
 namespace {
     using bicycle_t = sim::Bicycle<model::BicycleWhipple,
-                                   observer::Oracle<model::BicycleWhipple>,
+                                   observer::Kalman<model::BicycleWhipple>,
                                    haptic::HandlebarStatic>;
     /* sensors */
     Analog analog;
@@ -122,7 +122,7 @@ int main(void) {
     std::memcpy(sample.firmware_version, g_GITSHA1,
             sizeof(sample.firmware_version)*sizeof(sample.firmware_version[0]));
     sample.has_firmware_version = true;
-    //message::set_clustril_initial_values(&sample, bicycle);
+    message::set_clustril_initial_values(&sample, bicycle);
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -167,6 +167,9 @@ int main(void) {
         /* get torque measurements */
         const float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
                 sa::MAX_KISTLER_TORQUE);
+        const float motor_torque = static_cast<float>(
+                analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
+                sa::MAX_KOLLMORGEN_TORQUE);
 
         /* get angle measurements */
         const float yaw_angle = angle::wrap(bicycle.pose().yaw);
@@ -177,11 +180,13 @@ int main(void) {
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
         bicycle.update_kinematics();
 
-        set_handlebar_torque(bicycle.handlebar_feedback_torque());
+        const float feedback_torque = bicycle.handlebar_feedback_torque();
+        set_handlebar_torque(feedback_torque);
 
         sample = clustril_message_zero;
         sample.timestamp = chSysGetRealtimeCounterX();
-        //message::set_clustril_loop_values(&sample, bicycle, steer_torque, motor_torque, encoder.count(), feedback_torque);
+        message::set_clustril_loop_values(&sample, bicycle, steer_torque,
+                motor_torque, encoder.count(), feedback_torque);
 
         // TODO: fix sleep amount
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.dt()));
