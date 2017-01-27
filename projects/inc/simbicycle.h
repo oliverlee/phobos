@@ -69,7 +69,7 @@ class Bicycle {
 
         /* common bicycle model member variables */
         model_t& model() const;
-        observer_t& observer() const;
+        observer_t& observer();
         const second_order_matrix_t& M() const;
         const second_order_matrix_t& C1() const;
         const second_order_matrix_t& K0() const;
@@ -90,10 +90,6 @@ class Bicycle {
         BicyclePoseMessage m_pose; /* Unity visualization message */
         binary_semaphore_t m_state_sem; /* bsem for synchronizing kinematics update */
         real_t m_T_m; /* handlebar feedback torque */
-
-        using index_type = typename std::underlying_type<full_state_index_t>::type;
-        static index_type get_state_element_index(full_state_index_t field);
-        static real_t get_state_element(const full_state_t& state, full_state_index_t field);
 };
 
 } // namespace sim

@@ -61,18 +61,14 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
      * update and solely from bicycle velocity.
      */
     (void)rear_wheel_angle_measurement;
-    constexpr uint8_t roll_torque_index = static_cast<uint8_t>(model_t::input_index_t::roll_torque);
-    constexpr uint8_t steer_torque_index = static_cast<uint8_t>(model_t::input_index_t::steer_torque);
-    constexpr uint8_t yaw_angle_index = static_cast<uint8_t>(model_t::output_index_t::yaw_angle);
-    constexpr uint8_t steer_angle_index = static_cast<uint8_t>(model_t::output_index_t::steer_angle);
 
     input_t input = input_t::Zero();
     measurement_t measurement = measurement_t::Zero();
 
-    input[roll_torque_index] = roll_torque_input;
-    input[steer_torque_index] = steer_torque_input;
-    measurement[yaw_angle_index] = yaw_angle_measurement;
-    measurement[steer_angle_index] = steer_angle_measurement;
+    model_t::set_input_element(input, model_t::input_index_t::roll_torque, roll_torque_input);
+    model_t::set_input_element(input, model_t::input_index_t::steer_torque, steer_torque_input);
+    model_t::set_output_element(measurement, model_t::output_index_t::yaw_angle, yaw_angle_measurement);
+    model_t::set_output_element(measurement, model_t::output_index_t::steer_angle, steer_angle_measurement);
 
     /*
      * The auxiliary states _must_ also be integrated at the same time as the
@@ -88,30 +84,29 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
     { /* limit allowed bicycle state */
         state_t x = m_observer.state();
 
-        static constexpr auto roll_angle_index = static_cast<uint8_t>(model_t::state_index_t::roll_angle);
-        static constexpr auto steer_angle_index = static_cast<uint8_t>(model_t::state_index_t::steer_angle);
-        static constexpr auto roll_rate_index = static_cast<uint8_t>(model_t::state_index_t::roll_rate);
-        static constexpr auto steer_rate_index = static_cast<uint8_t>(model_t::state_index_t::steer_rate);
-
-        auto limit_state_element = [&](auto index_type, real_t limit) {
-            const uint8_t index = static_cast<uint8_t>(index_type);
-            real_t value = m_observer.state()[index];
+        auto limit_state_element = [&x](model::Bicycle::state_index_t index, real_t limit) {
+            const real_t value = model::Bicycle::get_state_element(x, index);
             if (std::abs(value) > limit) {
-                x[index] = std::copysign(limit, value);
+                model::Bicycle::set_state_element(x, index, std::copysign(limit, value));
             }
         };
 
-        real_t roll_angle = m_observer.state()[roll_angle_index];
+        real_t roll_angle = model_t::get_state_element(m_observer.state(),
+                model_t::state_index_t::roll_angle);
         if (std::abs(roll_angle) > constants::pi) {
             /* state normalization limits angles to the range [-2*pi, 2*pi] */
             roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
         }
 
         if (roll_angle > roll_angle_limit) {
-            x[roll_angle_index] = std::copysign(roll_angle_limit, roll_angle);
-            x[steer_angle_index] = steer_angle_measurement;
-            x[roll_rate_index] = get_state_element(m_state_full, full_state_index_t::roll_rate);
-            x[steer_rate_index] = get_state_element(m_state_full, full_state_index_t::steer_rate);
+            model_t::set_state_element(x, model_t::state_index_t::roll_angle,
+                    std::copysign(roll_angle_limit, roll_angle));
+            model_t::set_state_element(x, model_t::state_index_t::steer_angle,
+                    steer_angle_measurement);
+            model_t::set_state_element(x, model_t::state_index_t::roll_rate,
+                    model_t::get_full_state_element(m_state_full, full_state_index_t::roll_rate));
+            model_t::set_state_element(x, model_t::state_index_t::steer_rate,
+                    model_t::get_full_state_element(m_state_full, full_state_index_t::steer_rate));
         } else {
             limit_state_element(model_t::state_index_t::roll_rate, roll_rate_limit);
             limit_state_element(model_t::state_index_t::steer_rate, steer_rate_limit);
@@ -147,22 +142,22 @@ void Bicycle<T, U, V>::update_kinematics() {
     chBSemSignal(&m_state_sem);
 
     // solve for pitch as this does not get integrated
-    const real_t roll = get_state_element(x, full_state_index_t::roll_angle);
-    const real_t steer = get_state_element(x, full_state_index_t::steer_angle);
-    real_t pitch = get_state_element(x, full_state_index_t::pitch_angle);
+    const real_t roll = model_t::get_full_state_element(x, full_state_index_t::roll_angle);
+    const real_t steer = model_t::get_full_state_element(x, full_state_index_t::steer_angle);
+    real_t pitch = model_t::get_full_state_element(x, full_state_index_t::pitch_angle);
     pitch = m_model.solve_constraint_pitch(roll, steer, pitch);
 
     // update full state with newest computed pitch angle
     chBSemWait(&m_state_sem);
-    m_state_full[get_state_element_index(full_state_index_t::pitch_angle)] = pitch;
+    model_t::set_full_state_element(m_state_full, full_state_index_t::pitch_angle, pitch);
     chBSemSignal(&m_state_sem);
 
     m_pose.timestamp = chVTGetSystemTime();
-    m_pose.x = get_state_element(x, full_state_index_t::x);
-    m_pose.y = get_state_element(x, full_state_index_t::y);
-    m_pose.rear_wheel = get_state_element(x, full_state_index_t::rear_wheel_angle);
+    m_pose.x = model_t::get_full_state_element(x, full_state_index_t::x);
+    m_pose.y = model_t::get_full_state_element(x, full_state_index_t::y);
+    m_pose.rear_wheel = model_t::get_full_state_element(x, full_state_index_t::rear_wheel_angle);
     m_pose.pitch = pitch;
-    m_pose.yaw = get_state_element(x, full_state_index_t::yaw_angle);
+    m_pose.yaw = model_t::get_full_state_element(x, full_state_index_t::yaw_angle);
     m_pose.roll = roll;
     m_pose.steer = steer;
 }
@@ -184,7 +179,7 @@ typename Bicycle<T, U, V>::model_t& Bicycle<T, U, V>::model() const {
 };
 
 template <typename T, typename U, typename V>
-typename Bicycle<T, U, V>::observer_t& Bicycle<T, U, V>::observer() const {
+typename Bicycle<T, U, V>::observer_t& Bicycle<T, U, V>::observer() {
     return m_observer;
 };
 
@@ -241,18 +236,6 @@ model::real_t Bicycle<T, U, V>::v() const {
 template <typename T, typename U, typename V>
 model::real_t Bicycle<T, U, V>::dt() const {
     return m_model.dt();
-}
-
-
-template <typename T, typename U, typename V>
-typename Bicycle<T, U, V>::index_type Bicycle<T, U, V>::get_state_element_index(Bicycle<T, U, V>::full_state_index_t field) {
-    return static_cast<index_type>(field);
-}
-
-template <typename T, typename U, typename V>
-model::real_t Bicycle<T, U, V>::get_state_element(const Bicycle<T, U, V>::full_state_t& state,
-        Bicycle<T, U, V>::full_state_index_t field) {
-    return state[get_state_element_index(field)];
 }
 
 } // namespace sim
