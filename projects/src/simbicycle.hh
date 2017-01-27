@@ -12,12 +12,11 @@ Bicycle<T, U, V>::Bicycle(real_t v, real_t dt, real_t steer_inertia) :
 m_model(v, dt),
 m_observer(m_model),
 m_haptic(m_model, steer_inertia),
-m_dstate(state_t::Zero()),
-m_kstate(auxiliary_state_t::Zero()),
+m_state_full(full_state_t::Zero()),
 m_pose() {
     // Note: User must initialize Kalman matrices in application.
     // TODO: Do this automatically with default values?
-    chBSemObjectInit(&m_dstate_sem, false); /* initialize to not taken */
+    chBSemObjectInit(&m_state_sem, false); /* initialize to not taken */
 }
 
 
@@ -75,6 +74,11 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
     measurement[yaw_angle_index] = yaw_angle_measurement;
     measurement[steer_angle_index] = steer_angle_measurement;
 
+    /*
+     * The auxiliary states _must_ also be integrated at the same time as the
+     * dynamic state. After the observer update, we "merge" dynamic states together.
+     */
+    m_state_full = m_model.integrate_full_state(m_state_full, input, m_model.dt());
     m_observer.update_state(input, measurement);
 
     if (!m_observer.state().allFinite()) {
@@ -84,10 +88,10 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
     { /* limit allowed bicycle state */
         state_t x = m_observer.state();
 
-        constexpr uint8_t roll_angle_index = static_cast<uint8_t>(model_t::state_index_t::roll_angle);
-        constexpr uint8_t steer_angle_index = static_cast<uint8_t>(model_t::state_index_t::steer_angle);
-        constexpr uint8_t roll_rate_index = static_cast<uint8_t>(model_t::state_index_t::roll_rate);
-        constexpr uint8_t steer_rate_index = static_cast<uint8_t>(model_t::state_index_t::steer_rate);
+        static constexpr auto roll_angle_index = static_cast<uint8_t>(model_t::state_index_t::roll_angle);
+        static constexpr auto steer_angle_index = static_cast<uint8_t>(model_t::state_index_t::steer_angle);
+        static constexpr auto roll_rate_index = static_cast<uint8_t>(model_t::state_index_t::roll_rate);
+        static constexpr auto steer_rate_index = static_cast<uint8_t>(model_t::state_index_t::steer_rate);
 
         auto limit_state_element = [&](auto index_type, real_t limit) {
             const uint8_t index = static_cast<uint8_t>(index_type);
@@ -106,8 +110,8 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
         if (roll_angle > roll_angle_limit) {
             x[roll_angle_index] = std::copysign(roll_angle_limit, roll_angle);
             x[steer_angle_index] = steer_angle_measurement;
-            x[roll_rate_index] = m_dstate[roll_rate_index];
-            x[steer_rate_index] = m_dstate[steer_rate_index];
+            x[roll_rate_index] = get_state_element(m_state_full, full_state_index_t::roll_rate);
+            x[steer_rate_index] = get_state_element(m_state_full, full_state_index_t::steer_rate);
         } else {
             limit_state_element(model_t::state_index_t::roll_rate, roll_rate_limit);
             limit_state_element(model_t::state_index_t::steer_rate, steer_rate_limit);
@@ -118,27 +122,49 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
 
     m_T_m = m_haptic.feedback_torque(m_observer.state(), input);
 
-    chBSemWait(&m_dstate_sem);
-    m_dstate = m_observer.state();
-    chBSemSignal(&m_dstate_sem);
+    /*
+     * Merge observer and model states
+     *
+     * We simply copy the observer state estimate to the full state vector
+     * this may result in accumulated error in the auxiliary states but
+     * convergence of the observer estimate should keep it low.
+     * Also, we have no way to correct auxiliary states as there are no sensors
+     * to measure them and that's because they are _purely_ virtual.
+     *
+     * TODO: improve this
+     */
+    chBSemWait(&m_state_sem);
+    m_state_full = model_t::make_full_state(
+            model_t::get_auxiliary_state_part(m_state_full),
+            m_observer.state());
+    chBSemSignal(&m_state_sem);
 }
 
 template <typename T, typename U, typename V>
 void Bicycle<T, U, V>::update_kinematics() {
-    chBSemWait(&m_dstate_sem);
-    state_t dstate = m_dstate;
-    chBSemSignal(&m_dstate_sem);
+    chBSemWait(&m_state_sem);
+    full_state_t x = m_state_full;
+    chBSemSignal(&m_state_sem);
 
-    m_kstate = m_model.update_auxiliary_state(dstate, m_kstate);
+    // solve for pitch as this does not get integrated
+    const real_t roll = get_state_element(x, full_state_index_t::roll_angle);
+    const real_t steer = get_state_element(x, full_state_index_t::steer_angle);
+    real_t pitch = get_state_element(x, full_state_index_t::pitch_angle);
+    pitch = m_model.solve_constraint_pitch(roll, steer, pitch);
+
+    // update full state with newest computed pitch angle
+    chBSemWait(&m_state_sem);
+    m_state_full[get_state_element_index(full_state_index_t::pitch_angle)] = pitch;
+    chBSemSignal(&m_state_sem);
 
     m_pose.timestamp = chVTGetSystemTime();
-    m_pose.x = get_state_element(full_state_index_t::x, dstate, m_kstate);
-    m_pose.y = get_state_element(full_state_index_t::y, dstate, m_kstate);
-    m_pose.rear_wheel = get_state_element(full_state_index_t::rear_wheel_angle, dstate, m_kstate);
-    m_pose.pitch = get_state_element(full_state_index_t::pitch_angle, dstate, m_kstate);
-    m_pose.yaw = get_state_element(full_state_index_t::yaw_angle, dstate, m_kstate);
-    m_pose.roll = get_state_element(full_state_index_t::roll_angle, dstate, m_kstate);
-    m_pose.steer = get_state_element(full_state_index_t::steer_angle, dstate, m_kstate);
+    m_pose.x = get_state_element(x, full_state_index_t::x);
+    m_pose.y = get_state_element(x, full_state_index_t::y);
+    m_pose.rear_wheel = get_state_element(x, full_state_index_t::rear_wheel_angle);
+    m_pose.pitch = pitch;
+    m_pose.yaw = get_state_element(x, full_state_index_t::yaw_angle);
+    m_pose.roll = roll;
+    m_pose.steer = steer;
 }
 
 
@@ -153,8 +179,13 @@ model::real_t Bicycle<T, U, V>::handlebar_feedback_torque() const {
 }
 
 template <typename T, typename U, typename V>
-typename Bicycle<T, U, V>::model_t& Bicycle<T, U, V>::model() const {
+const typename Bicycle<T, U, V>::model_t& Bicycle<T, U, V>::model() const {
     return m_model;
+};
+
+template <typename T, typename U, typename V>
+const typename Bicycle<T, U, V>::observer_t& Bicycle<T, U, V>::observer() const {
+    return m_observer;
 };
 
 template <typename T, typename U, typename V>
@@ -212,21 +243,16 @@ model::real_t Bicycle<T, U, V>::dt() const {
     return m_model.dt();
 }
 
+
 template <typename T, typename U, typename V>
-model::real_t Bicycle<T, U, V>::get_state_element(Bicycle<T, U, V>::full_state_index_t field,
-        const Bicycle<T, U, V>::state_t& dynamic_state,
-        const Bicycle<T, U, V>::auxiliary_state_t& kinematic_state) {
-    /*
-     * a field may be a state_t element or an auxiliary_state_t element
-     * depending on what model is used.
-     */
-    if (model_t::is_auxiliary_state_field(field)) {
-        return kinematic_state[static_cast<uint8_t>(field)];
-    } else {
-        uint8_t i = static_cast<uint8_t>(field) -
-            static_cast<uint8_t>(model_t::auxiliary_state_index_t::number_of_types);
-        return dynamic_state[i];
-    }
+typename Bicycle<T, U, V>::index_type Bicycle<T, U, V>::get_state_element_index(Bicycle<T, U, V>::full_state_index_t field) {
+    return static_cast<index_type>(field);
+}
+
+template <typename T, typename U, typename V>
+model::real_t Bicycle<T, U, V>::get_state_element(const Bicycle<T, U, V>::full_state_t& state,
+        Bicycle<T, U, V>::full_state_index_t field) {
+    return state[get_state_element_index(field)];
 }
 
 } // namespace sim

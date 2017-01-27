@@ -21,12 +21,12 @@
 #include "blink.h"
 #include "printf.h"
 
-#include "bicycle.h"
+#include "bicycle/whipple.h"
 #include "kalman.h"
 #include "parameters.h"
 
 namespace {
-    using bicycle_t = model::Bicycle;
+    using bicycle_t = model::BicycleWhipple;
     using kalman_t = observer::Kalman<bicycle_t>;
 
     const float fs = 200; // sample rate [Hz]
@@ -45,8 +45,10 @@ namespace {
     bicycle_t::input_t u; /* roll torque, steer torque */
     bicycle_t::state_t x; /* yaw angle, roll angle, steer angle, roll rate, steer rate */
     bicycle_t::state_t x_hat; /* state estimate */
-    bicycle_t::auxiliary_state_t aux; /* rear contact x, rear contact y, pitch angle */
+    bicycle_t::auxiliary_state_t aux; /* rear contact x, rear contact y, rear_wheel_angle, pitch angle */
     bicycle_t::auxiliary_state_t aux_hat; /* auxiliary state estimate */
+    bicycle_t::full_state_t xf; /* full state */
+    bicycle_t::full_state_t xf_hat; /* full state 'estimate' */
 } // namespace
 
 /*
@@ -84,12 +86,13 @@ int main(void) {
     chBlinkThreadCreateStatic();
 
     /* initialize bicycle model and states */
-    model::Bicycle bicycle(v0, dt);
+    bicycle_t bicycle(v0, dt);
     //x << 0, 0, 0, 0, 0; /* define in degrees */
     //x *= constants::as_radians; /* convert degrees to radians */
     x.setZero();
     aux.setZero();
-    aux[2] = bicycle.solve_constraint_pitch(x, 0); /* solve for initial pitch angle */
+    aux[static_cast<uint8_t>(bicycle_t::auxiliary_state_index_t::pitch_angle)] =
+        bicycle.solve_constraint_pitch(0, 0, 0); /* solve for initial pitch angle */
     aux_hat = aux;
 
     /* initialize Kalman filter */
@@ -123,23 +126,27 @@ int main(void) {
             disturbance_counter = static_cast<uint32_t>(disturbance_period * fs);
         }
 
-        /* advance bicycle model (~30 us) */
+        /* perform full state integration first (timing not recorded) */
+        aux_update_time = chSysGetRealtimeCounterX();
+        xf = bicycle_t::make_full_state(aux, x);
+        xf_hat = bicycle_t::make_full_state(aux_hat, x_hat);
+        xf = bicycle.integrate_full_state(xf, u, bicycle.dt());
+        xf_hat = bicycle.integrate_full_state(xf_hat, u, bicycle.dt());
+        aux = bicycle_t::get_auxiliary_state_part(xf);
+        aux_hat = bicycle_t::get_auxiliary_state_part(xf_hat);
+        aux_update_time = chSysGetRealtimeCounterX() - aux_update_time;
+
+        /* advance bicycle model (~30 us, NOTE: timing has not been checked after bicycle submodule changes) */
         state_update_time = chSysGetRealtimeCounterX();
         x = bicycle.update_state(x, u);
         state_update_time = chSysGetRealtimeCounterX() - state_update_time;
 
-        /* observer time/measurement update (~512 us) */
+        /* observer time/measurement update (~512 us, NOTE: timing has not been checked after bicycle submodule changes) */
         kalman_update_time = chSysGetRealtimeCounterX();
         kalman.time_update(u);
         kalman.measurement_update(bicycle.calculate_output(x)); /* use noiseless bicycle system output */
         x_hat = kalman.x();
         kalman_update_time = chSysGetRealtimeCounterX() - kalman_update_time;
-
-        /* update auxiliary state and auxiliary state estimate (~2.4 ms - ~9.5 ms) */
-        aux_update_time = chSysGetRealtimeCounterX();
-        aux = bicycle.update_auxiliary_state(x, aux);
-        aux_hat = bicycle.update_auxiliary_state(x_hat, aux_hat);
-        aux_update_time = chSysGetRealtimeCounterX() - aux_update_time;
 
         printf("error:\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\r\n",
                 aux_hat[0] - aux[0],

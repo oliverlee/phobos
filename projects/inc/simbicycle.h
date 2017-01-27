@@ -2,11 +2,14 @@
 #include "ch.h"
 #include "pose.pb.h"
 #include "saconfig.h"
+#include "haptic.h"
 /* bicycle submodule imports */
-#include "bicycle.h"
+#include "bicycle/bicycle.h"
 #include "observer.h"
 #include "constants.h" /* rad/deg constants, real_t */
 #include "parameters.h"
+
+#include <type_traits>
 
 namespace sim {
 
@@ -34,6 +37,7 @@ class Bicycle {
         using second_order_matrix_t = typename model_t::second_order_matrix_t;
         using state_t = typename model_t::state_t;
         using auxiliary_state_t = typename model_t::auxiliary_state_t;
+        using full_state_t = typename model_t::full_state_t;
         using input_t = typename model_t::input_t;
         using measurement_t = typename model_t::output_t;
         using full_state_index_t = typename model_t::full_state_index_t;
@@ -64,7 +68,8 @@ class Bicycle {
         real_t handlebar_feedback_torque() const; /* get most recently computed feedback torque */
 
         /* common bicycle model member variables */
-        model_t& model() const;
+        const model_t& model() const;
+        const observer_t& observer() const;
         const second_order_matrix_t& M() const;
         const second_order_matrix_t& C1() const;
         const second_order_matrix_t& K0() const;
@@ -81,14 +86,14 @@ class Bicycle {
         model_t m_model; /* bicycle model object */
         observer_t m_observer; /* observer object */
         haptic_t m_haptic; /* handlebar feedback calculation object */
-        state_t m_dstate; /* _copy_ of dynamic state used for kinematics update */
-        auxiliary_state_t m_kstate; /* auxiliary state for kinematics */
+        full_state_t m_state_full; /* auxiliary + dynamic state */
         BicyclePoseMessage m_pose; /* Unity visualization message */
-        binary_semaphore_t m_dstate_sem; /* bsem for synchronizing kinematics update */
+        binary_semaphore_t m_state_sem; /* bsem for synchronizing kinematics update */
         real_t m_T_m; /* handlebar feedback torque */
 
-        static real_t get_state_element(full_state_index_t field,
-                const state_t& dynamic_state, const auxiliary_state_t& kinematic_state);
+        using index_type = typename std::underlying_type<full_state_index_t>::type;
+        static index_type get_state_element_index(full_state_index_t field);
+        static real_t get_state_element(const full_state_t& state, full_state_index_t field);
 };
 
 } // namespace sim
