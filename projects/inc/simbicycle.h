@@ -68,8 +68,8 @@ class Bicycle {
         real_t handlebar_feedback_torque() const; /* get most recently computed feedback torque */
 
         /* common bicycle model member variables */
-        const model_t& model() const;
-        const observer_t& observer() const;
+        model_t& model() const;
+        observer_t& observer() const;
         const second_order_matrix_t& M() const;
         const second_order_matrix_t& C1() const;
         const second_order_matrix_t& K0() const;
