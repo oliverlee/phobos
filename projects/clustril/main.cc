@@ -110,6 +110,8 @@ int main(void) {
 
     bicycle_t bicycle(5.0f, 1.0f/200); /* (v [m/s], dt [s]) */
 
+    // FIXME: initialize Kalman matrices here
+
     /* write firmware gitsha1, bicycle and Kalman settings to file */
     rtcnt_t bicycle_simulation_time = chSysGetRealtimeCounterX();
 

@@ -1,6 +1,7 @@
 #include "haptic.h"
 /* bicycle submodule imports */
 #include "constants.h"
+#include <type_traits>
 
 namespace haptic {
 
@@ -50,9 +51,9 @@ model::real_t HandlebarStatic::feedback_torque(const model::Bicycle::state_t& x,
     (void)u;
     const model::real_t v = m_bicycle.v();
     const model::Bicycle::second_order_matrix_t K = constants::g*m_bicycle.K0() + v*v*m_bicycle.K2();
-    const uint8_t steer_index = static_cast<uint8_t>(model::Bicycle::state_index_t::steer_angle);
 
-    return -(K(1, 1) - K(0, 1)*K(1, 0)/K(0, 0))*x[steer_index];
+    return -(K(1, 1) - K(0, 1)*K(1, 0)/K(0, 0))*
+        model::Bicycle::get_state_element(x, model::Bicycle::state_index_t::steer_angle);
 }
 
 HandlebarDynamic::HandlebarDynamic(model::Bicycle& bicycle, model::real_t moment_of_inertia) :
@@ -90,11 +91,12 @@ HandlebarDynamic::HandlebarDynamic(model::Bicycle& bicycle, model::real_t moment
  * filter the returned value.
  */
 model::real_t HandlebarDynamic::feedback_torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
-    const uint8_t steer_rate_index = static_cast<uint8_t>(model::Bicycle::state_index_t::steer_rate);
-    const uint8_t steer_torque_index = static_cast<uint8_t>(model::Bicycle::input_index_t::steer_torque);
+    static constexpr auto steer_rate_index =
+        static_cast<typename std::underlying_type<model::Bicycle::state_index_t>::type>(
+                model::Bicycle::state_index_t::steer_rate);
 
     model::real_t steer_acceleration = (m_bicycle.A().row(steer_rate_index)*x + m_bicycle.B().row(steer_rate_index)*u).value();
-    return steer_acceleration*m_I_delta - u[steer_torque_index];
+    return steer_acceleration*m_I_delta - model::Bicycle::get_input_element(u, model::Bicycle::input_index_t::steer_torque);
 }
 
 } //namespace haptic

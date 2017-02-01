@@ -35,13 +35,13 @@
 #include <array>
 
 #include "bicycle/whipple.h" /* whipple bicycle model */
-#include "oracle.h" /* oracle observer */
+#include "kalman.h" /* kalman filter observer */
 #include "haptic.h" /* handlebar feedback */
 #include "simbicycle.h"
 
 namespace {
     using bicycle_t = sim::Bicycle<model::BicycleWhipple,
-                                   observer::Oracle<model::BicycleWhipple>,
+                                   observer::Kalman<model::BicycleWhipple>,
                                    haptic::HandlebarStatic>;
 
     /* sensors */
@@ -209,9 +209,22 @@ int main(void) {
 
     /*
      * Initialize bicycle. Velocity doesn't matter as we immediately use the measured value.
-     * TODO: change observer to Kalman
      */
     bicycle_t bicycle(0.0, dynamics_period);
+
+    /*
+     * set Kalman filter matrices
+     * We start with steer angle equal to the measurement and all other state elements at zero.
+     */
+    {
+        using model_t = bicycle_t::model_t;
+        model_t::state_t x0 = model_t::state_t::Zero();
+        model_t::set_state_element(x0, model_t::state_index_t::steer_angle,
+                angle::encoder_count<float>(encoder_steer));
+        bicycle.observer().set_x(x0);
+        bicycle.observer().set_Q(parameters::defaultvalue::kalman::Q(dynamics_period));
+        bicycle.observer().set_R(parameters::defaultvalue::kalman::R);
+    }
 
     /* transmit git sha information, block until receiver is ready */
     transmit_gitsha1();
