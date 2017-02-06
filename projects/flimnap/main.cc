@@ -254,10 +254,14 @@ int main(void) {
         (void)motor_torque; /* remove build warning */
 
         /* yaw angle, just use previous state value */
-        const float yaw_angle = angle::wrap(bicycle.pose().yaw);
+        const float yaw_angle = bicycle.pose().yaw;
 
         /* simulate bicycle */
-        bicycle.set_v(v);
+        if (v > 1.0f) {
+            bicycle.set_v(v);
+        } else {
+            bicycle.set_v(5.0f);
+        }
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         /* generate handlebar torque output */
