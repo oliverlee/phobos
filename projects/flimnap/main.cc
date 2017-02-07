@@ -42,7 +42,7 @@
 namespace {
     using bicycle_t = sim::Bicycle<model::BicycleWhipple,
                                    observer::Kalman<model::BicycleWhipple>,
-                                   haptic::HandlebarStatic>;
+                                   haptic::HandlebarDynamic>;
 
     /* sensors */
     Analog analog;
@@ -79,7 +79,12 @@ namespace {
     time_measurement_t dynamics_time_measurement;
 
     void set_handlebar_torque(float handlebar_torque) {
-        int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
+        float limit_torque = handlebar_torque;
+        if (std::abs(limit_torque) > 3.0f) {
+            limit_torque = std::copysign(3.0f, limit_torque);
+        }
+
+        int32_t saturated_value = (limit_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
         saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
         dacsample_t aout = static_cast<dacsample_t>(saturated_value);
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
@@ -262,7 +267,7 @@ int main(void) {
         } else {
             bicycle.set_v(5.0f);
         }
-        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+        bicycle.update_dynamics(roll_torque, 0.0f, yaw_angle, steer_angle, rear_wheel_angle);
 
         /* generate handlebar torque output */
         set_handlebar_torque(bicycle.handlebar_feedback_torque());
