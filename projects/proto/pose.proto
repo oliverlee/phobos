@@ -1,5 +1,4 @@
 syntax = "proto2";
-import "nanopb.proto";
 
 // message type for stm32 -> Unity communication
 message BicyclePoseMessage {
