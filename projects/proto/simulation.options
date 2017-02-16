@@ -1,4 +1,4 @@
-SimulationMessage.firmware_version          max_size:7
+FirmwareVersion.f                           max_size:7 type:FT_INLINE
 
 BicycleStateMessage.x                       max_count:5
 BicycleAuxiliaryStateMessage.x              max_count:4

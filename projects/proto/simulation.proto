@@ -3,7 +3,7 @@ import "pose.proto";
 
 message SimulationMessage {
     required uint32 timestamp =                 1;
-    optional string firmware_version =          2;
+    optional FirmwareVersion gitsha1 =          2;
 
     optional SensorMessage sensors =            3;
     optional ActuatorMessage actuators =        4;
@@ -18,6 +18,10 @@ message SimulationMessage {
     optional BicycleAuxiliaryStateMessage auxiliary_state = 10;
 
     optional TimingMessage timing = 11;
+}
+
+message FirmwareVersion {
+    required bytes f = 1;
 }
 
 // states are yaw, roll, steer, roll rate, steer rate (5)
