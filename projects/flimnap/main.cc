@@ -22,7 +22,9 @@
 #include "encoderfoaw.h"
 #include "packet/frame.h"
 #include "packet/serialize.h"
-#include "pose.pb.h"
+//#include "pose.pb.h"
+#include "simulation.pb.h"
+#include "messageutil.h"
 #include "filter/movingaverage.h"
 
 #include "gitsha1.h"
@@ -55,8 +57,9 @@ namespace {
     filter::MovingAverage<float, 5> velocity_filter;
 
     /* transmission */
-    std::array<uint8_t, BicyclePoseMessage_size + packet::frame::PACKET_OVERHEAD> encode_buffer;
-    std::array<uint8_t, BicyclePoseMessage_size + packet::frame::PACKET_OVERHEAD> packet_buffer;
+    std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> encode_buffer;
+    std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> packet_buffer;
+    SimulationMessage msg;
 
     /* kinematics loop */
     constexpr systime_t kinematics_loop_time = US2ST(8333); /* update kinematics at 120 Hz */
@@ -65,11 +68,12 @@ namespace {
     constexpr model::real_t dynamics_period = 0.005; /* 5 ms -> 200 Hz */
     time_measurement_t dynamics_time_measurement;
 
-    void set_handlebar_torque(float handlebar_torque) {
+    dacsample_t set_handlebar_torque(float handlebar_torque) {
         int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
         saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
         dacsample_t aout = static_cast<dacsample_t>(saturated_value);
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+        return aout;
     }
 
     void transmit_gitsha1() {
@@ -87,13 +91,17 @@ namespace {
          * After starting transmission, the simulation should start to calculate pose for the next timestep.
          * This is currently not necessary given the observed timings.
          */
-        size_t bytes_encoded = packet::serialize::encode_delimited(bicycle.pose(),
-                encode_buffer.data(), encode_buffer.size());
-        size_t bytes_written = packet::frame::stuff(
-                encode_buffer.data(), packet_buffer.data(), bytes_encoded);
-        if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-        }
+        //size_t bytes_encoded = packet::serialize::encode_delimited(bicycle.pose(),
+        //        encode_buffer.data(), encode_buffer.size());
+        //TODO: clear message
+        //message::set_simulation_loop_values(&msg, bicycle);
+        //size_t bytes_encoded = packet::serialize::encode_delimited(
+        //        msg, encode_buffer.data(), encode_buffer.size());
+        //size_t bytes_written = packet::frame::stuff(
+        //        encode_buffer.data(), packet_buffer.data(), bytes_encoded);
+        //if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
+        //    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+        //}
     }
 
     THD_WORKING_AREA(wa_kinematics_thread, 2048);
@@ -232,8 +240,20 @@ int main(void) {
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         /* generate handlebar torque output */
-        set_handlebar_torque(bicycle.handlebar_feedback_torque());
+        dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
         chTMStopMeasurementX(&dynamics_time_measurement);
+
+        message::set_simulation_loop_values(&msg, bicycle,
+                analog.get_adc12(), analog.get_adc13(),
+                encoder_steer.count(), encoder_rear_wheel.count(),
+                handlebar_torque_dac);
+        size_t bytes_encoded = packet::serialize::encode_delimited(
+                msg, encode_buffer.data(), encode_buffer.size());
+        size_t bytes_written = packet::frame::stuff(
+                encode_buffer.data(), packet_buffer.data(), bytes_encoded);
+        if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
+            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+        }
 
         const systime_t looptime = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
         const systime_t sleeptime = looptime + starttime - chVTGetSystemTime();
