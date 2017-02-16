@@ -1,5 +1,7 @@
 #include "packet/frame.h"
+#if defined(CH_CFG_TIME_QUANTUM) // ChibiOS CFG options are always defined by CMake
 #include "osal.h"
+#endif
 
 /*
  * Packet framing uses the Consistent Overhead Byte Stuffing algorithm for
@@ -11,10 +13,12 @@ namespace packet {
 namespace frame {
 
 size_t stuff(const void* source, void* dest, size_t source_byte_size) {
+#if defined(CH_CFG_TIME_QUANTUM) // ChibiOS CFG options are always defined by CMake
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
     osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET,
             "source data exceeds allowed frame algorithm size");
+#endif
 
     const char* source_ = static_cast<const char*>(source);
     char* dest_ = static_cast<char*>(dest);
@@ -46,10 +50,12 @@ size_t stuff(const void* source, void* dest, size_t source_byte_size) {
 }
 
 size_t unstuff(const void* source, void* dest, size_t source_byte_size) {
+#if defined(CH_CFG_TIME_QUANTUM) // ChibiOS CFG options are always defined by CMake
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
     osalDbgAssert(source_byte_size <= COBS_MAX_SIZE_DATA_SET + 1,
             "invalid data size");
+#endif
 
     const char* source_ = static_cast<const char*>(source);
     char* dest_ = static_cast<char*>(dest);
@@ -59,10 +65,14 @@ size_t unstuff(const void* source, void* dest, size_t source_byte_size) {
         uint8_t code = *source_++;
 
         if (code == 0) {
+#if defined(CH_CFG_TIME_QUANTUM) // ChibiOS CFG options are always defined by CMake
             osalDbgAssert(dest_ != static_cast<char*>(dest), "zero byte input");
+#endif
             break;
         }
+#if defined(CH_CFG_TIME_QUANTUM) // ChibiOS CFG options are always defined by CMake
         osalDbgAssert((code - 1) <= (end - source_), "input code too small or source buffer too small");
+#endif
         for (uint8_t i = 1; i < code; ++i) {
             *dest_++ = *source_++;
         }
@@ -74,8 +84,10 @@ size_t unstuff(const void* source, void* dest, size_t source_byte_size) {
 }
 
 size_t unstuff(const void* source, void* dest) {
+#if defined(CH_CFG_TIME_QUANTUM) // ChibiOS CFG options are always defined by CMake
     osalDbgCheck(source != nullptr);
     osalDbgCheck(dest != nullptr);
+#endif
 
     const char* source_ = static_cast<const char*>(source);
     char* dest_ = static_cast<char*>(dest);
@@ -84,12 +96,16 @@ size_t unstuff(const void* source, void* dest) {
         uint8_t code = *source_++;
 
         if (code == 0) {
+#if defined(CH_CFG_TIME_QUANTUM) // ChibiOS CFG options are always defined by CMake
             osalDbgAssert(dest_ != static_cast<char*>(dest), "zero byte input");
+#endif
             break;
         }
+#if defined(CH_CFG_TIME_QUANTUM) // ChibiOS CFG options are always defined by CMake
         osalDbgAssert((code - 1) <=
                 (COBS_MAX_SIZE_DATA_SET - (dest_ - static_cast<char*>(dest) - 1)),
                 "input code too small or source buffer too small");
+#endif
         for (uint8_t i = 1; i < code; ++i) {
             *dest_++ = *source_++;
         }
