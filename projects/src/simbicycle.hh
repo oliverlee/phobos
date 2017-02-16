@@ -74,7 +74,7 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
      * The auxiliary states _must_ also be integrated at the same time as the
      * dynamic state. After the observer update, we "merge" dynamic states together.
      */
-    m_state_full = m_model.integrate_full_state(m_state_full, input, m_model.dt());
+    full_state_t state_full = m_model.integrate_full_state(m_state_full, input, m_model.dt());
     m_observer.update_state(input, measurement);
 
     if (!m_observer.state().allFinite()) {
@@ -104,9 +104,9 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
             model_t::set_state_element(x, model_t::state_index_t::steer_angle,
                     steer_angle_measurement);
             model_t::set_state_element(x, model_t::state_index_t::roll_rate,
-                    model_t::get_full_state_element(m_state_full, full_state_index_t::roll_rate));
+                    model_t::get_full_state_element(state_full, full_state_index_t::roll_rate));
             model_t::set_state_element(x, model_t::state_index_t::steer_rate,
-                    model_t::get_full_state_element(m_state_full, full_state_index_t::steer_rate));
+                    model_t::get_full_state_element(state_full, full_state_index_t::steer_rate));
         } else {
             limit_state_element(model_t::state_index_t::roll_rate, roll_rate_limit);
             limit_state_element(model_t::state_index_t::steer_rate, steer_rate_limit);
@@ -130,7 +130,7 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
      */
     chBSemWait(&m_state_sem);
     m_state_full = model_t::make_full_state(
-            model_t::get_auxiliary_state_part(m_state_full),
+            model_t::get_auxiliary_state_part(state_full),
             m_observer.state());
     chBSemSignal(&m_state_sem);
 }
