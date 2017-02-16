@@ -21,6 +21,8 @@
 #include "encoder.h"
 #include "encoderfoaw.h"
 #include "packet/frame.h"
+#include "packet/serialize.h"
+#include "pose.pb.h"
 #include "filter/movingaverage.h"
 
 #include "gitsha1.h"
@@ -53,23 +55,8 @@ namespace {
     filter::MovingAverage<float, 5> velocity_filter;
 
     /* transmission */
-    struct __attribute__((__packed__)) pose_t {
-        float x; /* m */
-        float y; /* m */
-        float pitch; /* rad */
-        float yaw; /* rad */
-        float roll; /* rad */
-        float steer; /* rad */
-        float rear_wheel; /* rad */
-        float v; /* m/s */
-        uint16_t computation_time; /* time to acquire sensor data,
-                                    * update bicycle model,
-                                    * and command actuators */
-        uint16_t timestamp;  /* system ticks
-                              * (normally 10 kHz, see CH_CFG_ST_FREQUENCY) */
-    }; /* 36 bytes */
-    pose_t pose = {};
-    std::array<uint8_t, sizeof(pose_t) + packet::frame::PACKET_OVERHEAD> packet_buffer;
+    std::array<uint8_t, BicyclePoseMessage_size + packet::frame::PACKET_OVERHEAD> encode_buffer;
+    std::array<uint8_t, BicyclePoseMessage_size + packet::frame::PACKET_OVERHEAD> packet_buffer;
 
     /* kinematics loop */
     constexpr systime_t kinematics_loop_time = US2ST(8333); /* update kinematics at 120 Hz */
@@ -85,41 +72,25 @@ namespace {
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
     }
 
-    void set_pose(const bicycle_t& bicycle, uint32_t computation_time_measurement) {
-        pose = pose_t{}; /* reset pose to zero */
-
-        pose.timestamp = bicycle.pose().timestamp;
-        pose.x = bicycle.pose().x;
-        pose.y = bicycle.pose().y;
-        pose.rear_wheel = angle::wrap(bicycle.pose().rear_wheel);
-        pose.pitch = angle::wrap(bicycle.pose().pitch);
-        pose.yaw = angle::wrap(bicycle.pose().yaw);
-        pose.roll = angle::wrap(bicycle.pose().roll);
-        pose.steer = angle::wrap(bicycle.pose().steer);
-        pose.v = bicycle.v();
-        pose.computation_time = static_cast<uint16_t>(RTC2US(STM32_SYSCLK,
-                    computation_time_measurement));
-    }
-
     void transmit_gitsha1() {
-        size_t bytes_written = packet::frame::stuff(g_GITSHA1, packet_buffer.data(), 7);
+        size_t bytes_written = packet::frame::stuff(g_GITSHA1, encode_buffer.data(), 7);
         while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
             chThdSleepMilliseconds(10);
         }
-        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, encode_buffer.data(), bytes_written);
     }
 
     void update_and_transmit_kinematics(bicycle_t& bicycle) {
         bicycle.update_kinematics();
-        /* time measurement value is cast down to uint16_t as we don't need all 32 bits */
-        set_pose(bicycle, dynamics_time_measurement.last);
-
         /*
          * TODO: Pose message should be transmitted asynchronously.
          * After starting transmission, the simulation should start to calculate pose for the next timestep.
          * This is currently not necessary given the observed timings.
          */
-        size_t bytes_written = packet::frame::stuff(&pose, packet_buffer.data(), sizeof(pose));
+        size_t bytes_encoded = packet::serialize::encode_delimited(bicycle.pose(),
+                encode_buffer.data(), encode_buffer.size());
+        size_t bytes_written = packet::frame::stuff(
+                encode_buffer.data(), packet_buffer.data(), bytes_encoded);
         if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
             usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
         }

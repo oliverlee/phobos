@@ -13,7 +13,7 @@ m_model(v, dt),
 m_observer(m_model),
 m_haptic(m_model, steer_inertia),
 m_state_full(full_state_t::Zero()),
-m_pose() {
+m_pose(BicyclePoseMessage_init_zero) {
     // Note: User must initialize Kalman matrices in application.
     // TODO: Do this automatically with default values?
     chBSemObjectInit(&m_state_sem, false); /* initialize to not taken */

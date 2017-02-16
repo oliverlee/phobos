@@ -17,6 +17,7 @@ add_phobos_executable(flimnap
     halconf.h
     mcuconf.h
     main.cc
+    serialize.cc
     usbconfig.c # add USB config file without input/output buffer queues
     ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
