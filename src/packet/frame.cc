@@ -44,7 +44,7 @@ size_t stuff(const void* source, void* dest, size_t source_byte_size) {
         ++source_;
     }
     write_code();
-    *dest_ = packet::frame::COBS_PACKET_DELIMITER;
+    *code_p = packet::frame::COBS_PACKET_DELIMITER;
     return source_byte_size + packet::frame::PACKET_OVERHEAD;
 }
 
