@@ -44,26 +44,37 @@ namespace {
             size_t scan_index = 0;
 
             auto copy_to_frame_buffer = [&]() -> void {
-                size_t length = scan_index - start_index;
+                size_t length = scan_index - start_index + 1; // delimiter included
                 std::memcpy(frame_buffer + frame_buffer_index, rx_buffer + start_index, length);
                 frame_buffer_index += length;
                 start_index = ++scan_index;
             };
 
             auto decode_message = [&]() -> void {
-                packet::frame::unstuff(frame_buffer, sim_buffer, frame_buffer_index);
+                size_t unstuff_size = packet::frame::unstuff(frame_buffer, sim_buffer, frame_buffer_index);
+                std::cout << "frame buffer index: " << frame_buffer_index << std::endl;
+                std::cout << "unstuff size " << unstuff_size << std::endl;
                 google::protobuf::io::CodedInputStream input(
-                        (const uint8_t*)sim_buffer, frame_buffer_index - packet::frame::PACKET_FRAME_OVERHEAD);
-                frame_buffer_index = 0;
+                        (const uint8_t*)sim_buffer, frame_buffer_index);
+
                 uint32_t size;
                 if (!input.ReadVarint32(&size)) {
                     std::cerr << "Unable to decode packet size" << std::endl;
                     return;
+                } else {
+                    std::cout << "message size is " << size << std::endl;
+                    if (frame_buffer_index < size) {
+                        std::cout << "frame buffer index is smaller, skipping decode" << std::endl;
+                        return;
+                    }
                 }
                 if (msg.MergeFromCodedStream(&input)) {
                     msg.PrintDebugString();
                     msg.Clear();
+                    frame_buffer_index = 0;
                     std::cout << std::endl;
+                } else {
+                    std::cout << "decode failed" << std::endl;
                 }
             };
 
@@ -77,6 +88,7 @@ namespace {
                 }
             }
 
+            --scan_index;
             copy_to_frame_buffer();
         }
         start_read();
