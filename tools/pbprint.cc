@@ -1,20 +1,23 @@
 #include <cstring>
 #include <iostream>
+#include <iomanip>
 #include <asio.hpp>
 #include <asio/serial_port.hpp>
 #include <asio/signal_set.hpp>
 #include <google/protobuf/io/coded_stream.h>
 #include "packet/frame.h"
 #include "pose.pb.h"
+#include "simulation.pb.h"
 
 namespace {
     asio::io_service io_service;
     asio::serial_port port(io_service);
-    char rx_buffer[512];
-    char pose_buffer[64];
-    char frame_buffer[64];
+    constexpr size_t buffer_size = 1024;
+    char rx_buffer[buffer_size];
+    char sim_buffer[buffer_size];
+    char frame_buffer[buffer_size];
     size_t frame_buffer_index = 0;
-    BicyclePoseMessage pose;
+    SimulationMessage msg;
 
     void handle_read(const asio::error_code&, size_t);
 
@@ -29,6 +32,14 @@ namespace {
         if (error) {
             std::cerr << error.message() << "\n";
         } else {
+            std::cout << "read " << bytes_transferred << " bytes" << std::endl;
+
+            std::cout << std::hex;
+            for (size_t i = 0; i < bytes_transferred; ++i) {
+                std::cout << std::setw(2) << ((int)rx_buffer[i] & 0xff) << " ";
+            }
+            std::cout << std::dec << std::endl;
+
             size_t start_index = 0;
             size_t scan_index = 0;
 
@@ -40,24 +51,25 @@ namespace {
             };
 
             auto decode_message = [&]() -> void {
-                packet::frame::unstuff(frame_buffer, pose_buffer, frame_buffer_index);
+                packet::frame::unstuff(frame_buffer, sim_buffer, frame_buffer_index);
                 google::protobuf::io::CodedInputStream input(
-                        (const uint8_t*)pose_buffer, frame_buffer_index - packet::frame::PACKET_FRAME_OVERHEAD);
+                        (const uint8_t*)sim_buffer, frame_buffer_index - packet::frame::PACKET_FRAME_OVERHEAD);
                 frame_buffer_index = 0;
                 uint32_t size;
                 if (!input.ReadVarint32(&size)) {
                     std::cerr << "Unable to decode packet size" << std::endl;
                     return;
                 }
-                if (pose.MergeFromCodedStream(&input)) {
-                    pose.PrintDebugString();
+                if (msg.MergeFromCodedStream(&input)) {
+                    msg.PrintDebugString();
+                    msg.Clear();
                     std::cout << std::endl;
-                    pose.Clear();
                 }
             };
 
             while (scan_index < bytes_transferred) {
                 if (rx_buffer[scan_index] == packet::frame::PACKET_DELIMITER) {
+                    std::cout << "got packet delimiter at byte " << scan_index << std::endl;
                     copy_to_frame_buffer();
                     decode_message();
                 } else {

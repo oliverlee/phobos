@@ -16,7 +16,9 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y -Wall -Wextra")
 
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ../projects/proto/pose.proto)
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS
+    ../projects/proto/pose.proto
+    ../projects/proto/simulation.proto)
 
 add_executable(seriallog seriallog.cc)
 add_executable(pbprint pbprint.cc ../src/packet/frame.cc ${PROTO_SRCS} ${PROTO_HDRS})
