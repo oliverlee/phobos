@@ -91,4 +91,12 @@ void set_bicycle_discrete_time_state_space(BicycleModelMessage* pb, const bicycl
     pb->has_D = true;
 }
 
+void set_simulation_timing(SimulationMessage* pb, uint32_t computation_time, uint32_t transmission_time) {
+    pb->timing.computation = computation_time;
+    pb->timing.has_computation = true;
+    pb->timing.transmission = transmission_time;
+    pb->timing.has_transmission = true;
+    pb->has_timing = true;
+}
+
 } // namespace message

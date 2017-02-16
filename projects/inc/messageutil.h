@@ -37,6 +37,8 @@ namespace message {
     void set_simulation_loop_values(SimulationMessage* pb, const simbicycle_t& b,
             float measured_steer_torque, float measured_motor_torque,
             float encoder_count, float commanded_feedback_torque);
+
+    void set_simulation_timing(SimulationMessage* pb, uint32_t computation_time, uint32_t transmission_time);
 } // namespace message
 
 namespace message {

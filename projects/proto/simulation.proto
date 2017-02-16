@@ -16,6 +16,8 @@ message SimulationMessage {
     optional BicycleKalmanMessage kalman =      9;
 
     optional BicycleAuxiliaryStateMessage auxiliary_state = 10;
+
+    optional TimingMessage timing = 11;
 }
 
 // states are yaw, roll, steer, roll rate, steer rate (5)
@@ -105,4 +107,9 @@ message BicycleModelMessage {
     optional InputMatrixMessage B =         8;
     optional OutputMatrixMessage C =        9;
     optional FeedthroughMatrixMessage D =   10;
+}
+
+message TimingMessage {
+    optional uint32 computation = 1;
+    optional uint32 transmission = 2;
 }

@@ -22,7 +22,6 @@
 #include "encoderfoaw.h"
 #include "packet/frame.h"
 #include "packet/serialize.h"
-//#include "pose.pb.h"
 #include "simulation.pb.h"
 #include "messageutil.h"
 #include "filter/movingaverage.h"
@@ -66,7 +65,8 @@ namespace {
 
     /* dynamics loop */
     constexpr model::real_t dynamics_period = 0.005; /* 5 ms -> 200 Hz */
-    time_measurement_t dynamics_time_measurement;
+    time_measurement_t computation_time_measurement;
+    time_measurement_t transmission_time_measurement;
 
     dacsample_t set_handlebar_torque(float handlebar_torque) {
         int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
@@ -212,12 +212,13 @@ int main(void) {
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
-    chTMObjectInit(&dynamics_time_measurement);
+    chTMObjectInit(&computation_time_measurement);
+    chTMObjectInit(&transmission_time_measurement);
     chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread), NORMALPRIO - 1,
             kinematics_thread, static_cast<void*>(&bicycle));
     while (true) {
         systime_t starttime = chVTGetSystemTime();
-        chTMStartMeasurementX(&dynamics_time_measurement);
+        chTMStartMeasurementX(&computation_time_measurement);
         constexpr float roll_torque = 0.0f;
 
         /* get sensor measurements */
@@ -241,18 +242,21 @@ int main(void) {
 
         /* generate handlebar torque output */
         dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
-        chTMStopMeasurementX(&dynamics_time_measurement);
+        chTMStopMeasurementX(&computation_time_measurement);
 
-        message::set_simulation_loop_values(&msg, bicycle,
-                analog.get_adc12(), analog.get_adc13(),
-                encoder_steer.count(), encoder_rear_wheel.count(),
-                handlebar_torque_dac);
+        message::set_simulation_loop_values(&msg, bicycle, analog.get_adc12(), analog.get_adc13(),
+                encoder_steer.count(), encoder_rear_wheel.count(), handlebar_torque_dac);
+        message::set_simulation_timing(&msg, computation_time_measurement.last, transmission_time_measurement.last);
+        msg.timestamp = starttime;
+
         size_t bytes_encoded = packet::serialize::encode_delimited(
                 msg, encode_buffer.data(), encode_buffer.size());
         size_t bytes_written = packet::frame::stuff(
                 encode_buffer.data(), packet_buffer.data(), bytes_encoded);
         if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
+            chTMStartMeasurementX(&transmission_time_measurement);
             usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+            chTMStopMeasurementX(&transmission_time_measurement);
         }
 
         const systime_t looptime = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
