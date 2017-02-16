@@ -11,8 +11,9 @@ namespace {
     asio::io_service io_service;
     asio::serial_port port(io_service);
     char rx_buffer[512];
-    char pose_buffer[512];
-    size_t pose_buffer_index = 0;
+    char pose_buffer[64];
+    char frame_buffer[64];
+    size_t frame_buffer_index = 0;
     BicyclePoseMessage pose;
 
     void handle_read(const asio::error_code&, size_t);
@@ -28,15 +29,43 @@ namespace {
         if (error) {
             std::cerr << error.message() << "\n";
         } else {
-            // TODO: handle multiple packet delimiters
-            std::memcpy(pose_buffer + pose_buffer_index, rx_buffer, bytes_transferred);
+            size_t start_index = 0;
+            size_t scan_index = 0;
 
-            google::protobuf::io::CodedInputStream input(
-                    (const uint8_t*)pose_buffer, bytes_transferred - 1);
-            if (pose.MergeFromCodedStream(&input)) {
-                pose.PrintDebugString();
-                pose.Clear();
+            auto copy_to_frame_buffer = [&]() -> void {
+                size_t length = scan_index - start_index;
+                std::memcpy(frame_buffer + frame_buffer_index, rx_buffer + start_index, length);
+                frame_buffer_index += length;
+                start_index = ++scan_index;
+            };
+
+            auto decode_message = [&]() -> void {
+                packet::frame::unstuff(frame_buffer, pose_buffer, frame_buffer_index);
+                google::protobuf::io::CodedInputStream input(
+                        (const uint8_t*)pose_buffer, frame_buffer_index - packet::frame::PACKET_FRAME_OVERHEAD);
+                frame_buffer_index = 0;
+                uint32_t size;
+                if (!input.ReadVarint32(&size)) {
+                    std::cerr << "Unable to decode packet size" << std::endl;
+                    return;
+                }
+                if (pose.MergeFromCodedStream(&input)) {
+                    pose.PrintDebugString();
+                    std::cout << std::endl;
+                    pose.Clear();
+                }
+            };
+
+            while (scan_index < bytes_transferred) {
+                if (rx_buffer[scan_index] == packet::frame::PACKET_DELIMITER) {
+                    copy_to_frame_buffer();
+                    decode_message();
+                } else {
+                    ++scan_index;
+                }
             }
+
+            copy_to_frame_buffer();
         }
         start_read();
     }

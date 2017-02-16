@@ -19,7 +19,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y -Wall -Wextra")
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ../projects/proto/pose.proto)
 
 add_executable(seriallog seriallog.cc)
-add_executable(pbprint pbprint.cc ${PROTO_SRCS} ${PROTO_HDRS})
+add_executable(pbprint pbprint.cc ../src/packet/frame.cc ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(pbprint ${PROTOBUF_LIBRARIES})
 if (NOT APPLE)
     find_package(Threads)
