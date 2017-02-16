@@ -248,4 +248,9 @@ model::real_t Bicycle<T, U, V>::dt() const {
     return m_model.dt();
 }
 
+template <typename T, typename U, typename V>
+const typename Bicycle<T, U, V>::full_state_t& Bicycle<T, U, V>::full_state() const {
+    return m_state_full;
+}
+
 } // namespace sim

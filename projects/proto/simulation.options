@@ -1,0 +1,21 @@
+SimulationMessage.firmware_version          max_size:7
+
+BicycleStateMessage.x                       max_count:5
+BicycleAuxiliaryStateMessage.x              max_count:4
+BicycleInputMessage.u                       max_count:2
+
+SensorMessage.kistler_measured_torque       int_size:IS_16
+SensorMessage.kollmorgen_actual_torque      int_size:IS_16
+SensorMessage.rear_wheel_encoder_count      int_size:IS_16
+
+ActuatorMessage.kollmorgen_command_torque   int_size:IS_16
+
+SymmetricStateMatrixMessage.m               max_count:15
+SymmetricOutputMatrixMessage.m              max_count:3
+KalmanGainMatrixMessage.m                   max_count:10
+
+SecondOrderMatrixMessage.m                  max_count:4
+StateMatrixMessage.m                        max_count:25
+InputMatrixMessage.m                        max_count:10
+OutputMatrixMessage.m                       max_count:10
+FeedthroughMatrixMessage.m                  max_count:4
