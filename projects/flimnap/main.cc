@@ -59,6 +59,7 @@ namespace {
     std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> encode_buffer;
     std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> packet_buffer;
     SimulationMessage msg;
+    constexpr SimulationMessage msg_init = SimulationMessage_init_zero;
 
     /* kinematics loop */
     constexpr systime_t kinematics_loop_time = US2ST(8333); /* update kinematics at 120 Hz */
@@ -244,6 +245,7 @@ int main(void) {
         dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
         chTMStopMeasurementX(&computation_time_measurement);
 
+        msg = msg_init;
         message::set_simulation_loop_values(&msg, bicycle, analog.get_adc12(), analog.get_adc13(),
                 encoder_steer.count(), encoder_rear_wheel.count(), handlebar_torque_dac);
         message::set_simulation_timing(&msg, computation_time_measurement.last, transmission_time_measurement.last);
