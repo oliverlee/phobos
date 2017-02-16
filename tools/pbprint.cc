@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
 
     const std::string devname(argv[1]);
     uint32_t baud_rate = 115200;
-    if (argc > 1) {
+    if (argc > 2) {
         baud_rate = std::atoi(argv[2]);
     }
 
