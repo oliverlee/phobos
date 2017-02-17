@@ -5,7 +5,7 @@ set(CHIBIOS_BUILD_WITH_FATFS ON)
 
 generate_protobuf_source(
     ${PHOBOS_PROJECT_PROTO_DIR}/pose.proto
-    ${PHOBOS_PROJECT_PROTO_DIR}/clustril.proto)
+    ${PHOBOS_PROJECT_PROTO_DIR}/simulation.proto)
 
 # exclude blink and usb sources
 set(PHOBOS_COMMON_SRC ${PROJECT_BINARY_DIR}/src/gitsha1.cc)
