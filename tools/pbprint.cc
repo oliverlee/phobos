@@ -1,6 +1,6 @@
 #include <cstring>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <asio.hpp>
 #include <asio/serial_port.hpp>
 #include <asio/signal_set.hpp>
@@ -12,11 +12,13 @@
 namespace {
     asio::io_service io_service;
     asio::serial_port port(io_service);
+
     constexpr size_t buffer_size = 1024;
-    char rx_buffer[buffer_size];
-    char sim_buffer[buffer_size];
-    char frame_buffer[buffer_size];
+    uint8_t rx_buffer[buffer_size];
+    uint8_t sim_buffer[buffer_size];
+    uint8_t frame_buffer[buffer_size];
     size_t frame_buffer_index = 0;
+
     SimulationMessage msg;
 
     void handle_read(const asio::error_code&, size_t);
@@ -30,59 +32,62 @@ namespace {
 
     void handle_read(const asio::error_code& error, size_t bytes_transferred) {
         if (error) {
-            std::cerr << error.message() << "\n";
+            std::cerr << error.message() << std::endl;
         } else {
-            std::cout << "read " << bytes_transferred << " bytes" << std::endl;
-
-            std::cout << std::hex;
-            for (size_t i = 0; i < bytes_transferred; ++i) {
-                std::cout << std::setw(2) << ((int)rx_buffer[i] & 0xff) << " ";
-            }
-            std::cout << std::dec << std::endl;
-
             size_t start_index = 0;
             size_t scan_index = 0;
 
             auto copy_to_frame_buffer = [&]() -> void {
-                size_t length = scan_index - start_index + 1; // delimiter included
+                const size_t length = scan_index - start_index + 1; /* include packet delimiter */
                 std::memcpy(frame_buffer + frame_buffer_index, rx_buffer + start_index, length);
                 frame_buffer_index += length;
                 start_index = ++scan_index;
             };
 
             auto decode_message = [&]() -> void {
-                size_t unstuff_size = packet::frame::unstuff(frame_buffer, sim_buffer, frame_buffer_index);
-                std::cout << "frame buffer index: " << frame_buffer_index << std::endl;
-                std::cout << "unstuff size " << unstuff_size << std::endl;
+                const size_t unstuff_size = packet::frame::unstuff(
+                        frame_buffer, sim_buffer, frame_buffer_index);
                 google::protobuf::io::CodedInputStream input(
-                        (const uint8_t*)sim_buffer, unstuff_size);
+                        const_cast<const uint8_t*>(sim_buffer), unstuff_size);
 
                 uint32_t size;
                 if (!input.ReadVarint32(&size)) {
-                    std::cerr << "Unable to decode packet size" << std::endl;
+                    std::cerr << "Unable to decode packet size from serialized data." << std::endl;
                     return;
                 } else {
-                    std::cout << "message size is " << size << std::endl;
                     if (frame_buffer_index < size) {
-                        std::cout << "frame buffer index is smaller, skipping decode" << std::endl;
+                        /* We haven't received enough data to decode this message */
                         return;
                     }
                 }
                 if (msg.MergeFromCodedStream(&input)) {
                     msg.PrintDebugString();
                     msg.Clear();
+
                     frame_buffer_index = 0;
                     std::cout << std::endl;
+
                     if (!input.ConsumedEntireMessage()) {
-                        std::cout << "entire message not consumed" << std::endl;
-                        std::cout << "current position " << input.CurrentPosition() << std::endl;
-                        std::cout << "bytes until limit " << input.BytesUntilLimit() << std::endl;
+                        std::cerr << "Entire message not consumed. Number of extra bytes: " <<
+                            input.BytesUntilLimit() << std::endl;
                     }
                 } else {
-                    std::cout << "decode failed" << std::endl;
+                    std::cerr << "Decode of protobuf message failed." << std::endl;
+                    std::cerr << "Current buffer size: " << frame_buffer_index << std::endl;
+                    std::cerr << "Size after unstuffing: " << unstuff_size << std::endl;
+                    std::cerr << "Buffer contents " << std::endl;
+                    std::cerr << std::hex;
+                    for (size_t i = 0; i < frame_buffer_index; ++i) {
+                        std::cerr << std::setfill('0') << std::setw(2) << std::right <<
+                            static_cast<int>(frame_buffer[i] & 0xff) <<  " ";
+                    }
+                    std::cerr << std::dec << std::endl;
+
                     if (unstuff_size > size) {
-                        // the buffer data is too large for the current message
-                        // we may have started reading in the middle of a message
+                        /* The size of the data stored in the buffer exceeds the
+                         * size of the message obtained by decoding the first
+                         * varint. We may have started reading in the middle of
+                         * a message so throw away the data. */
                         frame_buffer_index = 0;
                     }
                 }
@@ -90,7 +95,6 @@ namespace {
 
             while (scan_index < bytes_transferred) {
                 if (rx_buffer[scan_index] == packet::frame::PACKET_DELIMITER) {
-                    std::cout << "got packet delimiter at byte " << scan_index << std::endl;
                     copy_to_frame_buffer();
                     decode_message();
                 } else {
@@ -98,7 +102,7 @@ namespace {
                 }
             }
 
-            --scan_index;
+            --scan_index; /* don't copy an extra byte */
             copy_to_frame_buffer();
         }
         start_read();
