@@ -120,10 +120,21 @@ namespace {
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <serial_device> <baud_rate>\n"
-            << "\nTest serial communication.\n"
+        std::cerr << "Usage: " << argv[0] << " <serial_device> [<baud_rate>]\n\n"
+            << "Decode streaming serialized simulation protobuf messages.\n"
+            << " <serial_device>      device from which to read serial data\n"
+            << " <baud_rate=115200>   serial baud rate\n\n"
+
             << "A virtual serial port can be created using socat with:\n"
-            << "\t$ socat -d -d pty,raw,echo=0 pty,raw,echo=0\n";
+            << "  $ socat -d -d pty,raw,echo=0 pty,raw,echo=0\n\n"
+            << "This can be used to decode a log file of the serialized protobuf stream data.\n"
+            << "Here is an example:\n"
+            << "  $ socat -d -d pty,raw,echo=0 pty,raw,echo=0\n"
+            << "  2017/02/17 18:00:30 socat[71176] N PTY is /dev/ttys009\n"
+            << "  2017/02/17 18:00:30 socat[71176] N PTY is /dev/ttys010\n"
+            << "  2017/02/17 18:00:30 socat[71176] N starting data transfer loop with FDs [5,5] and [7,7]\n\n"
+            << "  $ ./pbprint /dev/ttys010\n\n"
+            << "  $ cat log.pb > /dev/ttys009\n";
         return EXIT_FAILURE;
     }
 
