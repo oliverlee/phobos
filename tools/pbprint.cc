@@ -24,7 +24,7 @@ namespace {
     void handle_read(const asio::error_code&, size_t);
 
     void start_read() {
-        port.async_read_some(asio::buffer(rx_buffer, 512),
+        port.async_read_some(asio::buffer(rx_buffer, buffer_size),
                 std::bind(&handle_read,
                     std::placeholders::_1,
                     std::placeholders::_2));
@@ -39,6 +39,9 @@ namespace {
 
             auto copy_to_frame_buffer = [&]() -> void {
                 const size_t length = scan_index - start_index + 1; /* include packet delimiter */
+                if ((length + frame_buffer_index) > buffer_size) {
+                    frame_buffer_index = 0;
+                }
                 std::memcpy(frame_buffer + frame_buffer_index, rx_buffer + start_index, length);
                 frame_buffer_index += length;
                 start_index = ++scan_index;
