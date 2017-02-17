@@ -55,7 +55,7 @@ namespace {
                 std::cout << "frame buffer index: " << frame_buffer_index << std::endl;
                 std::cout << "unstuff size " << unstuff_size << std::endl;
                 google::protobuf::io::CodedInputStream input(
-                        (const uint8_t*)sim_buffer, frame_buffer_index);
+                        (const uint8_t*)sim_buffer, unstuff_size);
 
                 uint32_t size;
                 if (!input.ReadVarint32(&size)) {
@@ -73,8 +73,18 @@ namespace {
                     msg.Clear();
                     frame_buffer_index = 0;
                     std::cout << std::endl;
+                    if (!input.ConsumedEntireMessage()) {
+                        std::cout << "entire message not consumed" << std::endl;
+                        std::cout << "current position " << input.CurrentPosition() << std::endl;
+                        std::cout << "bytes until limit " << input.BytesUntilLimit() << std::endl;
+                    }
                 } else {
                     std::cout << "decode failed" << std::endl;
+                    if (unstuff_size > size) {
+                        // the buffer data is too large for the current message
+                        // we may have started reading in the middle of a message
+                        frame_buffer_index = 0;
+                    }
                 }
             };
 
