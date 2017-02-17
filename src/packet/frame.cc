@@ -94,7 +94,9 @@ size_t stuff(const void* source, void* dest, size_t source_byte_size) {
     size_t dest_offset = 0;
     for (size_t i = 0; i < sections; ++i) {
         size_t payload_size = (i == (sections - 1)) ? source_byte_size % COBS_MAX_SIZE_PAYLOAD : COBS_MAX_SIZE_PAYLOAD;
-        size_t stuffed_size = impl::stuff(static_cast<const char*>(source) + source_offset, static_cast<char*>(dest) + dest_offset, payload_size);
+        size_t stuffed_size = impl::stuff(
+                static_cast<const char*>(source) + source_offset,
+                static_cast<char*>(dest) + dest_offset, payload_size);
         source_offset += payload_size;
         dest_offset += stuffed_size;
     }
@@ -107,8 +109,13 @@ size_t unstuff(const void* source, void* dest, size_t source_byte_size) {
     size_t source_offset = 0;
     size_t dest_offset = 0;
     for (size_t i = 0; i < sections; ++i) {
-        size_t section_size = (i == (sections - 1)) ? source_byte_size % COBS_MAX_SIZE_SECTION : COBS_MAX_SIZE_SECTION;
-        size_t unstuffed_size = impl::unstuff(static_cast<const char*>(source) + source_offset, static_cast<char*>(dest) + dest_offset, section_size);
+        size_t section_size = COBS_MAX_SIZE_SECTION;
+        if (i == (sections - 1)) {
+            section_size = source_byte_size - (sections - 1)*COBS_MAX_SIZE_SECTION;
+        }
+        size_t unstuffed_size = impl::unstuff(
+                static_cast<const char*>(source) + source_offset,
+                static_cast<char*>(dest) + dest_offset, section_size);
         source_offset += section_size;
         dest_offset += unstuffed_size;
     }
