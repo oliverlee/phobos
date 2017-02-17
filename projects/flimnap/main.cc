@@ -77,14 +77,6 @@ namespace {
         return aout;
     }
 
-    //void transmit_gitsha1() {
-    //    size_t bytes_written = packet::frame::stuff(g_GITSHA1, encode_buffer.data(), 7);
-    //    while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
-    //        chThdSleepMilliseconds(10);
-    //    }
-    //    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, encode_buffer.data(), bytes_written);
-    //}
-
     void update_and_transmit_kinematics(bicycle_t& bicycle) {
         bicycle.update_kinematics();
         /*
@@ -206,9 +198,6 @@ int main(void) {
         bicycle.observer().set_R(parameters::defaultvalue::kalman::R);
     }
 
-    /* transmit git sha information, block until receiver is ready */
-    //transmit_gitsha1();
-
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
@@ -250,6 +239,9 @@ int main(void) {
                 encoder_steer.count(), encoder_rear_wheel.count(), handlebar_torque_dac);
         message::set_simulation_timing(&msg, computation_time_measurement.last, transmission_time_measurement.last);
         msg.timestamp = starttime;
+
+        std::memcpy(msg.gitsha1.f, g_GITSHA1, sizeof(msg.gitsha1.f)*sizeof(msg.gitsha1.f[0]));
+        msg.has_gitsha1 = true;
 
         size_t bytes_encoded = packet::serialize::encode_delimited(
                 msg, encode_buffer.data(), encode_buffer.size());
