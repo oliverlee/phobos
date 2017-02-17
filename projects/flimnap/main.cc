@@ -77,13 +77,13 @@ namespace {
         return aout;
     }
 
-    void transmit_gitsha1() {
-        size_t bytes_written = packet::frame::stuff(g_GITSHA1, encode_buffer.data(), 7);
-        while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
-            chThdSleepMilliseconds(10);
-        }
-        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, encode_buffer.data(), bytes_written);
-    }
+    //void transmit_gitsha1() {
+    //    size_t bytes_written = packet::frame::stuff(g_GITSHA1, encode_buffer.data(), 7);
+    //    while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
+    //        chThdSleepMilliseconds(10);
+    //    }
+    //    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, encode_buffer.data(), bytes_written);
+    //}
 
     void update_and_transmit_kinematics(bicycle_t& bicycle) {
         bicycle.update_kinematics();
@@ -207,7 +207,7 @@ int main(void) {
     }
 
     /* transmit git sha information, block until receiver is ready */
-    transmit_gitsha1();
+    //transmit_gitsha1();
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
