@@ -30,12 +30,22 @@ if __name__ == '__main__':
 """
 
 if __name__ == '__main__':
+    option_file = '../projects/proto/simulation.options'
+    max_repeated = pb.make_max_repeated_dict(option_file)
+
     proto_files = ['../projects/proto/pose.proto',
                    '../projects/proto/simulation.proto']
     proto = pb.import_modules(proto_files)[-1]
+
+    proto_descriptor = proto.SimulationMessage.DESCRIPTOR
+    dtype = pb.get_np_dtype(proto_descriptor, max_repeated)
 
     def deserialize_callback(packet):
         return pb.decode_delimited(proto.SimulationMessage(), packet)
 
     messages = load.cobs_framed_log(sys.argv[1], deserialize_callback, True)
     print('got {} message(s)'.format(len(messages)))
+
+    records = np.recarray((len(messages),), dtype)
+    for rec, msg in zip(records, messages):
+        pb.set_record_from_message(rec, msg)
