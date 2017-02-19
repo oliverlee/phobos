@@ -28,7 +28,7 @@
 
 #include "packet/serialize.h"
 #include "packet/frame.h"
-#include "clustril.pb.h"
+#include "simulation.pb.h"
 #include "messageutil.h"
 
 #include "parameters.h"
@@ -46,19 +46,20 @@ namespace {
                                    haptic::HandlebarStatic>;
     /* sensors */
     Analog analog;
-    Encoder encoder(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
+    Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
     EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC, sa::RLS_GTS35_ENC_CFG, MS2ST(1), 3.0f);
 
-    static constexpr ClustrilMessage clustril_message_zero = ClustrilMessage_init_zero;
-    ClustrilMessage sample;
+    static constexpr SimulationMessage simulation_message_zero = SimulationMessage_init_zero;
+    SimulationMessage sample;
 
-    std::array<uint8_t, ClustrilMessage_size> encode_buffer;
+    std::array<uint8_t, SimulationMessage_size> encode_buffer;
 
-    void set_handlebar_torque(float handlebar_torque) {
+    dacsample_t set_handlebar_torque(float handlebar_torque) {
         int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
         saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
         dacsample_t aout = static_cast<dacsample_t>(saturated_value);
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+        return aout;
     }
 } // namespace
 
@@ -86,7 +87,7 @@ int main(void) {
      */
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
-    encoder.start();
+    encoder_steer.start();
     encoder_rear_wheel.start();
     analog.start(1000); /* trigger ADC conversion at 1 kHz */
 
@@ -115,12 +116,12 @@ int main(void) {
     /* write firmware gitsha1, bicycle and Kalman settings to file */
     rtcnt_t bicycle_simulation_time = chSysGetRealtimeCounterX();
 
-    sample = clustril_message_zero;
+    sample = simulation_message_zero;
     sample.timestamp = bicycle_simulation_time;
-    std::memcpy(sample.firmware_version, g_GITSHA1,
-            sizeof(sample.firmware_version)*sizeof(sample.firmware_version[0]));
-    sample.has_firmware_version = true;
-    message::set_clustril_initial_values(&sample, bicycle);
+    std::memcpy(sample.gitsha1.f, g_GITSHA1,
+            sizeof(sample.gitsha1.f)*sizeof(sample.gitsha1.f[0]));
+    sample.has_gitsha1 = true;
+    message::set_simulation_initial_values(&sample, bicycle);
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -168,10 +169,11 @@ int main(void) {
         const float motor_torque = static_cast<float>(
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
+        (void)motor_torque; /* this isn't currently used */
 
         /* get angle measurements */
         const float yaw_angle = angle::wrap(bicycle.pose().yaw);
-        const float steer_angle = angle::encoder_count<float>(encoder);
+        const float steer_angle = angle::encoder_count<float>(encoder_steer);
         const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
 
         /* observer time/measurement update (~80 us with real_t = float) */
@@ -179,12 +181,12 @@ int main(void) {
         bicycle.update_kinematics();
 
         const float feedback_torque = bicycle.handlebar_feedback_torque();
-        set_handlebar_torque(feedback_torque);
+        const dacsample_t feedback_torque_dac = set_handlebar_torque(feedback_torque);
 
-        sample = clustril_message_zero;
+        sample = simulation_message_zero;
         sample.timestamp = chSysGetRealtimeCounterX();
-        message::set_clustril_loop_values(&sample, bicycle, steer_torque,
-                motor_torque, encoder.count(), feedback_torque);
+        message::set_simulation_loop_values(&sample, bicycle, analog.get_adc12(),
+                analog.get_adc13(), encoder_steer.count(), encoder_rear_wheel.count(), feedback_torque_dac);
 
         // TODO: fix sleep amount
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.dt()));

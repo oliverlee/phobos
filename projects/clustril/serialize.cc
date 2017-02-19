@@ -1,11 +1,11 @@
 #include "packet/serialize.h"
-#include "clustril.pb.h"
+#include "simulation.pb.h"
 
 namespace packet {
 namespace serialize {
 
 // TODO: autogenerate these template specializations
-template <> const pb_field_t* message_field<ClustrilMessage>::type = ClustrilMessage_fields;
+template <> const pb_field_t* message_field<SimulationMessage>::type = SimulationMessage_fields;
 template <> const pb_field_t* message_field<BicycleStateMessage>::type = BicycleStateMessage_fields;
 template <> const pb_field_t* message_field<BicycleInputMessage>::type = BicycleInputMessage_fields;
 template <> const pb_field_t* message_field<BicyclePoseMessage>::type = BicyclePoseMessage_fields;

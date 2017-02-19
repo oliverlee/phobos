@@ -83,6 +83,7 @@ class Bicycle {
         real_t front_wheel_radius() const;
         real_t v() const;
         real_t dt() const;
+        const full_state_t& full_state() const;
 
     private:
         model_t m_model; /* bicycle model object */

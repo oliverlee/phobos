@@ -8,6 +8,11 @@ void set_bicycle_state(BicycleStateMessage* pb, const bicycle_t::state_t& x) {
     pb->x_count = sizeof(pb->x)/sizeof(pb->x[0]);
 }
 
+void set_bicycle_auxiliary_state(BicycleAuxiliaryStateMessage* pb, const bicycle_t::auxiliary_state_t& x) {
+    std::memcpy(pb->x, x.data(), sizeof(pb->x));
+    pb->x_count = sizeof(pb->x)/sizeof(pb->x[0]);
+}
+
 void set_bicycle_input(BicycleInputMessage* pb, const bicycle_t::input_t& u) {
     std::memcpy(pb->u, u.data(), sizeof(pb->u));
     pb->u_count = sizeof(pb->u)/sizeof(pb->u[0]);
@@ -84,6 +89,14 @@ void set_bicycle_discrete_time_state_space(BicycleModelMessage* pb, const bicycl
     pb->has_B = true;
     pb->has_C = true;
     pb->has_D = true;
+}
+
+void set_simulation_timing(SimulationMessage* pb, uint32_t computation_time, uint32_t transmission_time) {
+    pb->timing.computation = computation_time;
+    pb->timing.has_computation = true;
+    pb->timing.transmission = transmission_time;
+    pb->timing.has_transmission = true;
+    pb->has_timing = true;
 }
 
 } // namespace message
