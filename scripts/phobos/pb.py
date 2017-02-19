@@ -3,6 +3,14 @@ import os
 from google.protobuf.internal.decoder import _DecodeVarint32
 
 
+class MissingDataError(Exception):
+    pass
+
+
+class ExtraDataError(Exception):
+    pass
+
+
 def import_modules(proto_paths):
     if not proto_paths:
         return
@@ -32,6 +40,11 @@ def import_modules(proto_paths):
 
 def decode_delimited(message, data):
     length, position = _DecodeVarint32(data, 0)
+    if (length + position) > len(data):
+        raise MissingDataError
+    if (length + position) < len(data):
+        raise ExtraDataError
+
     message.ParseFromString(data[position:position + length])
     return message
 

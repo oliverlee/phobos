@@ -37,5 +37,5 @@ if __name__ == '__main__':
     def deserialize_callback(packet):
         return pb.decode_delimited(proto.SimulationMessage(), packet)
 
-    messages = load.cobs_framed_log(sys.argv[1], deserialize_callback)
+    messages = load.cobs_framed_log(sys.argv[1], deserialize_callback, True)
     print('got {} message(s)'.format(len(messages)))

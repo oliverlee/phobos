@@ -2,7 +2,11 @@ import os
 import numpy as np
 from phobos import cobs
 from phobos import pose
+from phobos import pb
 
+
+DeserializeMissingDataError = pb.MissingDataError
+DeserializeExtraDataError = pb.ExtraDataError
 
 class DeserializeError(Exception):
     pass
@@ -27,7 +31,14 @@ def pose_log(filename, dtype=None):
     return gitsha1, np.frombuffer(data, dtype), 0
 
 
-def cobs_framed_log(filename, packet_callback=None):
+def cobs_framed_log(filename, packet_decode_callback=None,
+                    multipacket_message=False):
+
+    if multipacket_message and packet_decode_callback is None:
+        msg = ('packet_decode_callback must be defined if '
+               'multipacket_message is True.')
+        raise ValueError(msg)
+
     bytedata = None
     packets = []
     datums = []
@@ -49,16 +60,25 @@ def cobs_framed_log(filename, packet_callback=None):
                 num_errors += 1
                 # TODO handle unstuff errors, add error callback?
             else:
-                # TODO may need to change how a packet is deserialized for
-                # messages spanning multiple packets
-                if packet_callback is not None:
-                    datum = packet_callback(unstuffed_packet)
-                    if datum:
-                        datums.append(datum)
+                if packet_decode_callback is not None:
+                    if multipacket_message:
+                        packets.append(unstuffed_packet)
+                        datum = __decode_multipacket(packet_decode_callback,
+                                                     packets)
+                        # no real way to tell if decoding fails as we
+                        # assume it's normally due to not enough data
+                        # or too much data (which could happen if we
+                        # miss the beginning of a message)
+                        if datum:
+                            datums.append(datum)
                     else:
-                        msg = 'Unable to deserialize packet: {}'.format(
-                                unstuffed_packet)
-                        raise DeserializeError(msg)
+                        datum = packet_decode_callback(unstuffed_packet)
+                        if datum:
+                            datums.append(datum)
+                        else:
+                            msg = 'Unable to deserialize packet: {}'.format(
+                                    unstuffed_packet)
+                            raise DeserializeError(msg)
                 else:
                     packets.append(unstuffed_packet)
             finally:
@@ -71,3 +91,24 @@ def cobs_framed_log(filename, packet_callback=None):
     if datums:
         return datums
     return packets
+
+
+def __decode_multipacket(callback, packet_list):
+    if not packet_list:
+        return
+
+    data = bytes().join(packet_list)
+    try:
+        message = callback(data)
+    except DeserializeMissingDataError:
+        # wait for next packet
+        return None
+    except DeserializeExtraDataError:
+        # throw away the data
+        print('Extra data found when attempting to deserialize. '
+              'Packets dropped')
+        packet_list.clear()
+        return None
+    else:
+        packet_list.clear()
+        return message
