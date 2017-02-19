@@ -3,14 +3,9 @@ import numpy as np
 from phobos import cobs
 from phobos import pose
 
-script_dir = os.path.dirname(os.path.realpath(__file__))
-project_dir = os.path.join(script_dir,
-        os.path.pardir, os.path.pardir, 'projects')
-flimnap_file = os.path.join(project_dir, 'flimnap', 'main.cc')
-
 def pose_logfile(filename, dtype=None):
     if dtype is None:
-        _, dtype, _ = pose.parse_format(flimnap_file)
+        _, dtype, _ = pose.parse_format(pose.pose_def_file)
 
     bytedata = None
     gitsha1 = None

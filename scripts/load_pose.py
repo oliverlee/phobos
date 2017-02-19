@@ -9,7 +9,7 @@ from phobos import pose
 
 
 if __name__ == '__main__':
-    _, dtype, desc = pose.parse_format(load.flimnap_file)
+    _, dtype, desc = pose.parse_format()
     if len(sys.argv) < 2:
         print('Usage: {} <pose_log_file>\n\nLoad pose data'.format(__file__))
         print('    <pose_log_file>\tFile containing samples in ' +

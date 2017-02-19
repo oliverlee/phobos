@@ -1,25 +1,12 @@
-#pose definition for flimnap
-#
-# example:
-# struct __attribute__((__packed__)) pose_t {
-#     float x; /* m */
-#     float y; /* m */
-#     float pitch; /* rad */
-#     float yaw; /* rad */
-#     float roll; /* rad */
-#     float steer; /* rad */
-#     float rear_wheel; /* rad */
-#     float v; /* m/s */
-#     uint16_t computation_time; /* time to acquire sensor data,
-#                                   update bicycle model,
-#                                   and command actuators */
-#     uint16_t timestamp;  /* Converted from system ticks to microseconds */
-# }; /* 40 bytes */
+# Old-style pose type for flimnap is defined in scripts/phobos/pose_def.cc
 
 import os
 import re
 import struct
 import numpy as np
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
+pose_def_file = os.path.join(script_dir, 'pose_def.cc')
 
 
 def get_time_vector(data):
@@ -38,7 +25,7 @@ def get_time_vector(data):
     return ts + ts_offset
 
 
-def parse_format(source_file):
+def parse_format(source_file=pose_def_file):
     with open(source_file, 'r') as f:
         start_pose_definition = False
         struct_format = '<'
@@ -91,10 +78,7 @@ def parse_format(source_file):
 
 
 if __name__ == '__main__':
-    local_dir = os.path.dirname(os.path.realpath(__file__))
-    project_dir = os.path.join(local_dir, os.path.pardir, os.path.pardir, 'projects')
-    flimnap_file = os.path.join(project_dir, 'flimnap', 'main.cc')
-    a, b, c = parse_format(flimnap_file)
+    a, b, c = parse_format(pose_def_file)
     print(a)
     print(b)
     print(c)
