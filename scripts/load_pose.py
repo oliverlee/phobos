@@ -6,8 +6,10 @@ import numpy as np
 
 from phobos import load
 from phobos import pose
+from phobos import pb
 
 
+"""
 if __name__ == '__main__':
     _, dtype, desc = pose.parse_format()
     if len(sys.argv) < 2:
@@ -24,3 +26,16 @@ if __name__ == '__main__':
         len(data), num_errors))
 
     sys.exit(0)
+
+"""
+
+if __name__ == '__main__':
+    proto_files = ['../projects/proto/pose.proto',
+                   '../projects/proto/simulation.proto']
+    proto = pb.import_modules(proto_files)[-1]
+
+    def deserialize_callback(packet):
+        return pb.decode_delimited(proto.SimulationMessage(), packet)
+
+    messages = load.cobs_framed_log(sys.argv[1], deserialize_callback)
+    print('got {} message(s)'.format(len(messages)))
