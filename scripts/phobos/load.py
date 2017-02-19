@@ -47,3 +47,34 @@ def pose_logfile(filename, dtype=None):
                 packet_end = i + 1
 
     return gitsha1, np.frombuffer(data, dtype), num_errors
+
+
+def cobs_framed_log(filename, datum_datatype=None):
+    bytedata = None
+    packets = []
+    datums = []
+
+    with open(filename, 'rb') as f:
+        bytedata = f.read()
+    mv = memoryview(bytedata)
+
+    packet_start = 0;
+    packet_end = 0;
+    num_errors = 0;
+    for i, byte in enumerate(bytedata):
+        if byte == 0:
+            packet_end = i
+            try:
+                unstuffed_packet = cobs.decode(mv[packet_start:packet_end])
+            except cobs.DecodeError as e:
+                print(e)
+                num_errors += 1
+                # TODO handle unstuff errors
+            else:
+                packets.append(unstuffed_packet)
+                # TODO pop packets and decode to datums
+            finally:
+                packet_start = i + 1
+                packet_end = i + 1
+    print("{} error(s) when unstuffing file {}".format(num_errors, filename))
+    return packets
