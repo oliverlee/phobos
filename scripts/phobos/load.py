@@ -8,7 +8,7 @@ class DeserializeError(Exception):
     pass
 
 
-def pose_logfile(filename, dtype=None):
+def pose_log(filename, dtype=None):
     if dtype is None:
         _, dtype, _ = pose.parse_format(pose.pose_def_file)
 

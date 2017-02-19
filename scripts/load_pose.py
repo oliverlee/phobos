@@ -18,7 +18,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     filename = os.path.realpath(sys.argv[1])
-    gitsha1, data, num_errors = load.pose_logfile(filename, dtype)
+    gitsha1, data, num_errors = load.pose_log(filename, dtype)
     print('firmware version {0}'.format(gitsha1))
     print('read {0} total packets, {1} decode errors'.format(
         len(data), num_errors))
