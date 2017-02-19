@@ -3,53 +3,31 @@ import numpy as np
 from phobos import cobs
 from phobos import pose
 
+
+class DeserializeError(Exception):
+    pass
+
+
 def pose_logfile(filename, dtype=None):
     if dtype is None:
         _, dtype, _ = pose.parse_format(pose.pose_def_file)
 
-    bytedata = None
     gitsha1 = None
-    num_errors = 0
+    packets = cobs_framed_log(filename)
     data = bytearray()
+    for p in packets:
+        if len(p) == 7:
+            gitsha1 = p.decode('ascii')
+        elif len(p) != dtype.itemsize:
+            # replace malformed packet with a "zero" packet
+            data.extend(bytearray([0xff] * dtype.itemsize))
+        else:
+            data.extend(p)
 
-    with open(filename, 'rb') as f:
-        bytedata = f.read()
-
-    packet_start = 0;
-    packet_end = 0;
-    mv = memoryview(bytedata)
-    for i, byte in enumerate(bytedata):
-        #if byte == b'\x00': # COBS packet delimiter
-        if byte == 0: # b'\x00': # COBS packet delimiter
-                      # Python 3.3+ returns an int when iterating over a
-                      # 'bytes' object??
-            packet_end = i
-            try:
-                p = cobs.decode(mv[packet_start:packet_end], True)
-            except cobs.DecodeError as e:
-                # further testing necessary to determine cause of:
-                # 'not enough input bytes for length code'
-                # print(e)
-                num_errors += 1
-                # add a packet with all floats as nan
-                data.extend(bytearray([0xff] * dtype.itemsize))
-            else:
-                if len(p) != dtype.itemsize:
-                    if len(p) == 7: # this is sent as the first packet
-                        gitsha1 = p.decode('ascii')
-                    else:
-                        print('invalid packet size: {0} not {1}'.format(
-                            len(p), dtype.itemsize))
-                else:
-                    data.extend(p)
-            finally:
-                packet_start = i + 1
-                packet_end = i + 1
-
-    return gitsha1, np.frombuffer(data, dtype), num_errors
+    return gitsha1, np.frombuffer(data, dtype), 0
 
 
-def cobs_framed_log(filename, datum_datatype=None):
+def cobs_framed_log(filename, packet_callback=None):
     bytedata = None
     packets = []
     datums = []
@@ -69,12 +47,27 @@ def cobs_framed_log(filename, datum_datatype=None):
             except cobs.DecodeError as e:
                 print(e)
                 num_errors += 1
-                # TODO handle unstuff errors
+                # TODO handle unstuff errors, add error callback?
             else:
-                packets.append(unstuffed_packet)
-                # TODO pop packets and decode to datums
+                # TODO may need to change how a packet is deserialized for
+                # messages spanning multiple packets
+                if packet_callback is not None:
+                    datum = packet_callback(unstuffed_packet)
+                    if datum:
+                        datums.append(datum)
+                    else:
+                        msg = 'Unable to deserialize packet: {}'.format(
+                                unstuffed_packet)
+                        raise DeserializeError(msg)
+                else:
+                    packets.append(unstuffed_packet)
             finally:
                 packet_start = i + 1
                 packet_end = i + 1
-    print("{} error(s) when unstuffing file {}".format(num_errors, filename))
+
+    if num_errors:
+        print("{} error(s) when unstuffing file {}".format(num_errors,
+                                                           filename))
+    if datums:
+        return datums
     return packets
