@@ -66,14 +66,29 @@ __np_dtype_map = dict([
 ])
 
 
+def __is_repeating_field(field_descriptor):
+    return ((field_descriptor.label == FieldDescriptor.LABEL_REPEATED) or
+            (field_descriptor.cpp_type == FieldDescriptor.CPPTYPE_STRING))
+
+
+def __has_only_single_repeating_field(field_descriptor):
+    try:
+        fields = field_descriptor.message_type.fields
+    except AttributeError:
+        return False
+    else:
+        if ((len(fields) == 1) and (__is_repeating_field(fields[0]))):
+            return True
+    return False
+
+
 def get_np_dtype(message_type_descriptor, max_repeated=None):
     dtype = []
     for field_descriptor in message_type_descriptor.fields:
         shape = 1
         try:
             scalar_type = __np_dtype_map[field_descriptor.cpp_type]
-            if ((field_descriptor.label == FieldDescriptor.LABEL_REPEATED) or
-                (field_descriptor.cpp_type == FieldDescriptor.CPPTYPE_STRING)):
+            if __is_repeating_field(field_descriptor):
                 # If the field is repeated or bytes/string type, the max_count
                 # or max_size _must_ be defined so that an upper bound for
                 # memory usage is known.
@@ -81,6 +96,16 @@ def get_np_dtype(message_type_descriptor, max_repeated=None):
         except KeyError:
             scalar_type = get_np_dtype(field_descriptor.message_type,
                                        max_repeated)
+            # If we have a single repeated field (such as for matrix message
+            # types), don't create a record with a single element to make
+            # access a bit easier.
+            if __has_only_single_repeating_field(field_descriptor):
+                # Here is where we remove a level of nesting in the numpy dtype
+                # TODO: Change shape to a tuple so we have a matrix/vector?
+                #       Eigen stores elements in column-major order so we must
+                #       also do the same here.
+                v  = list(scalar_type.fields.values())[0][0]
+                scalar_type, shape = v.subdtype
         finally:
             dtype.append((field_descriptor.name, scalar_type, shape))
     return np.dtype(dtype)
@@ -91,15 +116,19 @@ def set_record_from_message(record, message):
         try:
             setattr(record, field_descriptor.name, value)
         except TypeError:
-            subrecord = getattr(record, field_descriptor.name)
-            set_record_from_message(subrecord, value)
-        except ValueError as e:
-            if field_descriptor.cpp_type == FieldDescriptor.CPPTYPE_STRING:
-                scalar_type = __np_dtype_map[field_descriptor.cpp_type]
-                value = np.fromstring(value, scalar_type)
+            if __has_only_single_repeating_field(field_descriptor):
+                # As we simplify the numpy dtype, we also need to skip a level
+                # when copying a protobuf message to a numpy record.
+                fd, value = value.ListFields()[0]
+                if fd.cpp_type == FieldDescriptor.CPPTYPE_STRING:
+                    # numpy doesn't have a string type so we use the byte type
+                    # defined in the map
+                    scalar_type = __np_dtype_map[fd.cpp_type]
+                    value = np.fromstring(value, scalar_type)
                 setattr(record, field_descriptor.name, value)
             else:
-                raise e
+                subrecord = getattr(record, field_descriptor.name)
+                set_record_from_message(subrecord, value)
 
 
 def make_max_repeated_dict(options_file):
