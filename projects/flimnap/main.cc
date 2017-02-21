@@ -72,7 +72,8 @@ namespace {
     time_measurement_t transmission_time_measurement;
 
     dacsample_t set_handlebar_torque(float handlebar_torque) {
-        int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
+        int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) +
+            sa::KOLLMORGEN_DAC_ZERO_OFFSET;
         saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
         dacsample_t aout = static_cast<dacsample_t>(saturated_value);
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
@@ -187,6 +188,7 @@ int main(void) {
      */
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
+    set_handlebar_torque(0.0f);
 
     /*
      * Initialize bicycle. Velocity doesn't matter as we immediately use the measured value.

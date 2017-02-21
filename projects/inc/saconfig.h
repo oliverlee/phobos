@@ -41,6 +41,7 @@ constexpr float MAX_KISTLER_TORQUE = 50.0f; /* maximum measured steer torque, N-
  * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
  */
 constexpr float MAX_KOLLMORGEN_TORQUE = 11.5f; /* max torque at 1.00 Arms/V, N-m */
+constexpr dacsample_t KOLLMORGEN_DAC_ZERO_OFFSET = 2048 - 125; /* DAC value for zero torque, found experimentally */
 
 constexpr DACDriver* KOLLM_DAC = &DACD1;
 
