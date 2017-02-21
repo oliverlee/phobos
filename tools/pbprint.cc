@@ -38,13 +38,13 @@ namespace {
             size_t scan_index = 0;
 
             auto copy_to_frame_buffer = [&]() -> void {
-                const size_t length = scan_index - start_index + 1; /* include packet delimiter */
+                const size_t length = scan_index - start_index; /* packet delimiter is included */
                 if ((length + frame_buffer_index) > buffer_size) {
                     frame_buffer_index = 0;
                 }
                 std::memcpy(frame_buffer + frame_buffer_index, rx_buffer + start_index, length);
                 frame_buffer_index += length;
-                start_index = ++scan_index;
+                start_index = scan_index;
             };
 
             auto decode_message = [&]() -> void {
@@ -78,11 +78,12 @@ namespace {
                     std::cerr << "Decode of protobuf message failed." << std::endl;
                     std::cerr << "Current buffer size: " << frame_buffer_index << std::endl;
                     std::cerr << "Size after unstuffing: " << unstuff_size << std::endl;
-                    std::cerr << "Buffer contents " << std::endl;
+                    std::cerr << "Decoded varint prefix: " << size << std::endl;
+                    std::cerr << "message buffer contents " << std::endl;
                     std::cerr << std::hex;
-                    for (size_t i = 0; i < frame_buffer_index; ++i) {
+                    for (size_t i = 0; i < unstuff_size; ++i) {
                         std::cerr << std::setfill('0') << std::setw(2) << std::right <<
-                            static_cast<int>(frame_buffer[i] & 0xff) <<  " ";
+                            static_cast<int>(sim_buffer[i] & 0xff) <<  " ";
                     }
                     std::cerr << std::dec << std::endl;
 
@@ -97,15 +98,11 @@ namespace {
             };
 
             while (scan_index < bytes_transferred) {
-                if (rx_buffer[scan_index] == packet::frame::PACKET_DELIMITER) {
+                if (rx_buffer[scan_index++] == packet::frame::PACKET_DELIMITER) {
                     copy_to_frame_buffer();
                     decode_message();
-                } else {
-                    ++scan_index;
                 }
             }
-
-            --scan_index; /* don't copy an extra byte */
             copy_to_frame_buffer();
         }
         start_read();
