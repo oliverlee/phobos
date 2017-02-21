@@ -187,6 +187,7 @@ int main(void) {
      */
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
+    set_handlebar_torque(0.0f);
 
     /*
      * Initialize bicycle. Velocity doesn't matter as we immediately use the measured value.
