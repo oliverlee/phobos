@@ -118,10 +118,7 @@ int main(void) {
 
     sample = simulation_message_zero;
     sample.timestamp = bicycle_simulation_time;
-    std::memcpy(sample.gitsha1.f, g_GITSHA1,
-            sizeof(sample.gitsha1.f)*sizeof(sample.gitsha1.f[0]));
-    sample.has_gitsha1 = true;
-    message::set_simulation_initial_values(&sample, bicycle);
+    message::set_simulation_full_model_observer(&sample, bicycle);
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -185,8 +182,10 @@ int main(void) {
 
         sample = simulation_message_zero;
         sample.timestamp = chSysGetRealtimeCounterX();
-        message::set_simulation_loop_values(&sample, bicycle, analog.get_adc12(),
-                analog.get_adc13(), encoder_steer.count(), encoder_rear_wheel.count(), feedback_torque_dac);
+        message::set_simulation_sensors(&sample,
+                analog.get_adc12(), analog.get_adc13(),
+                encoder_steer.count(), encoder_rear_wheel.count());
+        message::set_simulation_actuators(&sample, feedback_torque_dac);
 
         // TODO: fix sleep amount
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.dt()));
