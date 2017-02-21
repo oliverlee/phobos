@@ -1,4 +1,5 @@
 #include "messageutil.h"
+#include "gitsha1.h"
 #include <cstring>
 
 namespace message {
@@ -91,7 +92,30 @@ void set_bicycle_discrete_time_state_space(BicycleModelMessage* pb, const bicycl
     pb->has_D = true;
 }
 
-void set_simulation_timing(SimulationMessage* pb, uint32_t computation_time, uint32_t transmission_time) {
+void set_simulation_gitsha1(SimulationMessage* pb) {
+    std::memcpy(pb->gitsha1.f, g_GITSHA1, sizeof(pb->gitsha1.f)*sizeof(pb->gitsha1.f[0]));
+    pb->has_gitsha1 = true;
+}
+
+void set_simulation_sensors(SimulationMessage* pb,
+        uint32_t measured_steer_torque, uint32_t measured_motor_torque,
+        uint32_t steer_encoder_count, uint32_t rear_wheel_encoder_count) {
+    pb->sensors.kistler_measured_torque = measured_steer_torque;
+    pb->sensors.kollmorgen_actual_torque = measured_motor_torque;
+    pb->sensors.steer_encoder_count = steer_encoder_count;
+    pb->sensors.rear_wheel_encoder_count = rear_wheel_encoder_count;
+    pb->sensors.has_rear_wheel_encoder_count = true;
+    pb->has_sensors = true;
+}
+
+void set_simulation_actuators(SimulationMessage* pb,
+        uint32_t commanded_feedback_torque) {
+    pb->actuators.kollmorgen_command_torque = commanded_feedback_torque;
+    pb->has_actuators = true;
+}
+
+void set_simulation_timing(SimulationMessage* pb,
+        uint32_t computation_time, uint32_t transmission_time) {
     pb->timing.computation = computation_time;
     pb->timing.has_computation = true;
     pb->timing.transmission = transmission_time;

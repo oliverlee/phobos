@@ -31,14 +31,24 @@ namespace message {
     void set_kalman_gain(BicycleKalmanMessage* pb,
             const kalman_t& k);
 
-    template <typename simbicycle_t>
-    void set_simulation_initial_values(SimulationMessage* pb, const simbicycle_t& b);
-    template <typename simbicycle_t>
-    void set_simulation_loop_values(SimulationMessage* pb, const simbicycle_t& b,
-            float measured_steer_torque, float measured_motor_torque,
-            float encoder_count, float commanded_feedback_torque);
+    void set_simulation_gitsha1(SimulationMessage* pb);
+    void set_simulation_sensors(SimulationMessage* pb,
+            uint32_t measured_steer_torque, uint32_t measured_motor_torque,
+            uint32_t steer_encoder_count, uint32_t rear_wheel_encoder_count);
+    void set_simulation_actuators(SimulationMessage* pb,
+            uint32_t commanded_feedback_torque);
+    void set_simulation_timing(SimulationMessage* pb,
+            uint32_t computation_time, uint32_t transmission_time);
 
-    void set_simulation_timing(SimulationMessage* pb, uint32_t computation_time, uint32_t transmission_time);
+    template <typename simbicycle_t>
+    void set_simulation_state(SimulationMessage* pb, const simbicycle_t& b);
+    template <typename simbicycle_t>
+    void set_simulation_auxiliary_state(SimulationMessage* pb, const simbicycle_t& b);
+    template <typename simbicycle_t>
+    void set_simulation_pose(SimulationMessage* pb, const simbicycle_t& b);
+
+    template <typename simbicycle_t>
+    void set_simulation_full_model_observer(SimulationMessage* pb, const simbicycle_t& b);
 } // namespace message
 
 namespace message {
@@ -80,12 +90,29 @@ inline void set_kalman_gain(BicycleKalmanMessage* pb, const kalman_t& k) {
 }
 
 template <typename simbicycle_t>
-void set_simulation_initial_values(SimulationMessage* pb, const simbicycle_t& b) {
+void set_simulation_state(SimulationMessage* pb, const simbicycle_t& b) {
     set_bicycle_state(&pb->state, bicycle_t::get_state_part(b.full_state()));
     pb->has_state = true;
+}
 
+template <typename simbicycle_t>
+void set_simulation_auxiliary_state(SimulationMessage* pb, const simbicycle_t& b) {
     set_bicycle_auxiliary_state(&pb->auxiliary_state, bicycle_t::get_auxiliary_state_part(b.full_state()));
     pb->has_auxiliary_state = true;
+}
+
+template <typename simbicycle_t>
+void set_simulation_pose(SimulationMessage* pb, const simbicycle_t& b) {
+    pb->pose = b.pose();
+    pb->has_pose = true;
+}
+
+template <typename simbicycle_t>
+void set_simulation_full_model_observer(SimulationMessage* pb, const simbicycle_t& b) {
+    set_simulation_gitsha1(pb);
+
+    set_simulation_state(pb, b);
+    set_simulation_auxiliary_state(pb, b);
 
     set_bicycle_canonical(&pb->model, b.model());
     set_bicycle_discrete_time_state_space(&pb->model, b.model());
@@ -94,47 +121,6 @@ void set_simulation_initial_values(SimulationMessage* pb, const simbicycle_t& b)
     // TODO: this assumes observer is kalman type
     set_kalman_noise_covariances<typename simbicycle_t::observer_t>(&pb->kalman, b.observer());
     set_kalman_gain<typename simbicycle_t::observer_t>(&pb->kalman, b.observer());
-    pb->has_kalman = true;
-}
-
-template <typename simbicycle_t>
-void set_simulation_loop_values(SimulationMessage* pb, const simbicycle_t& b,
-        uint32_t measured_steer_torque, uint32_t measured_motor_torque,
-        uint32_t steer_encoder_count, uint32_t rear_wheel_encoder_count,
-        uint32_t commanded_feedback_torque) {
-    pb->sensors.kistler_measured_torque = measured_steer_torque;
-    pb->sensors.kollmorgen_actual_torque = measured_motor_torque;
-    pb->sensors.steer_encoder_count = steer_encoder_count;
-    pb->sensors.rear_wheel_encoder_count = rear_wheel_encoder_count;
-    pb->sensors.has_rear_wheel_encoder_count = true;
-    pb->has_sensors = true;
-
-    pb->actuators.kollmorgen_command_torque = commanded_feedback_torque;
-    pb->has_actuators = true;
-
-    // TODO: input is repeated from sensors, should this still be recorded?
-    // This differs from torque input as these are the converted float values
-    // as opposed to the unsigned integer values of the sensors.
-    //set_bicycle_input(&pb->input, b.u());
-    //pb->has_input = true;
-
-    set_bicycle_state(&pb->state, bicycle_t::get_state_part(b.full_state()));
-    pb->has_state = true;
-
-    set_bicycle_auxiliary_state(&pb->auxiliary_state, bicycle_t::get_auxiliary_state_part(b.full_state()));
-    pb->has_auxiliary_state = true;
-
-    // TODO: add missing measurement z?
-    // This differs from measurement input as these are the converted float values
-    // as opposed to the unsigned integer values of the sensors.
-
-    // TODO: Should pose be included in this message or should it be transmitted
-    // in a separate message to Unity?
-    //pb->pose = b.pose();
-    //pb->has_pose = true;
-
-    // TODO: Stop writing once this stops changing. This assumes observer is of Kalman type
-    set_kalman_gain(&pb->kalman, b.observer());
     pb->has_kalman = true;
 }
 

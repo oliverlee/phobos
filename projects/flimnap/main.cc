@@ -26,7 +26,6 @@
 #include "messageutil.h"
 #include "filter/movingaverage.h"
 
-#include "gitsha1.h"
 #include "angle.h"
 #include "blink.h"
 #include "usbconfig.h"
@@ -43,8 +42,9 @@
 #include "simbicycle.h"
 
 namespace {
-    using bicycle_t = sim::Bicycle<model::BicycleWhipple,
-                                   observer::Kalman<model::BicycleWhipple>,
+    using model_t = model::BicycleWhipple;
+    using bicycle_t = sim::Bicycle<model_t,
+                                   observer::Kalman<model_t>,
                                    haptic::HandlebarStatic>;
 
     /* sensors */
@@ -54,6 +54,8 @@ namespace {
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
+
+    constexpr float fixed_velocity = 7.0f;
 
     /* transmission */
     std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> encode_buffer;
@@ -112,6 +114,13 @@ namespace {
                 chThdSleep(sleeptime);
             }
         }
+    }
+
+    size_t write_message_to_encode_buffer(const SimulationMessage& m) {
+        const size_t bytes_encoded = packet::serialize::encode_delimited(
+                m, encode_buffer.data(), encode_buffer.size());
+        return packet::frame::stuff(
+                encode_buffer.data(), packet_buffer.data(), bytes_encoded);
     }
 } // namespace
 
@@ -182,14 +191,13 @@ int main(void) {
     /*
      * Initialize bicycle. Velocity doesn't matter as we immediately use the measured value.
      */
-    bicycle_t bicycle(0.0, dynamics_period);
+    bicycle_t bicycle(fixed_velocity, dynamics_period);
 
     /*
      * set Kalman filter matrices
      * We start with steer angle equal to the measurement and all other state elements at zero.
      */
     {
-        using model_t = bicycle_t::model_t;
         model_t::state_t x0 = model_t::state_t::Zero();
         model_t::set_state_element(x0, model_t::state_index_t::steer_angle,
                 angle::encoder_count<float>(encoder_steer));
@@ -198,14 +206,36 @@ int main(void) {
         bicycle.observer().set_R(parameters::defaultvalue::kalman::R);
     }
 
+    chTMObjectInit(&computation_time_measurement);
+    chTMObjectInit(&transmission_time_measurement);
+
+    /*
+     * Transmit initial message containing gitsha1, model, and observer data.
+     * This initial transmission is blocking.
+     */
+    msg = msg_init;
+    msg.timestamp = chVTGetSystemTime();
+    message::set_simulation_full_model_observer(&msg, bicycle);
+    size_t bytes_written = write_message_to_encode_buffer(msg);
+
+    /* block until ready */
+    while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
+        chThdSleepMilliseconds(10);
+    }
+
+    /* transmit data */
+    if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
+        chTMStartMeasurementX(&transmission_time_measurement);
+        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+        chTMStopMeasurementX(&transmission_time_measurement);
+    }
+
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
      * dynamics in real-time (roughly).
      */
-    chTMObjectInit(&computation_time_measurement);
-    chTMObjectInit(&transmission_time_measurement);
-    chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread), NORMALPRIO - 1,
-            kinematics_thread, static_cast<void*>(&bicycle));
+    chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread),
+            NORMALPRIO - 1, kinematics_thread, static_cast<void*>(&bicycle));
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
@@ -227,26 +257,32 @@ int main(void) {
         const float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
         /* simulate bicycle */
-        bicycle.set_v(v);
+        bicycle.set_v(fixed_velocity);
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         /* generate handlebar torque output */
         dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
         chTMStopMeasurementX(&computation_time_measurement);
 
+        /* prepare message for transmission */
         msg = msg_init;
-        message::set_simulation_loop_values(&msg, bicycle, analog.get_adc12(), analog.get_adc13(),
-                encoder_steer.count(), encoder_rear_wheel.count(), handlebar_torque_dac);
-        message::set_simulation_timing(&msg, computation_time_measurement.last, transmission_time_measurement.last);
         msg.timestamp = starttime;
+        message::set_bicycle_input(&msg.input,
+                (model_t::input_t() << roll_torque, steer_torque).finished());
+        msg.has_input = true;
+        message::set_simulation_state(&msg, bicycle);
+        message::set_simulation_auxiliary_state(&msg, bicycle);
+        message::set_kalman_gain(&msg.kalman, bicycle.observer());
+        msg.has_kalman = true;
+        message::set_simulation_actuators(&msg, handlebar_torque_dac);
+        message::set_simulation_sensors(&msg,
+                analog.get_adc12(), analog.get_adc13(),
+                encoder_steer.count(), encoder_rear_wheel.count());
+        message::set_simulation_timing(&msg,
+                computation_time_measurement.last, transmission_time_measurement.last);
+        size_t bytes_written = write_message_to_encode_buffer(msg);
 
-        std::memcpy(msg.gitsha1.f, g_GITSHA1, sizeof(msg.gitsha1.f)*sizeof(msg.gitsha1.f[0]));
-        msg.has_gitsha1 = true;
-
-        size_t bytes_encoded = packet::serialize::encode_delimited(
-                msg, encode_buffer.data(), encode_buffer.size());
-        size_t bytes_written = packet::frame::stuff(
-                encode_buffer.data(), packet_buffer.data(), bytes_encoded);
+        /* transmit message */
         if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
             chTMStartMeasurementX(&transmission_time_measurement);
             usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
