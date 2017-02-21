@@ -18,6 +18,8 @@ message SimulationMessage {
     optional BicycleAuxiliaryStateMessage auxiliary_state = 10;
 
     optional TimingMessage timing = 11;
+
+    optional float feedback_torque = 12;
 }
 
 message FirmwareVersion {

@@ -280,6 +280,8 @@ int main(void) {
                 encoder_steer.count(), encoder_rear_wheel.count());
         message::set_simulation_timing(&msg,
                 computation_time_measurement.last, transmission_time_measurement.last);
+        msg.feedback_torque = bicycle.handlebar_feedback_torque();
+        msg.has_feedback_torque = true;
         size_t bytes_written = write_message_to_encode_buffer(msg);
 
         /* transmit message */
