@@ -103,8 +103,7 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
                     std::copysign(roll_angle_limit, roll_angle));
             model_t::set_state_element(x, model_t::state_index_t::steer_angle,
                     steer_angle_measurement);
-            model_t::set_state_element(x, model_t::state_index_t::roll_rate,
-                    model_t::get_full_state_element(state_full, full_state_index_t::roll_rate));
+            model_t::set_state_element(x, model_t::state_index_t::roll_rate, 0);
             model_t::set_state_element(x, model_t::state_index_t::steer_rate,
                     model_t::get_full_state_element(state_full, full_state_index_t::steer_rate));
         } else {
