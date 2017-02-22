@@ -55,5 +55,14 @@ if __name__ == '__main__':
     ax.plot(t, encoder_rate, label='encoder rate', color=state_color[2*index])
 
     ax.legend()
+
+    fig, ax = plt.subplots()
+    ax.plot(t, records.actuators.kollmorgen_command_torque,
+            label='kollmorgen command torque', color=state_color[9])
+    ax.plot(t, records.sensors.kollmorgen_actual_torque,
+            label=sensor_labels[1], color=state_color[8])
+    ax.plot(t, records.sensors.kistler_measured_torque,
+            label=sensor_labels[0], color=state_color[5])
+    ax.legend()
     plt.show()
 
