@@ -45,7 +45,7 @@ namespace {
     using model_t = model::BicycleWhipple;
     using bicycle_t = sim::Bicycle<model_t,
                                    observer::Kalman<model_t>,
-                                   haptic::HandlebarStatic>;
+                                   haptic::HandlebarDynamic>;
 
     /* sensors */
     Analog analog;
