@@ -1,6 +1,8 @@
 #include <cstring>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <vector>
 #include <asio.hpp>
 #include <asio/serial_port.hpp>
 #include <asio/signal_set.hpp>
@@ -113,14 +115,71 @@ namespace {
             io_service.stop();
         }
     }
+
+    void decode_file(const char* filename) {
+        std::ifstream ifs(filename, std::ios::binary|std::ios::ate);
+        std::ifstream::pos_type filesize = ifs.tellg();
+        std::vector<char> buffer(filesize);
+
+        ifs.seekg(0, std::ios::beg);
+        ifs.read(buffer.data(), filesize);
+        ifs.close();
+
+        std::vector<uint8_t> unstuff_buffer(filesize);
+        size_t offset = 0;
+        size_t packet_start = 0;
+        for (auto i = 0; i < filesize; ++i) {
+            if (buffer[i] == packet::frame::PACKET_DELIMITER) {
+                offset += packet::frame::unstuff(
+                        buffer.data() + packet_start,
+                        unstuff_buffer.data() + offset,
+                        i + 1 - packet_start);
+                packet_start = i + 1;
+            }
+            /* The last byte should be a packet delimiter. We can only decode
+             * a complete packet so if the last byte is not a delimiter, there
+             * is no way to decode and the last partial packet is ignored. */
+        }
+
+        /* As we read data from a file that is assumed to _not_ grow in size,
+         * a single CodedInputStream can be used to decode all messages, by
+         * setting the input limit for each message */
+        google::protobuf::io::CodedInputStream input(
+                const_cast<const uint8_t*>(unstuff_buffer.data()), offset);
+
+        uint32_t size;
+        while (static_cast<size_t>(input.CurrentPosition()) < offset) {
+            if (!input.ReadVarint32(&size)) {
+                std::cerr << "Unable to decode packet size from serialized data." << std::endl;
+                return;
+            }
+
+            google::protobuf::io::CodedInputStream::Limit limit = input.PushLimit(size);
+            if (!msg.MergeFromCodedStream(&input)) {
+                std::cerr << "Decode of protobuf message failed." << std::endl;
+            }
+            msg.PrintDebugString();
+            msg.Clear();
+            std::cout << std::endl;
+
+            if (!input.ConsumedEntireMessage()) {
+                std::cerr << "Entire message not consumed. Number of extra bytes: " <<
+                    input.BytesUntilLimit() << std::endl;
+            }
+            input.PopLimit(limit);
+        }
+    }
 } // namespace
 
 int main(int argc, char* argv[]) {
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <serial_device> [<baud_rate>]\n\n"
             << "Decode streaming serialized simulation protobuf messages.\n"
             << " <serial_device>      device from which to read serial data\n"
-            << " <baud_rate=115200>   serial baud rate\n\n"
+            << " <baud_rate=115200>   serial baud rate, if set to 0, serial_device is\n"
+            << "                      interpreted as a file\n\n"
 
             << "A virtual serial port can be created using socat with:\n"
             << "  $ socat -d -d pty,raw,echo=0 pty,raw,echo=0\n\n"
@@ -139,6 +198,11 @@ int main(int argc, char* argv[]) {
     uint32_t baud_rate = 115200;
     if (argc > 2) {
         baud_rate = std::atoi(argv[2]);
+    }
+
+    if (baud_rate == 0) {
+        decode_file(argv[1]);
+        return EXIT_SUCCESS;
     }
 
     port.open(devname);
