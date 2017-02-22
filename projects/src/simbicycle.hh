@@ -98,7 +98,7 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
             roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
         }
 
-        if (roll_angle > roll_angle_limit) {
+        if (std::abs(roll_angle) > roll_angle_limit) {
             model_t::set_state_element(x, model_t::state_index_t::roll_angle,
                     std::copysign(roll_angle_limit, roll_angle));
             model_t::set_state_element(x, model_t::state_index_t::steer_angle,
