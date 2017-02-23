@@ -245,8 +245,9 @@ int main(void) {
         constexpr float roll_torque = 0.0f;
 
         /* get sensor measurements */
-        const float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
-                sa::MAX_KISTLER_TORQUE);
+        //const float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
+        //        sa::MAX_KISTLER_TORQUE);
+        const float steer_torque = 0;
         const float motor_torque = static_cast<float>(
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
