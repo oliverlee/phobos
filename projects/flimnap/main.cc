@@ -205,7 +205,8 @@ int main(void) {
                 angle::encoder_count<float>(encoder_steer));
         bicycle.observer().set_x(x0);
         bicycle.observer().set_Q(parameters::defaultvalue::kalman::Q(dynamics_period));
-        bicycle.observer().set_R(parameters::defaultvalue::kalman::R);
+        // Reduce steer measurement noise covariance
+        bicycle.observer().set_R(parameters::defaultvalue::kalman::R/1000);
     }
 
     chTMObjectInit(&computation_time_measurement);
