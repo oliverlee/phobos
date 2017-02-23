@@ -162,6 +162,16 @@ namespace {
 Analog::Analog() : m_adc_buffer() { }
 
 void Analog::start(gptcnt_t sample_rate, bool use_events) {
+#ifdef STATIC_SIMULATOR_CONFIG
+    /*
+     * We manually toggle the Kistler torque sensor measurement line
+     * since the output will not be valid unless measurement is enabled _after_
+     * the torque sensor is powered on. The analog signal is read from ADC13.
+     */
+    palClearLine(LINE_TORQUE_MEAS_EN);
+    chThdSleepMilliseconds(100);
+    palSetLine(LINE_TORQUE_MEAS_EN);
+#endif // STATIC_SIMULATOR_CONFIG
     gptStart(&GPTD8, &gpt8cfg1);
     adcStart(&ADCD1, nullptr);
     if (use_events) {
