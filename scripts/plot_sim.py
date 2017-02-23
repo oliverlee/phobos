@@ -31,6 +31,8 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
     for i, label in enumerate(state_labels):
         ax.plot(t, states[:, i], label=label, color=state_color[1 + 2*i])
+    ax.set_ylabel('deg, deg/s')
+    ax.set_xlabel('time [s]')
     ax.legend()
 
     encoder_count = records.sensors.steer_encoder_count
@@ -53,16 +55,23 @@ if __name__ == '__main__':
     ax.plot(t, states[:, index], label=state_labels[index],
             color=state_color[1 + 2*index])
     ax.plot(t, encoder_rate, label='encoder rate', color=state_color[2*index])
-
+    ax.set_ylabel('deg, deg/s')
+    ax.set_xlabel('time [s]')
     ax.legend()
 
+    # adc/dac values are 12-bit
+    def bits_to_Nm(data, max_torque):
+        return (data.astype(float) - 2**11)/2**11 * max_torque
+
     fig, ax = plt.subplots()
-    ax.plot(t, records.actuators.kollmorgen_command_torque,
+    ax.plot(t, bits_to_Nm(records.actuators.kollmorgen_command_torque, 10.78),
             label='kollmorgen command torque', color=state_color[9])
-    ax.plot(t, records.sensors.kollmorgen_actual_torque,
+    ax.plot(t, bits_to_Nm(records.sensors.kollmorgen_actual_torque, 10.78),
             label=sensor_labels[1], color=state_color[8])
-    ax.plot(t, records.sensors.kistler_measured_torque,
+    ax.plot(t, bits_to_Nm(records.sensors.kistler_measured_torque, 50),
             label=sensor_labels[0], color=state_color[5])
+    ax.set_ylabel('torque [N-m]')
+    ax.set_xlabel('time [s]')
     ax.legend()
     plt.show()
 
