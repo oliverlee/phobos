@@ -196,6 +196,12 @@ int main(void) {
     bicycle_t bicycle(fixed_velocity, dynamics_period);
 
     /*
+     * Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
+     * TODO: naming here is poor
+     */
+    haptic::HandlebarDynamic handlebar_model(bicycle.model(), sa::HANDLEBAR_INERTIA);
+
+    /*
      * set Kalman filter matrices
      * We start with steer angle equal to the measurement and all other state elements at zero.
      */
@@ -245,7 +251,7 @@ int main(void) {
         constexpr float roll_torque = 0.0f;
 
         /* get sensor measurements */
-        const float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
+        const float kistler_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
                 sa::MAX_KISTLER_TORQUE);
         const float motor_torque = static_cast<float>(
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
@@ -254,10 +260,12 @@ int main(void) {
         const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
         const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
-        (void)motor_torque; /* remove build warning */
 
         /* yaw angle, just use previous state value */
         const float yaw_angle = angle::wrap(bicycle.pose().yaw);
+
+        /* calculate rider applied torque */
+        const float steer_torque = handlebar_model.feedback_torque(bicycle.observer().state()) - kistler_torque;
 
         /* simulate bicycle */
         bicycle.set_v(fixed_velocity);
