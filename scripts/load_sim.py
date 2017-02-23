@@ -8,6 +8,12 @@ from phobos import load
 from phobos import pose
 from phobos import pb
 
+
+def get_time_vector(records):
+    CH_CFG_ST_FREQUENCY = 10000
+    return records.timestamp/CH_CFG_ST_FREQUENCY
+
+
 def get_simulation_types():
     option_file = '../projects/proto/simulation.options'
     max_repeated = pb.make_max_repeated_dict(option_file)
