@@ -5,13 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from load_sim import load_messages, get_records_from_messages
-
-
-CH_CFG_ST_FREQUENCY = 10000
-
-def get_time_vector(records):
-    return records.timestamp/10000
+from load_sim import load_messages, get_records_from_messages, get_time_vector
 
 
 if __name__ == '__main__':
