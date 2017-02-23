@@ -94,7 +94,8 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
         real_t roll_angle = model_t::get_state_element(m_observer.state(),
                 model_t::state_index_t::roll_angle);
         if (std::abs(roll_angle) > constants::pi) {
-            /* state normalization limits angles to the range [-2*pi, 2*pi] */
+            /* state normalization limits angles to the range [-2*pi, 2*pi]
+             * so we don't need to add/subtract two pi more than once */
             roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
         }
 
@@ -103,10 +104,8 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
                     std::copysign(roll_angle_limit, roll_angle));
             model_t::set_state_element(x, model_t::state_index_t::steer_angle,
                     steer_angle_measurement);
-            model_t::set_state_element(x, model_t::state_index_t::roll_rate,
-                    model_t::get_full_state_element(state_full, full_state_index_t::roll_rate));
-            model_t::set_state_element(x, model_t::state_index_t::steer_rate,
-                    model_t::get_full_state_element(state_full, full_state_index_t::steer_rate));
+            model_t::set_state_element(x, model_t::state_index_t::roll_rate, 0);
+            model_t::set_state_element(x, model_t::state_index_t::steer_rate, 0);
         } else {
             limit_state_element(model_t::state_index_t::roll_rate, roll_rate_limit);
             limit_state_element(model_t::state_index_t::steer_rate, steer_rate_limit);
