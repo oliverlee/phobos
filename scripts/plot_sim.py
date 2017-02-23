@@ -64,6 +64,7 @@ if __name__ == '__main__':
             label=sensor_labels[1], color=state_color[8])
     ax.plot(t, bits_to_Nm(records.sensors.kistler_measured_torque, 50),
             label=sensor_labels[0], color=state_color[5])
+    ax.plot(t, records.input[:, 1], label='steer torque', color=state_color[3])
     ax.set_ylabel('torque [N-m]')
     ax.set_xlabel('time [s]')
     ax.legend()
