@@ -39,16 +39,19 @@ def estimate_inertia(records):
 
     color = sns.color_palette('Paired', 10)
     fig, ax = plt.subplots()
-    ax.plot(t, angle, label='angle', color=color[1])
-    ax.plot(t, angle_d, label='angular rate', color=color[3])
-    ax.plot(t, angle_dd, label='angular accel', color=color[5])
-    ax.plot(t, torque, label='torque', color=color[7])
-    ax.legend()
-    plt.show()
+    ax.plot(t, angle, label='angle', color=color[0])
+    ax.plot(t, angle_d, label='angular rate', color=color[2])
+    ax.plot(t, angle_dd, label='angular accel', color=color[4])
+    ax.plot(t, torque, label='torque', color=color[6])
 
     ret = np.linalg.lstsq(np.reshape(angle_dd, (-1, 1)),
                           np.reshape(torque, (-1, 1)))
-    return np.squeeze(ret[0])
+    inertia = np.squeeze(ret[0])
+
+    ax.plot(t, inertia * angle_dd, label='estimated torque', color=color[7])
+    ax.legend()
+    plt.show()
+    return inertia
 
 
 if __name__ == '__main__':
