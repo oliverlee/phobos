@@ -265,14 +265,15 @@ int main(void) {
         const float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
         /* calculate rider applied torque */
-        const float steer_torque = handlebar_model.feedback_torque(bicycle.observer().state()) - kistler_torque;
+        const float inertia_torque = -handlebar_model.feedback_torque(bicycle.observer().state());
+        const float steer_torque = kistler_torque - inertia_torque;
 
         /* simulate bicycle */
         bicycle.set_v(fixed_velocity);
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         /* generate handlebar torque output */
-        dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
+        const dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
         chTMStopMeasurementX(&computation_time_measurement);
 
         /* prepare message for transmission */
