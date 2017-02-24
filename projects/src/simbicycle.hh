@@ -1,4 +1,5 @@
 #include <cmath>
+#include "bicycle/kinematic.h"
 #include <boost/math/special_functions/round.hpp>
 /*
  * Member function definitions of sim::Bicycle template class.
@@ -18,7 +19,6 @@ m_pose(BicyclePoseMessage_init_zero) {
     // TODO: Do this automatically with default values?
     chBSemObjectInit(&m_state_sem, false); /* initialize to not taken */
 }
-
 
 template <typename T, typename U, typename V>
 void Bicycle<T, U, V>::set_v(real_t v)  {
@@ -74,7 +74,8 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
      * The auxiliary states _must_ also be integrated at the same time as the
      * dynamic state. After the observer update, we "merge" dynamic states together.
      */
-    full_state_t state_full = m_model.integrate_full_state(m_state_full, input, m_model.dt());
+    full_state_t state_full = m_model.integrate_full_state(
+            m_state_full, input, m_model.dt(), measurement);
     m_observer.update_state(input, measurement);
 
     if (!m_observer.state().allFinite()) {
@@ -98,7 +99,8 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
             roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
         }
 
-        if (std::abs(roll_angle) > roll_angle_limit) {
+        if (!(std::is_same<T, model::BicycleKinematic>::value) &&
+            (std::abs(roll_angle) > roll_angle_limit)) {
             model_t::set_state_element(x, model_t::state_index_t::roll_angle,
                     std::copysign(roll_angle_limit, roll_angle));
             model_t::set_state_element(x, model_t::state_index_t::steer_angle,
