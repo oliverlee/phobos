@@ -48,6 +48,8 @@ namespace message {
     void set_simulation_pose(SimulationMessage* pb, const simbicycle_t& b);
 
     template <typename simbicycle_t>
+    void set_simulation_full_model(SimulationMessage* pb, const simbicycle_t& b);
+    template <typename simbicycle_t>
     void set_simulation_full_model_observer(SimulationMessage* pb, const simbicycle_t& b);
 } // namespace message
 
@@ -108,7 +110,7 @@ void set_simulation_pose(SimulationMessage* pb, const simbicycle_t& b) {
 }
 
 template <typename simbicycle_t>
-void set_simulation_full_model_observer(SimulationMessage* pb, const simbicycle_t& b) {
+void set_simulation_full_model(SimulationMessage* pb, const simbicycle_t& b) {
     set_simulation_gitsha1(pb);
 
     set_simulation_state(pb, b);
@@ -117,6 +119,11 @@ void set_simulation_full_model_observer(SimulationMessage* pb, const simbicycle_
     set_bicycle_canonical(&pb->model, b.model());
     set_bicycle_discrete_time_state_space(&pb->model, b.model());
     pb->has_model = true;
+}
+
+template <typename simbicycle_t>
+void set_simulation_full_model_observer(SimulationMessage* pb, const simbicycle_t& b) {
+    set_simulation_full_model(pb, b);
 
     // TODO: this assumes observer is kalman type
     set_kalman_noise_covariances<typename simbicycle_t::observer_t>(&pb->kalman, b.observer());
