@@ -14,7 +14,7 @@ set_property(SOURCE
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
     APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef -Wno-deprecated")
 
-add_phobos_executable(flimnap
+set(FLIMNAP_COMMON_SRC
     chconf.h
     halconf.h
     mcuconf.h
@@ -29,3 +29,8 @@ add_phobos_executable(flimnap
     ${PHOBOS_SOURCE_DIR}/src/packet/frame.cc
     ${PROTOBUF_GENERATED_SOURCE}
     ${BICYCLE_SOURCE})
+
+add_phobos_executable(flimnap_whipple ${FLIMNAP_COMMON_SRC})
+add_phobos_executable(flimnap_kinematic ${FLIMNAP_COMMON_SRC})
+target_compile_definitions(flimnap_kinematic
+    PRIVATE USE_BICYCLE_KINEMATIC_MODEL)

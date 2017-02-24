@@ -30,6 +30,7 @@ set(BICYCLE_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/src)
 set(BICYCLE_SOURCE
     ${BICYCLE_SOURCE_DIR}/bicycle/bicycle.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/bicycle_solve_constraint_pitch.cc
+    ${BICYCLE_SOURCE_DIR}/bicycle/kinematic.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/whipple.cc
     ${BICYCLE_SOURCE_DIR}/parameters.cc)
 set(BICYCLE_INCLUDE_DIR ${BICYCLE_SOURCE_DIR} ${BICYCLE_SOURCE_DIR}/../inc)

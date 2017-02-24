@@ -1,6 +1,7 @@
 #include <cmath>
-#include "bicycle/kinematic.h"
+#include <type_traits>
 #include <boost/math/special_functions/round.hpp>
+#include "bicycle/kinematic.h"
 /*
  * Member function definitions of sim::Bicycle template class.
  * See simbicycle.h for template class declaration.
