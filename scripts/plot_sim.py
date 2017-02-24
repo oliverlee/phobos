@@ -2,16 +2,31 @@
 # -*- coding: utf-8 -*-
 import sys
 import numpy as np
+import scipy
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from load_sim import load_messages, get_records_from_messages
+from load_sim import load_messages, get_records_from_messages, get_time_vector
+
+MAX_KOLLMORGEN_TORQUE = 10.78
+KOLLMORGEN_DAC_ZERO_OFFSET = 2048 - 125
+HANDLEBAR_INERTIA = 0.11889455460271312
 
 
-CH_CFG_ST_FREQUENCY = 10000
+# adc/dac values are 12-bit
+def bits_to_Nm(data, max_torque, offset=None):
+    half_full_range = 2**11
+    if offset is None:
+        offset = half_full_range
+    return (data.astype(float) - offset)/half_full_range * max_torque
 
-def get_time_vector(records):
-    return records.timestamp/10000
+
+def handlebar_inertia_torque(records, A):
+    A_delta_dd = A[4, :]
+    state = records.state
+    steer_accel = np.dot(A_delta_dd, state.T)
+    inertia_torque = HANDLEBAR_INERTIA * steer_accel
+    return inertia_torque, steer_accel
 
 
 if __name__ == '__main__':
@@ -19,6 +34,15 @@ if __name__ == '__main__':
     # ignore first sample as it transmitted before the simulation loop
     records = get_records_from_messages(messages)[1:]
     t = get_time_vector(records)
+
+    # current logs all use a constant speed so model is only written in the
+    # first message
+    m = messages[0]
+    Ad_data = m.model.A.m
+    Ad_size = int(np.sqrt(len(Ad_data)))
+    Ad = np.array(Ad_data).reshape(2*(Ad_size,), order='F')
+    A = scipy.linalg.logm(Ad)/m.model.dt
+    inertia_torque, steer_accel = handlebar_inertia_torque(records, A)
 
     # plot in degrees
     states = records.state[:, 1:] * 180/np.pi
@@ -55,21 +79,24 @@ if __name__ == '__main__':
     ax.plot(t, states[:, index], label=state_labels[index],
             color=state_color[1 + 2*index])
     ax.plot(t, encoder_rate, label='encoder rate', color=state_color[2*index])
+    ax.plot(t, steer_accel, label='estimated steer accel', color=state_color[1])
     ax.set_ylabel('deg, deg/s')
     ax.set_xlabel('time [s]')
     ax.legend()
 
-    # adc/dac values are 12-bit
-    def bits_to_Nm(data, max_torque):
-        return (data.astype(float) - 2**11)/2**11 * max_torque
 
     fig, ax = plt.subplots()
-    ax.plot(t, bits_to_Nm(records.actuators.kollmorgen_command_torque, 10.78),
+    ax.plot(t, bits_to_Nm(records.actuators.kollmorgen_command_torque,
+                          MAX_KOLLMORGEN_TORQUE, KOLLMORGEN_DAC_ZERO_OFFSET),
             label='kollmorgen command torque', color=state_color[9])
-    ax.plot(t, bits_to_Nm(records.sensors.kollmorgen_actual_torque, 10.78),
+    ax.plot(t, bits_to_Nm(records.sensors.kollmorgen_actual_torque,
+                          MAX_KOLLMORGEN_TORQUE),
             label=sensor_labels[1], color=state_color[8])
     ax.plot(t, bits_to_Nm(records.sensors.kistler_measured_torque, 50),
             label=sensor_labels[0], color=state_color[5])
+    ax.plot(t, records.input[:, 1], label='steer torque', color=state_color[3])
+    ax.plot(t, inertia_torque, label='handlebar inertia torque',
+            color=state_color[1])
     ax.set_ylabel('torque [N-m]')
     ax.set_xlabel('time [s]')
     ax.legend()
