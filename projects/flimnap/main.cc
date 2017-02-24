@@ -169,7 +169,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder_steer.start();
     encoder_rear_wheel.start();
-    analog.start(1000); /* trigger ADC conversion at 1 kHz */
+    analog.start(10000); /* trigger ADC conversion at 10 kHz */
 
     /*
      * Set torque measurement enable line low.
@@ -194,6 +194,12 @@ int main(void) {
      * Initialize bicycle. Velocity doesn't matter as we immediately use the measured value.
      */
     bicycle_t bicycle(fixed_velocity, dynamics_period);
+
+    /*
+     * Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
+     * TODO: naming here is poor
+     */
+    haptic::HandlebarDynamic handlebar_model(bicycle.model(), sa::HANDLEBAR_INERTIA);
 
     /*
      * set Kalman filter matrices
@@ -245,7 +251,7 @@ int main(void) {
         constexpr float roll_torque = 0.0f;
 
         /* get sensor measurements */
-        const float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
+        const float kistler_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
                 sa::MAX_KISTLER_TORQUE);
         const float motor_torque = static_cast<float>(
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
@@ -254,17 +260,20 @@ int main(void) {
         const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
         const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
-        (void)motor_torque; /* remove build warning */
 
         /* yaw angle, just use previous state value */
         const float yaw_angle = angle::wrap(bicycle.pose().yaw);
+
+        /* calculate rider applied torque */
+        const float inertia_torque = -handlebar_model.feedback_torque(bicycle.observer().state());
+        const float steer_torque = kistler_torque - inertia_torque;
 
         /* simulate bicycle */
         bicycle.set_v(fixed_velocity);
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         /* generate handlebar torque output */
-        dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
+        const dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
         chTMStopMeasurementX(&computation_time_measurement);
 
         /* prepare message for transmission */

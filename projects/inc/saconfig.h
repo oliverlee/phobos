@@ -56,4 +56,7 @@ constexpr float STEER_ASSEMBLY_INERTIA_WITH_WEIGHT = 0.1942f; /* with 1 kg weigh
 constexpr float STEER_ASSEMBLY_INERTIA_WITHOUT_WEIGHT = 0.0828f; /* without weight plates */
 constexpr float STEER_ASSEMBLY_INERTIA = STEER_ASSEMBLY_INERTIA_WITH_WEIGHT; /* default configuration */
 
+/* moment of inertia of the handlebars and steering column above the torque sensor, about the steer axis */
+constexpr float HANDLEBAR_INERTIA = 0.11889455460271312f; /* kg-m^2 */
+
 } // namespace
