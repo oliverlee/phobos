@@ -54,13 +54,21 @@ if __name__ == '__main__':
     ax.legend()
 
     # adc/dac values are 12-bit
-    def bits_to_Nm(data, max_torque):
-        return (data.astype(float) - 2**11)/2**11 * max_torque
+    def bits_to_Nm(data, max_torque, offset=None):
+        half_full_range = 2**11
+        if offset is None:
+            offset = half_full_range
+        return (data.astype(float) - offset)/half_full_range * max_torque
+
+    MAX_KOLLMORGEN_TORQUE = 10.78
+    KOLLMORGEN_DAC_ZERO_OFFSET = 2048 - 125
 
     fig, ax = plt.subplots()
-    ax.plot(t, bits_to_Nm(records.actuators.kollmorgen_command_torque, 10.78),
+    ax.plot(t, bits_to_Nm(records.actuators.kollmorgen_command_torque,
+                          MAX_KOLLMORGEN_TORQUE, KOLLMORGEN_DAC_ZERO_OFFSET),
             label='kollmorgen command torque', color=state_color[9])
-    ax.plot(t, bits_to_Nm(records.sensors.kollmorgen_actual_torque, 10.78),
+    ax.plot(t, bits_to_Nm(records.sensors.kollmorgen_actual_torque,
+                          MAX_KOLLMORGEN_TORQUE),
             label=sensor_labels[1], color=state_color[8])
     ax.plot(t, bits_to_Nm(records.sensors.kistler_measured_torque, 50),
             label=sensor_labels[0], color=state_color[5])
