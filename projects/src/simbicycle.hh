@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <boost/math/special_functions/round.hpp>
 #include "bicycle/kinematic.h"
+#include "oracle.h"
 /*
  * Member function definitions of sim::Bicycle template class.
  * See simbicycle.h for template class declaration.
@@ -19,6 +20,13 @@ m_pose(BicyclePoseMessage_init_zero) {
     // Note: User must initialize Kalman matrices in application.
     // TODO: Do this automatically with default values?
     chBSemObjectInit(&m_state_sem, false); /* initialize to not taken */
+
+static_assert((!std::is_same<T, model::BicycleKinematic>::value) ||
+              std::is_same<V, haptic::HandlebarStatic>::value,
+              "Only HandlebarStatic haptic type can be used with BicycleKinematic model type.");
+static_assert((!std::is_same<T, model::BicycleKinematic>::value) ||
+              std::is_same<U, observer::Oracle<model::BicycleKinematic>>::value,
+              "Only Oracle observer type can be used with BicycleKinematic model type.");
 }
 
 template <typename T, typename U, typename V>
