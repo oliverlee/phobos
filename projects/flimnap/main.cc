@@ -35,17 +35,26 @@
 
 #include <algorithm>
 #include <array>
+#include <type_traits>
 
+#include "bicycle/kinematic.h" /* simplified bicycle model */
 #include "bicycle/whipple.h" /* whipple bicycle model */
+#include "oracle.h" /* oracle observer */
 #include "kalman.h" /* kalman filter observer */
 #include "haptic.h" /* handlebar feedback */
 #include "simbicycle.h"
 
 namespace {
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
+    using model_t = model::BicycleKinematic;
+    using observer_t = observer::Oracle<model_t>;
+    using haptic_t = haptic::HandlebarStatic;
+#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleWhipple;
-    using bicycle_t = sim::Bicycle<model_t,
-                                   observer::Kalman<model_t>,
-                                   haptic::HandlebarDynamic>;
+    using observer_t = observer::Kalman<model_t>;
+    using haptic_t = haptic::HandlebarDynamic;
+#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
+    using bicycle_t = sim::Bicycle<model_t, observer_t, haptic_t>;
 
     /* sensors */
     Analog analog;
@@ -99,6 +108,29 @@ namespace {
         //    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
         //}
     }
+
+    template <typename T>
+    struct observer_initializer{
+        template <typename S = T>
+        typename std::enable_if<std::is_same<S, observer::Kalman<model_t>>::value, void>::type
+        initialize(S& observer) {
+            /* We start with steer angle equal to the measurement and all other state elements at zero.  */
+            model_t::state_t x0 = model_t::state_t::Zero();
+            model_t::set_state_element(x0, model_t::state_index_t::steer_angle,
+                    angle::encoder_count<float>(encoder_steer));
+            observer.set_x(x0);
+            observer.set_Q(parameters::defaultvalue::kalman::Q(observer.dt()));
+            // Reduce steer measurement noise covariance
+            observer.set_R(parameters::defaultvalue::kalman::R/1000);
+        }
+        template <typename S = T>
+        typename std::enable_if<!std::is_same<S, observer::Kalman<model_t>>::value, void>::type
+        initialize(S& observer) {
+            // no-op
+            (void)observer;
+        }
+    };
+
 
     THD_WORKING_AREA(wa_kinematics_thread, 2048);
     THD_FUNCTION(kinematics_thread, arg) {
@@ -201,19 +233,8 @@ int main(void) {
      */
     haptic::HandlebarDynamic handlebar_model(bicycle.model(), sa::HANDLEBAR_INERTIA);
 
-    /*
-     * set Kalman filter matrices
-     * We start with steer angle equal to the measurement and all other state elements at zero.
-     */
-    {
-        model_t::state_t x0 = model_t::state_t::Zero();
-        model_t::set_state_element(x0, model_t::state_index_t::steer_angle,
-                angle::encoder_count<float>(encoder_steer));
-        bicycle.observer().set_x(x0);
-        bicycle.observer().set_Q(parameters::defaultvalue::kalman::Q(dynamics_period));
-        // Reduce steer measurement noise covariance
-        bicycle.observer().set_R(parameters::defaultvalue::kalman::R/1000);
-    }
+    observer_initializer<observer_t> oi;
+    oi.initialize(bicycle.observer());
 
     chTMObjectInit(&computation_time_measurement);
     chTMObjectInit(&transmission_time_measurement);
@@ -251,7 +272,8 @@ int main(void) {
         constexpr float roll_torque = 0.0f;
 
         /* get sensor measurements */
-        const float kistler_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
+        const float kistler_torque = static_cast<float>(
+                analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
                 sa::MAX_KISTLER_TORQUE);
         const float motor_torque = static_cast<float>(
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
@@ -284,8 +306,10 @@ int main(void) {
         msg.has_input = true;
         message::set_simulation_state(&msg, bicycle);
         message::set_simulation_auxiliary_state(&msg, bicycle);
-        message::set_kalman_gain(&msg.kalman, bicycle.observer());
-        msg.has_kalman = true;
+        if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
+            message::set_kalman_gain(&msg.kalman, bicycle.observer());
+            msg.has_kalman = true;
+        }
         message::set_simulation_actuators(&msg, handlebar_torque_dac);
         message::set_simulation_sensors(&msg,
                 analog.get_adc12(), analog.get_adc13(),
