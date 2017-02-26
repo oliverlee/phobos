@@ -12,6 +12,11 @@ MAX_KOLLMORGEN_TORQUE = 10.78
 KOLLMORGEN_DAC_ZERO_OFFSET = 2048 - 125
 HANDLEBAR_INERTIA = 0.11889455460271312
 
+STATE_LABELS = ['roll angle', 'steer angle', 'roll rate', 'steer rate']
+SENSOR_LABELS = ['kistler measured torque', 'kollmorgen actual torque',
+                 'steer encoder count', 'rear wheel encoder count']
+
+STATE_COLOR = np.roll(sns.color_palette('Paired', 10), 2, axis=0)
 
 # adc/dac values are 12-bit
 def bits_to_Nm(data, max_torque, offset=None):
@@ -27,6 +32,20 @@ def handlebar_inertia_torque(records, A):
     steer_accel = np.dot(A_delta_dd, state.T)
     inertia_torque = HANDLEBAR_INERTIA * steer_accel
     return inertia_torque, steer_accel
+
+
+def plot_states(t, states, convert_to_degrees=True):
+    # plot in degrees
+    if convert_to_degrees:
+        states *= 180/np.pi
+
+    fig, ax = plt.subplots()
+    for i, label in enumerate(STATE_LABELS):
+        ax.plot(t, states[:, i], label=label, color=STATE_COLOR[1 + 2*i])
+    ax.set_ylabel('deg, deg/s')
+    ax.set_xlabel('time [s]')
+    ax.legend()
+    return fig, ax
 
 
 if __name__ == '__main__':
@@ -46,18 +65,7 @@ if __name__ == '__main__':
 
     # plot in degrees
     states = records.state[:, 1:] * 180/np.pi
-    state_labels = ['roll angle', 'steer angle', 'roll rate', 'steer rate']
-    sensor_labels = ['kistler measured torque', 'kollmorgen actual torque',
-                     'steer encoder count', 'rear wheel encoder count']
-
-    state_color = np.roll(sns.color_palette('Paired', 10), 2, axis=0)
-
-    fig, ax = plt.subplots()
-    for i, label in enumerate(state_labels):
-        ax.plot(t, states[:, i], label=label, color=state_color[1 + 2*i])
-    ax.set_ylabel('deg, deg/s')
-    ax.set_xlabel('time [s]')
-    ax.legend()
+    fig1, ax1 = plot_states(t, states, False)
 
     encoder_count = records.sensors.steer_encoder_count
     encoder_angle = encoder_count / 152000 * 360
@@ -68,37 +76,37 @@ if __name__ == '__main__':
     dt = np.insert(np.diff(t), 0, 0)
     encoder_rate = np.insert(np.diff(encoder_angle), 0, 0) / dt
 
-    fig, ax = plt.subplots()
+    fig2, ax2 = plt.subplots()
+    index = STATE_LABELS.index('steer angle')
+    ax2.plot(t, states[:, index], label=STATE_LABELS[index],
+             color=STATE_COLOR[1 + 2*index])
+    ax2.plot(t, encoder_angle, label='encoder angle',
+             color=STATE_COLOR[2*index])
 
-    index = state_labels.index('steer angle')
-    ax.plot(t, states[:, index], label=state_labels[index],
-            color=state_color[1 + 2*index])
-    ax.plot(t, encoder_angle, label='encoder angle', color=state_color[2*index])
+    index = STATE_LABELS.index('steer rate')
+    ax2.plot(t, states[:, index], label=STATE_LABELS[index],
+             color=STATE_COLOR[1 + 2*index])
+    ax2.plot(t, encoder_rate, label='encoder rate', color=STATE_COLOR[2*index])
+    ax2.plot(t, steer_accel, label='estimated steer accel',
+             color=STATE_COLOR[1])
+    ax2.set_ylabel('deg, deg/s')
+    ax2.set_xlabel('time [s]')
+    ax2.legend()
 
-    index = state_labels.index('steer rate')
-    ax.plot(t, states[:, index], label=state_labels[index],
-            color=state_color[1 + 2*index])
-    ax.plot(t, encoder_rate, label='encoder rate', color=state_color[2*index])
-    ax.plot(t, steer_accel, label='estimated steer accel', color=state_color[1])
-    ax.set_ylabel('deg, deg/s')
-    ax.set_xlabel('time [s]')
-    ax.legend()
-
-
-    fig, ax = plt.subplots()
-    ax.plot(t, bits_to_Nm(records.actuators.kollmorgen_command_torque,
-                          MAX_KOLLMORGEN_TORQUE, KOLLMORGEN_DAC_ZERO_OFFSET),
-            label='kollmorgen command torque', color=state_color[9])
-    ax.plot(t, bits_to_Nm(records.sensors.kollmorgen_actual_torque,
-                          MAX_KOLLMORGEN_TORQUE),
-            label=sensor_labels[1], color=state_color[8])
-    ax.plot(t, bits_to_Nm(records.sensors.kistler_measured_torque, 50),
-            label=sensor_labels[0], color=state_color[5])
-    ax.plot(t, records.input[:, 1], label='steer torque', color=state_color[3])
-    ax.plot(t, inertia_torque, label='handlebar inertia torque',
-            color=state_color[1])
-    ax.set_ylabel('torque [N-m]')
-    ax.set_xlabel('time [s]')
-    ax.legend()
+    fig3, ax3 = plt.subplots()
+    ax3.plot(t, bits_to_Nm(records.actuators.kollmorgen_command_torque,
+                           MAX_KOLLMORGEN_TORQUE, KOLLMORGEN_DAC_ZERO_OFFSET),
+             label='kollmorgen command torque', color=STATE_COLOR[9])
+    ax3.plot(t, bits_to_Nm(records.sensors.kollmorgen_actual_torque,
+                           MAX_KOLLMORGEN_TORQUE),
+             label=SENSOR_LABELS[1], color=STATE_COLOR[8])
+    ax3.plot(t, bits_to_Nm(records.sensors.kistler_measured_torque, 50),
+             label=SENSOR_LABELS[0], color=STATE_COLOR[5])
+    ax3.plot(t, records.input[:, 1], label='steer torque', color=STATE_COLOR[3])
+    ax3.plot(t, inertia_torque, label='handlebar inertia torque',
+             color=STATE_COLOR[1])
+    ax3.set_ylabel('torque [N-m]')
+    ax3.set_xlabel('time [s]')
+    ax3.legend()
     plt.show()
 
