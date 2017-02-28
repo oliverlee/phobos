@@ -1,0 +1,7 @@
+# http://editorconfig.org/
+
+root = true
+
+[{CMakeLists.txt,*.{c,cc,h,hh,py}{,.in}}]
+indent_style = space
+indent_size = 4
