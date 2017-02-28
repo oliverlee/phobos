@@ -192,3 +192,4 @@ executable is given below:
         +-- drunlo          - Prints sensor values as ASCII. Requires usage of serial over USB.
         +-- flimnap         - Runs static simulator code interfacing with Unity environment Bikesim(5ade352 or newer). Cannot log data via SDIO.
         +-- gulliver        - Prints realtime counter and steer encoder count. Used for determining steering column inertia. Transmits value as ASCII using serial over USB.
+        +-- hall            - Prints realtime counter and torque values in adc counts. Analog sample speed is increased to 8 kHz for this project. Used for determining torque scaling values. Transmits value as ASCII using serial over USB.
