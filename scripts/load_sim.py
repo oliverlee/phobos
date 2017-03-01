@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import warnings
 import numpy as np
 
 from phobos import load
@@ -10,16 +11,25 @@ from phobos import pb
 
 
 def get_time_vector(records):
+    """This function redefines the first timestamp to time = 0.
+    """
     CH_CFG_ST_FREQUENCY = 10000
-    return records.timestamp/CH_CFG_ST_FREQUENCY
+    ts = records.timestamp - records.timestamp[0]
+    if not np.all(ts[1:] > ts[:-1]):
+        warnings.warn('numpy datatype overflow. Consider using fewer records',
+                      RuntimeWarning)
+    return ts/CH_CFG_ST_FREQUENCY
 
 
 def get_simulation_types():
-    option_file = '../projects/proto/simulation.options'
+    file_dir = os.path.dirname(os.path.realpath(__file__))
+    proto_dir = os.path.join(file_dir, os.pardir, 'projects', 'proto')
+
+    option_file = os.path.join(proto_dir, 'simulation.options')
     max_repeated = pb.make_max_repeated_dict(option_file)
 
-    proto_files = ['../projects/proto/pose.proto',
-                   '../projects/proto/simulation.proto']
+    proto_files = (os.path.join(proto_dir, 'pose.proto'),
+                   os.path.join(proto_dir, 'simulation.proto'))
     proto = pb.import_modules(proto_files)[-1]
     dtype = pb.get_np_dtype(proto.SimulationMessage.DESCRIPTOR, max_repeated)
     return proto, dtype
@@ -66,3 +76,4 @@ if __name__ == '__main__':
     messages = load_messages(sys.argv[1])
     print('got {} message(s)'.format(len(messages)))
     records = get_records_from_messages(messages)
+    t = get_time_vector(records)
