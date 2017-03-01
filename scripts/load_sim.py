@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import warnings
 import numpy as np
 
 from phobos import load
@@ -10,8 +11,14 @@ from phobos import pb
 
 
 def get_time_vector(records):
+    """This function redefines the first timestamp to time = 0.
+    """
     CH_CFG_ST_FREQUENCY = 10000
-    return records.timestamp/CH_CFG_ST_FREQUENCY
+    ts = records.timestamp - records.timestamp[0]
+    if not np.all(ts[1:] > ts[:-1]):
+        warnings.warn('numpy datatype overflow. Consider using fewer records',
+                      RuntimeWarning)
+    return ts/CH_CFG_ST_FREQUENCY
 
 
 def get_simulation_types():
@@ -69,3 +76,4 @@ if __name__ == '__main__':
     messages = load_messages(sys.argv[1])
     print('got {} message(s)'.format(len(messages)))
     records = get_records_from_messages(messages)
+    t = get_time_vector(records)
