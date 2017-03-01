@@ -296,7 +296,8 @@ int main(void) {
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
+        const float feedback_torque = bicycle.handlebar_feedback_torque() - kistler_torque;
+        const dacsample_t handlebar_torque_dac = set_handlebar_torque(feedback_torque);
         chTMStopMeasurementX(&computation_time_measurement);
 
         // prepare message for transmission
@@ -317,7 +318,7 @@ int main(void) {
                 encoder_steer.count(), encoder_rear_wheel.count());
         message::set_simulation_timing(&msg,
                 computation_time_measurement.last, transmission_time_measurement.last);
-        msg.feedback_torque = bicycle.handlebar_feedback_torque();
+        msg.feedback_torque = feedback_torque;
         msg.has_feedback_torque = true;
         size_t bytes_written = write_message_to_encode_buffer(msg);
 

@@ -47,7 +47,8 @@ class Bicycle {
         static constexpr real_t default_fs = 200.0; // sample rate, Hz
         static constexpr real_t default_dt = 1.0/default_fs; // sample period, s
         static constexpr real_t default_v = 5.0; // forward speed, m/s
-        static constexpr real_t default_steer_inertia = sa::FULL_ASSEMBLY_INERTIA; // kg-m^2
+        static constexpr real_t default_steer_inertia =
+            sa::FULL_ASSEMBLY_INERTIA - sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL; // kg-m^2
         static constexpr real_t v_quantization_resolution = 0.1; // m/s
         static constexpr real_t roll_rate_limit = 1e10; // rad
         static constexpr real_t steer_rate_limit = 1e10; // rad
