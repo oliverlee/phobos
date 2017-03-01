@@ -108,20 +108,8 @@ void Bicycle<T, U, V>::update_dynamics(real_t roll_torque_input, real_t steer_to
             roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
         }
 
-        if (!(std::is_same<T, model::BicycleKinematic>::value) &&
-            (std::abs(roll_angle) > roll_angle_limit)) {
-            model_t::set_state_element(x, model_t::state_index_t::roll_angle,
-                    std::copysign(roll_angle_limit, roll_angle));
-            model_t::set_state_element(x, model_t::state_index_t::steer_angle,
-                    steer_angle_measurement);
-            model_t::set_state_element(x, model_t::state_index_t::roll_rate,
-                    model_t::get_full_state_element(state_full, full_state_index_t::roll_rate));
-            model_t::set_state_element(x, model_t::state_index_t::steer_rate,
-                    model_t::get_full_state_element(state_full, full_state_index_t::steer_rate));
-        } else {
-            limit_state_element(model_t::state_index_t::roll_rate, roll_rate_limit);
-            limit_state_element(model_t::state_index_t::steer_rate, steer_rate_limit);
-        }
+        limit_state_element(model_t::state_index_t::roll_rate, roll_rate_limit);
+        limit_state_element(model_t::state_index_t::steer_rate, steer_rate_limit);
 
         m_observer.set_state(x);
     }
