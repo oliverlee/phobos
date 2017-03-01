@@ -15,11 +15,14 @@ def get_time_vector(records):
 
 
 def get_simulation_types():
-    option_file = '../projects/proto/simulation.options'
+    file_dir = os.path.dirname(os.path.realpath(__file__))
+    proto_dir = os.path.join(file_dir, os.pardir, 'projects', 'proto')
+
+    option_file = os.path.join(proto_dir, 'simulation.options')
     max_repeated = pb.make_max_repeated_dict(option_file)
 
-    proto_files = ['../projects/proto/pose.proto',
-                   '../projects/proto/simulation.proto']
+    proto_files = (os.path.join(proto_dir, 'pose.proto'),
+                   os.path.join(proto_dir, 'simulation.proto'))
     proto = pb.import_modules(proto_files)[-1]
     dtype = pb.get_np_dtype(proto.SimulationMessage.DESCRIPTOR, max_repeated)
     return proto, dtype
