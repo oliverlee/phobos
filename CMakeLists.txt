@@ -111,10 +111,17 @@ endmacro(add_phobos_executable target_name)
 
 include_directories(inc)
 include_directories(src) # definitions for template classes are placed in src directory
-
 add_subdirectory(src)
-add_subdirectory(demos)
-add_subdirectory(projects)
+
+option(PHOBOS_BUILD_DEMOS "Build embedded demos" TRUE)
+if(PHOBOS_BUILD_DEMOS)
+    add_subdirectory(demos)
+endif()
+
+option(PHOBOS_BUILD_PROJECTS "Build embedded projects" TRUE)
+if(PHOBOS_BUILD_PROJECTS)
+    add_subdirectory(projects)
+endif()
 
 option(PHOBOS_BUILD_TOOLS "Build various tools" TRUE)
 if(PHOBOS_BUILD_TOOLS)
@@ -130,4 +137,9 @@ if(PHOBOS_BUILD_TOOLS)
         INSTALL_COMMAND "")
     set_directory_properties(PROPERTY
         ADDITIONAL_MAKE_CLEAN_FILES ${PROJECT_BINARY_DIR}/tools)
+endif()
+
+option(PHOBOS_BUILD_TESTS "Build host machine tests" TRUE)
+if(PHOBOS_BUILD_TESTS)
+    #add_subdirectory(tests) # this hasn't been added yet
 endif()
