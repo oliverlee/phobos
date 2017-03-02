@@ -31,7 +31,7 @@ static_assert((!std::is_same<T, model::BicycleKinematic>::value) ||
 }
 
 template <typename T, typename U, typename V>
-void Bicycle<T, U, V>::set_v(real_t v)  {
+bool Bicycle<T, U, V>::set_v(real_t v)  {
     using namespace boost::math::policies;
     using quantize_policy = policy<rounding_error<ignore_error>>;
     static constexpr quantize_policy policy;
@@ -40,14 +40,18 @@ void Bicycle<T, U, V>::set_v(real_t v)  {
         boost::math::round(v/v_quantization_resolution, policy);
     if (v_quantized != this->v()) {
         m_model.set_v_dt(v_quantized, m_model.dt());
+        return true;
     }
+    return false;
 }
 
 template <typename T, typename U, typename V>
-void Bicycle<T, U, V>::set_dt(real_t dt)  {
+bool Bicycle<T, U, V>::set_dt(real_t dt)  {
     if (dt != this->dt()) {
         m_model.set_v_dt(m_model.v(), dt);
+        return true;
     }
+    return false;
 }
 
 template <typename T, typename U, typename V>

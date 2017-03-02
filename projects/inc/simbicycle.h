@@ -54,8 +54,8 @@ class Bicycle {
 
         Bicycle(real_t v = default_v, real_t dt = default_dt, real_t steer_inertia = default_steer_inertia);
 
-        void set_v(real_t v);
-        void set_dt(real_t dt);
+        bool set_v(real_t v); /* returns true only if v changes */
+        bool set_dt(real_t dt); /* returns true only if dt changes */
         void reset();
         void update_dynamics(real_t roll_torque_input,      /* update bicycle internal state */
                 real_t steer_torque_input,                  /* and handlebar feedback torque */
