@@ -112,22 +112,27 @@ namespace {
     template <typename T>
     struct observer_initializer{
         template <typename S = T>
-        typename std::enable_if<std::is_same<S, observer::Kalman<model_t>>::value, void>::type
-        initialize(S& observer) {
+        typename std::enable_if<std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
+        initialize(S& bicycle) {
+            typename S::observer_t& observer = bicycle.observer();
+            observer.set_Q(parameters::defaultvalue::kalman::Q(observer.dt()));
+            /* Reduce steer measurement noise covariance */
+            observer.set_R(parameters::defaultvalue::kalman::R/1000);
+
+            /* prime the Kalman gain matrix */
+            bicycle.prime_observer();
+
             /* We start with steer angle equal to the measurement and all other state elements at zero.  */
             model_t::state_t x0 = model_t::state_t::Zero();
             model_t::set_state_element(x0, model_t::state_index_t::steer_angle,
                     angle::encoder_count<float>(encoder_steer));
             observer.set_x(x0);
-            observer.set_Q(parameters::defaultvalue::kalman::Q(observer.dt()));
-            // Reduce steer measurement noise covariance
-            observer.set_R(parameters::defaultvalue::kalman::R/1000);
         }
         template <typename S = T>
-        typename std::enable_if<!std::is_same<S, observer::Kalman<model_t>>::value, void>::type
-        initialize(S& observer) {
+        typename std::enable_if<!std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
+        initialize(S& bicycle) {
             // no-op
-            (void)observer;
+            (void)bicycle;
         }
     };
 
@@ -223,7 +228,8 @@ int main(void) {
     set_handlebar_torque(0.0f);
 
     /*
-     * Initialize bicycle. Velocity doesn't matter as we immediately use the measured value.
+     * Initialize bicycle. The initial velocity is important as we use it to prime
+     * the Kalman gain matrix.
      */
     bicycle_t bicycle(fixed_velocity, dynamics_period);
 
@@ -234,7 +240,7 @@ int main(void) {
     haptic::HandlebarDynamic handlebar_model(bicycle.model(), sa::HANDLEBAR_INERTIA);
 
     observer_initializer<observer_t> oi;
-    oi.initialize(bicycle.observer());
+    oi.initialize(bicycle);
 
     chTMObjectInit(&computation_time_measurement);
     chTMObjectInit(&transmission_time_measurement);
