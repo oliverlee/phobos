@@ -3,6 +3,7 @@
 #include <boost/math/special_functions/round.hpp>
 #include "bicycle/kinematic.h"
 #include "oracle.h"
+#include "kalman.h"
 /*
  * Member function definitions of sim::Bicycle template class.
  * See simbicycle.h for template class declaration.
@@ -161,6 +162,21 @@ void Bicycle<T, U, V>::update_kinematics() {
     m_pose.steer = steer;
 }
 
+template <typename T, typename U, typename V>
+void Bicycle<T, U, V>::prime_observer() {
+    if (std::is_same<U, typename observer::Kalman<T>>::value) {
+        // define a non-zero initial state, this is selected arbitrarily for now
+        state_t x = state_t::Zero();
+        model::Bicycle::set_state_element(x, model_t::state_index_t::steer_angle, 0.1f); // in radians
+
+        float t = 0;
+        while (t < observer_prime_period) {
+            x = m_model.update_state(x);
+            m_observer.update_state(input_t::Zero(), m_model.calculate_output(x));
+            t += m_model.dt();
+        }
+    }
+}
 
 template <typename T, typename U, typename V>
 const BicyclePoseMessage& Bicycle<T, U, V>::pose() const {
