@@ -48,6 +48,39 @@ def plot_states(t, states, convert_to_degrees=True):
     return fig, ax
 
 
+def plot_entries(t, entries, n, m):
+    fig, axes = plt.subplots(n, m, sharex=True)
+    axesr = np.ravel(axes, order='F') # column order
+    color = sns.husl_palette(len(axesr))
+    for i, ax in enumerate(axesr):
+        ax.plot(t, entries[:, i], color=color[i])
+        ax.set_xlabel('time [s]')
+    return fig, ax
+
+
+def plot_kalman_gain_entries(t, kalman):
+    ec = kalman[0].error_covariance
+    y = len(ec) # number of entries
+    # since error covariance is symmetric, size is (n, n) where
+    # n(n + 1)/2 = y => n**2 + n - 2y = 0
+    # take the first real, non-negative value
+    n = 0
+    for r in np.roots([1, 1, -2*y]):
+        try:
+            if r > 0:
+                n = int(r) # state size
+                break
+        except TypeError:
+            # r is complex
+            pass
+    msg = "unable to determine size of state vector from Kalman object"
+    assert n != 0, msg
+    m = len(kalman[0].kalman_gain)//n # input size
+    fig, ax = plot_entries(t, kalman.kalman_gain, n, m)
+    fig.suptitle('Kalman gain entries')
+    return fig, ax
+
+
 if __name__ == '__main__':
     messages = load_messages(sys.argv[1])
     # ignore first sample as it transmitted before the simulation loop
@@ -108,5 +141,8 @@ if __name__ == '__main__':
     ax3.set_ylabel('torque [N-m]')
     ax3.set_xlabel('time [s]')
     ax3.legend()
+
+    fig4, ax4 = plot_kalman_gain_entries(t, records.kalman)
+
     plt.show()
 
