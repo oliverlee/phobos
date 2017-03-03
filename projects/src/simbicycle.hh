@@ -212,6 +212,16 @@ const typename Bicycle<Model, Observer, Haptic>::observer_t& Bicycle<Model, Obse
 };
 
 template <typename Model, typename Observer, typename Haptic>
+const typename Bicycle<Model, Observer, Haptic>::haptic_t& Bicycle<Model, Observer, Haptic>::inertia_upper_virtual() const {
+    return m_inertia_upper_virtual;
+};
+
+template <typename Model, typename Observer, typename Haptic>
+const typename Bicycle<Model, Observer, Haptic>::haptic_t& Bicycle<Model, Observer, Haptic>::inertia_lower_physical() const {
+    return m_inertia_lower_physical;
+};
+
+template <typename Model, typename Observer, typename Haptic>
 const typename Bicycle<Model, Observer, Haptic>::second_order_matrix_t& Bicycle<Model, Observer, Haptic>::M() const {
     return m_model.M();
 }

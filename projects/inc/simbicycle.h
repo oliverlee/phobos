@@ -80,6 +80,8 @@ class Bicycle {
         const model_t& model() const;
         observer_t& observer();
         const observer_t& observer() const;
+        const haptic_t& inertia_upper_virtual() const;
+        const haptic_t& inertia_lower_physical() const;
         const second_order_matrix_t& M() const;
         const second_order_matrix_t& C1() const;
         const second_order_matrix_t& K0() const;
