@@ -34,18 +34,37 @@ def handlebar_inertia_torque(records, A):
     return inertia_torque, steer_accel
 
 
-def plot_states(t, states, convert_to_degrees=True):
+def plot_states(t, states, second_yaxis=False, convert_to_degrees=True):
     # plot in degrees
     if convert_to_degrees:
         states *= 180/np.pi
 
-    fig, ax = plt.subplots()
+    fig, ax1 = plt.subplots()
+    lines = []
+    if second_yaxis:
+        ax2 = ax1.twinx()
     for i, label in enumerate(STATE_LABELS):
-        ax.plot(t, states[:, i], label=label, color=STATE_COLOR[1 + 2*i])
-    ax.set_ylabel('deg, deg/s')
-    ax.set_xlabel('time [s]')
-    ax.legend()
-    return fig, ax
+        linestyle = 'solid'
+        if second_yaxis and label.endswith('rate'):
+            ax = ax2
+            linestyle = 'dashed'
+        else:
+            ax = ax1
+        l = ax.plot(t, states[:, i], label=label, color=STATE_COLOR[1 + 2*i],
+                    linestyle=linestyle)
+        lines.extend(l)
+
+    if second_yaxis:
+        ax1.set_ylabel('deg')
+        ax2.set_ylabel('deg/s')
+        ax1.set_xlabel('time [s]')
+        ax1.legend(lines, [l.get_label() for l in lines])
+        return fig, (ax1, ax2)
+
+    ax1.set_ylabel('deg, deg/s')
+    ax1.set_xlabel('time [s]')
+    ax1.legend()
+    return fig, ax1
 
 
 def plot_entries(t, entries, n, m):
@@ -98,7 +117,8 @@ if __name__ == '__main__':
 
     # plot in degrees
     states = records.state[:, 1:] * 180/np.pi
-    fig1, ax1 = plot_states(t, states, False)
+    fig1, ax1 = plot_states(t, states, second_yaxis=False,
+                            convert_to_degrees=False)
 
     encoder_count = records.sensors.steer_encoder_count
     encoder_angle = encoder_count / 152000 * 360

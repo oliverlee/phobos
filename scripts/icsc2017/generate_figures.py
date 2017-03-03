@@ -25,7 +25,8 @@ if __name__ == '__main__':
 
     # plot in degrees because understanding radians is harder
     states = records.state[:, 1:] * 180/np.pi
-    fig1, ax1 = plot_states(t, states, False)
+    fig1, ax1 = plot_states(t, states, second_yaxis=True,
+                            convert_to_degrees=False)
 
     m = messages[0]
     v = m.model.v
@@ -34,36 +35,57 @@ if __name__ == '__main__':
     x0 = np.array(messages[1].state.x[1:]).reshape((4, 1))
     x = simulate(v, x0, dt, n)
     t = np.array(range(n + 1)) * dt
-    fig2, ax2 = plot_states(t, np.hstack((x0, x)).T)
+    fig2, ax2 = plot_states(t, np.hstack((x0, x)).T, second_yaxis=True,
+                            convert_to_degrees=True)
 
-    # set the axes to be the same
-    ax1.set_xlim([0, 3])
-    ax2.set_xlim([0, 3])
+    # set the axes x limits to be the same
+    ax1[0].set_xlim([0, 3])
+    ax2[0].set_xlim([0, 3])
 
-    # center x-axis in figure
-    ylim = min(ax1.get_ylim())
-    ax1.set_ylim([-abs(ylim), abs(ylim)])
-    ylim = min(ax2.get_ylim())
-    ax2.set_ylim([-abs(ylim), abs(ylim)])
+    # center y-axis in figure
+    def center_y(ax):
+        mag = max(map(abs, ax.get_ylim()))
+        if mag == 60: # roll angle saturates
+            mag = 65
+        ax.set_ylim([-mag, mag])
+    center_y(ax1[0])
+    center_y(ax1[1])
+    center_y(ax2[0])
+    center_y(ax2[1])
 
     # redefine label names, this requires the latex package siunitx
-    ax1.set_ylabel(r'\si{\degree}, \si{\degree\per\second}')
-    ax2.set_ylabel(r'\si{\degree}, \si{\degree\per\second}')
-    ax1.set_xlabel(r'time [\si{\second}]')
-    ax2.set_xlabel(r'time [\si{\second}]')
+    ax1[0].set_ylabel(r'\si{\degree}')
+    ax2[0].set_ylabel(r'\si{\degree}')
+    ax1[1].set_ylabel(r'\si{\degree\per\second}')
+    ax2[1].set_ylabel(r'\si{\degree\per\second}')
+    ax1[0].set_xlabel(r'time [\si{\second}]')
+    ax2[0].set_xlabel(r'time [\si{\second}]')
 
     # redefine legend entries, this requires the latex package siunitx
     # enable legend frame, seaborn turns this off
-    ax1.legend([r'$\phi$', r'$\delta$', r'$\dot{\phi}$', r'$\dot{\delta}$'],
-               frameon=True, ncol=2)
-    ax2.legend([r'$\phi$', r'$\delta$', r'$\dot{\phi}$', r'$\dot{\delta}$'],
-               frameon=True, ncol=2)
+    def redefine_legend_entries(ax):
+        handles1, _ = ax[0].get_legend_handles_labels()
+        handles2, _ = ax[1].get_legend_handles_labels()
+        for axis in ax:
+            try:
+                axis.legend_.remove()
+            except AttributeError:
+                pass
+        ax[0].legend(handles1 + handles2,
+                     [r'$\phi$', r'$\delta$',
+                      r'$\dot{\phi}$', r'$\dot{\delta}$'],
+                     frameon=True, ncol=2)
+    redefine_legend_entries(ax1)
+    redefine_legend_entries(ax2)
+    # tikz_save doesn't support multiple y axes so the tex file still needs to
+    # be modified manually to fix the legend and remove the arrowhead from the
+    # second y axis =/
 
     # set figure size and save
     fig1.tight_layout()
     fig2.tight_layout()
     fh = '4cm'
-    fw = '7.2cm'
+    fw = '6.5cm'
     tikz_save('state_plot_simulator.tex', fig1,
               figureheight=fh, figurewidth=fw)
     tikz_save('state_plot_simulation.tex', fig2,
