@@ -47,20 +47,25 @@ class Bicycle {
         static constexpr real_t default_fs = 200.0; // sample rate, Hz
         static constexpr real_t default_dt = 1.0/default_fs; // sample period, s
         static constexpr real_t default_v = 5.0; // forward speed, m/s
-        static constexpr real_t default_steer_inertia =
-            sa::FULL_ASSEMBLY_INERTIA - sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL; // kg-m^2
         static constexpr real_t v_quantization_resolution = 0.1; // m/s
         static constexpr real_t roll_rate_limit = 1e10; // rad
         static constexpr real_t steer_rate_limit = 1e10; // rad
         static constexpr real_t observer_prime_period = 1.0; // seconds
 
-        Bicycle(real_t v = default_v, real_t dt = default_dt, real_t steer_inertia = default_steer_inertia);
+        Bicycle(real_t v = default_v, real_t dt = default_dt,
+                real_t upper_assembly_inertia_virtual = sa::UPPER_ASSEMBLY_INERTIA_VIRTUAL,
+                real_t lower_assembly_inertia_physical = (sa::FULL_ASSEMBLY_INERTIA -
+                                                          sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL));
 
         void set_v(real_t v);
         void set_dt(real_t dt);
         void reset();
-        void update_dynamics(real_t roll_torque_input, // update bicycle internal state
-                real_t steer_torque_input,             // and handlebar feedback torque
+        // When calling update_dynamics(), steer_torque_measurement is considered positive when the
+        // full steering assembly is cut and you consider the lower half. If the handlebars are fixed
+        // in place and a positive motor torque is commanded, the steer_torque_measurement value is
+        // expected to be negative.
+        void update_dynamics(real_t roll_torque_measurement,    // update bicycle internal state
+                real_t steer_torque_measurement,                // and handlebar feedback torque
                 real_t yaw_angle_measurement,
                 real_t steer_angle_measurement,
                 real_t rear_wheel_angle_measurement);
@@ -91,7 +96,8 @@ class Bicycle {
     private:
         model_t m_model; // bicycle model object
         observer_t m_observer; // observer object
-        haptic_t m_haptic; // handlebar feedback calculation object
+        haptic_t m_inertia_upper_virtual; // handlebar feedback calculation object
+        haptic_t m_inertia_lower_physical; // handlebar feedback calculation object
         full_state_t m_state_full; // auxiliary + dynamic state
         BicyclePoseMessage m_pose; // Unity visualization message
         binary_semaphore_t m_state_sem; // bsem for synchronizing kinematics update

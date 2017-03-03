@@ -12,10 +12,13 @@
 namespace sim {
 
 template <typename Model, typename Observer, typename Haptic>
-Bicycle<Model, Observer, Haptic>::Bicycle(real_t v, real_t dt, real_t steer_inertia) :
+Bicycle<Model, Observer, Haptic>::Bicycle(real_t v, real_t dt,
+        real_t upper_assembly_inertia_virtual,
+        real_t lower_assembly_inertia_physical) :
 m_model(v, dt),
 m_observer(m_model),
-m_haptic(m_model, steer_inertia),
+m_inertia_upper_virtual(m_model, upper_assembly_inertia_virtual),
+m_inertia_lower_physical(m_model, lower_assembly_inertia_physical),
 m_state_full(full_state_t::Zero()),
 m_pose(BicyclePoseMessage_init_zero) {
     // Note: User must initialize Kalman matrices in application.
@@ -56,26 +59,31 @@ void Bicycle<Model, Observer, Haptic>::reset() {
 }
 
 template <typename Model, typename Observer, typename Haptic>
-void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input, real_t steer_torque_input,
-    real_t yaw_angle_measurement,
-    real_t steer_angle_measurement,
-    real_t rear_wheel_angle_measurement) {
-
-    //  While the rear wheel angle measurement can be used to determine velocity,
-    //  it is assumed that velocity is determined outside this class and passed as
-    //  an input. This allows the velocity resolution, and thus the model update
-    //  frequency, to be determined by a filter unrelated to the bicycle model.
+void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_measurement,
+        real_t steer_torque_measurement, real_t yaw_angle_measurement,
+        real_t steer_angle_measurement, real_t rear_wheel_angle_measurement) {
+    // While the rear wheel angle measurement can be used to determine velocity,
+    // it is assumed that velocity is determined outside this class and passed as
+    // an input. This allows the velocity resolution, and thus the model update
+    // frequency, to be determined by a filter unrelated to the bicycle model.
     //
-    //  This could also be used to determine the wheel angles, as we assume
-    //  no-slip conditions. However, we calculate the wheel angles during the
-    //  kinematic  update and solely from bicycle velocity.
-    (void)rear_wheel_angle_measurement;
+    // The rear wheel angle measurement also could be used to determine the
+    // wheel angles. Instead we assume no-slip conditions and calculate the wheel
+    // angle during the kinematic update and solely from bicycle velocity.
+    (void)rear_wheel_angle_measurement; // velocity is calculated and updated externally
 
     input_t input = input_t::Zero();
     measurement_t measurement = measurement_t::Zero();
 
-    model_t::set_input_element(input, model_t::input_index_t::roll_torque, roll_torque_input);
-    model_t::set_input_element(input, model_t::input_index_t::steer_torque, steer_torque_input);
+    // Convert roll, steer torque from physical to virtual.
+    const float upper_inertia_torque = m_inertia_upper_virtual.feedback_torque(m_observer.state());
+    // steer_torque_measurement sign is correct when considering the lower assembly but needs
+    // to be flipped when considering the upper assembly.
+    const float steer_torque = steer_torque_measurement + upper_inertia_torque;
+    const float roll_torque = roll_torque_measurement;
+
+    model_t::set_input_element(input, model_t::input_index_t::roll_torque, roll_torque);
+    model_t::set_input_element(input, model_t::input_index_t::steer_torque, steer_torque);
     model_t::set_output_element(measurement, model_t::output_index_t::yaw_angle, yaw_angle_measurement);
     model_t::set_output_element(measurement, model_t::output_index_t::steer_angle, steer_angle_measurement);
 
@@ -112,7 +120,7 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
         m_observer.set_state(x);
     }
 
-    m_T_m = m_haptic.feedback_torque(m_observer.state(), input);
+    m_T_m = m_inertia_lower_physical.feedback_torque(m_observer.state(), input) - steer_torque_measurement;
 
     // Merge observer and model states
     //
@@ -136,7 +144,7 @@ void Bicycle<Model, Observer, Haptic>::update_kinematics() {
     full_state_t x = m_state_full;
     chBSemSignal(&m_state_sem);
 
-    // solve for pitch as this does not get integrated
+    // solve for pitch as this does not calculated by integration in update_dynamics()
     const real_t roll = model_t::get_full_state_element(x, full_state_index_t::roll_angle);
     const real_t steer = model_t::get_full_state_element(x, full_state_index_t::steer_angle);
     real_t pitch = model_t::get_full_state_element(x, full_state_index_t::pitch_angle);
