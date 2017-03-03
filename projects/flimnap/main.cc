@@ -228,12 +228,6 @@ int main(void) {
     // the Kalman gain matrix.
     bicycle_t bicycle(fixed_velocity, dynamics_period);
 
-    // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
-    // TODO: naming here is poor
-#if !defined(FLIMNAP_ZERO_INPUT)
-    haptic::HandlebarDynamic handlebar_model(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA_VIRTUAL);
-#endif  // !defined(FLIMNAP_ZERO_INPUT)
-
     observer_initializer<observer_t> oi;
     oi.initialize(bicycle);
 
@@ -269,8 +263,10 @@ int main(void) {
         constexpr float roll_torque = 0.0f;
 
         // get sensor measurements
+#if !defined(FLIMNAP_ZERO_INPUT)
         const float kistler_torque = adc_to_nm(analog.get_adc12(),
                 sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE);
+#endif // !defined(FLIMNAP_ZERO_INPUT)
         const float motor_torque = adc_to_nm(analog.get_adc13(),
                 sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
         const float steer_angle = angle::encoder_count<float>(encoder_steer);
@@ -282,29 +278,25 @@ int main(void) {
         // yaw angle, just use previous state value
         const float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
-        // calculate rider applied torque
 #if defined(FLIMNAP_ZERO_INPUT)
-        const float steer_torque = 0.0f;
-        (void)kistler_torque;
-#else // defined(FLIMNAP_ZERO_INPUT)
-        const float inertia_torque = -handlebar_model.feedback_torque(bicycle.observer().state());
-        const float steer_torque = kistler_torque - inertia_torque;
+        // Need to calculate what kistler torque _should_ be:
+        // 0 = kistler_torque + upper_inertia_torque
+        const float kistler_torque = -bicycle.inertia_upper_virtual().torque(bicycle.observer().state());
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
         // simulate bicycle
         bicycle.set_v(fixed_velocity);
-        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+        bicycle.update_dynamics(roll_torque, kistler_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const float feedback_torque = bicycle.handlebar_feedback_torque() - kistler_torque;
+        const float feedback_torque = bicycle.handlebar_feedback_torque();
         const dacsample_t handlebar_torque_dac = set_handlebar_torque(feedback_torque);
         chTMStopMeasurementX(&computation_time_measurement);
 
         // prepare message for transmission
         msg = msg_init;
         msg.timestamp = starttime;
-        message::set_bicycle_input(&msg.input,
-                (model_t::input_t() << roll_torque, steer_torque).finished());
+        message::set_bicycle_input(&msg.input, bicycle.input());
         msg.has_input = true;
         message::set_simulation_state(&msg, bicycle);
         message::set_simulation_auxiliary_state(&msg, bicycle);
