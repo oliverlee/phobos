@@ -37,11 +37,11 @@
 #include <array>
 #include <type_traits>
 
-#include "bicycle/kinematic.h" /* simplified bicycle model */
-#include "bicycle/whipple.h" /* whipple bicycle model */
-#include "oracle.h" /* oracle observer */
-#include "kalman.h" /* kalman filter observer */
-#include "haptic.h" /* handlebar feedback */
+#include "bicycle/kinematic.h" // simplified bicycle model
+#include "bicycle/whipple.h" // whipple bicycle model
+#include "oracle.h" // oracle observer
+#include "kalman.h" // kalman filter observer
+#include "haptic.h" // handlebar feedback
 #include "simbicycle.h"
 
 namespace {
@@ -56,7 +56,7 @@ namespace {
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using bicycle_t = sim::Bicycle<model_t, observer_t, haptic_t>;
 
-    /* sensors */
+    // sensors
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
     EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC,
@@ -66,17 +66,17 @@ namespace {
 
     constexpr float fixed_velocity = 7.0f;
 
-    /* transmission */
+    // transmission
     std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> encode_buffer;
     std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> packet_buffer;
     SimulationMessage msg;
     constexpr SimulationMessage msg_init = SimulationMessage_init_zero;
 
-    /* kinematics loop */
-    constexpr systime_t kinematics_loop_time = US2ST(8333); /* update kinematics at 120 Hz */
+    // kinematics loop
+    constexpr systime_t kinematics_loop_time = US2ST(8333); // update kinematics at 120 Hz
 
-    /* dynamics loop */
-    constexpr model::real_t dynamics_period = 0.005; /* 5 ms -> 200 Hz */
+    // dynamics loop
+    constexpr model::real_t dynamics_period = 0.005; //5 ms -> 200 Hz
     time_measurement_t computation_time_measurement;
     time_measurement_t transmission_time_measurement;
 
@@ -91,11 +91,11 @@ namespace {
 
     void update_and_transmit_kinematics(bicycle_t& bicycle) {
         bicycle.update_kinematics();
-        /*
-         * TODO: Pose message should be transmitted asynchronously.
-         * After starting transmission, the simulation should start to calculate pose for the next timestep.
-         * This is currently not necessary given the observed timings.
-         */
+        //
+        //TODO: Pose message should be transmitted asynchronously.
+        //After starting transmission, the simulation should start to calculate pose for the next timestep.
+        //This is currently not necessary given the observed timings.
+        //
         //size_t bytes_encoded = packet::serialize::encode_delimited(bicycle.pose(),
         //        encode_buffer.data(), encode_buffer.size());
         //TODO: clear message
@@ -116,13 +116,13 @@ namespace {
         initialize(S& bicycle) {
             typename S::observer_t& observer = bicycle.observer();
             observer.set_Q(parameters::defaultvalue::kalman::Q(observer.dt()));
-            /* Reduce steer measurement noise covariance */
+            // Reduce steer measurement noise covariance
             observer.set_R(parameters::defaultvalue::kalman::R/1000);
 
-            /* prime the Kalman gain matrix */
+            // prime the Kalman gain matrix
             bicycle.prime_observer();
 
-            /* We start with steer angle equal to the measurement and all other state elements at zero.  */
+            // We start with steer angle equal to the measurement and all other state elements at zero.
             model_t::state_t x0 = model_t::state_t::Zero();
             model_t::set_state_element(x0, model_t::state_index_t::steer_angle,
                     angle::encoder_count<float>(encoder_steer));
@@ -167,76 +167,60 @@ namespace {
  */
 int main(void) {
 
-    /*
-     * System initializations.
-     * - HAL initialization, this also initializes the configured device drivers
-     *   and performs the board-specific initializations.
-     * - Kernel initialization, the main() function becomes a thread and the
-     *   RTOS is active.
-     */
+    //System initializations.
+    //- HAL initialization, this also initializes the configured device drivers
+    //  and performs the board-specific initializations.
+    //- Kernel initialization, the main() function becomes a thread and the
+    //  RTOS is active.
     halInit();
     chSysInit();
 
-    /*
-     * Initialize a serial-over-USB CDC driver.
-     */
+    // Initialize a serial-over-USB CDC driver.
     sduObjectInit(&SDU1);
     sduStart(&SDU1, &serusbcfg);
 
-    /*
-     * Activate the USB driver and then the USB bus pull-up on D+.
-     * Note, a delay is inserted in order to not have to disconnect the cable
-     * after a reset.
-     */
+    //Activate the USB driver and then the USB bus pull-up on D+.
+    //Note, a delay is inserted in order to not have to disconnect the cable
+    //after a reset.
     board_usb_lld_disconnect_bus();   //usbDisconnectBus(serusbcfg.usbp);
     chThdSleepMilliseconds(1500);
     usbStart(serusbcfg.usbp, &usbcfg);
     board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
-    /* create the blink thread and print state monitor */
+    // create the blink thread and print state monitor
     chBlinkThreadCreateStatic();
 
-    /*
-     * Start sensors.
-     * Encoder:
-     *   Initialize encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
-     *   Pins for encoder driver 3 are already set in board.h.
-     */
+    // Start sensors.
+    // Encoder:
+    //   Initialize encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
+    //   Pins for encoder driver 3 are already set in board.h.
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder_steer.start();
     encoder_rear_wheel.start();
-    analog.start(1000); /* trigger ADC conversion at 1 kHz */
+    analog.start(1000); // trigger ADC conversion at 1 kHz
 
-    /*
-     * Set torque measurement enable line low.
-     * The output of the Kistler torque sensor is not valid until after a falling edge
-     * on the measurement line and it is held low. The 'LINE_TORQUE_MEAS_EN' line is
-     * reversed due to NPN switch Q1.
-     */
+    //Set torque measurement enable line low.
+    //The output of the Kistler torque sensor is not valid until after a falling edge
+    //on the measurement line and it is held low. The 'LINE_TORQUE_MEAS_EN' line is
+    //reversed due to NPN switch Q1.
     palClearLine(LINE_TORQUE_MEAS_EN);
     chThdSleepMilliseconds(1);
     palSetLine(LINE_TORQUE_MEAS_EN);
 
-    /*
-     * Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
-     * The default line configuration is OUTPUT_OPENDRAIN_PULLUP  for SPI1_ENC1_NSS
-     * and must be changed to use as analog output.
-     */
+    // Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
+    // The default line configuration is OUTPUT_OPENDRAIN_PULLUP  for SPI1_ENC1_NSS
+    // and must be changed to use as analog output.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
     set_handlebar_torque(0.0f);
 
-    /*
-     * Initialize bicycle. The initial velocity is important as we use it to prime
-     * the Kalman gain matrix.
-     */
+    // Initialize bicycle. The initial velocity is important as we use it to prime
+    // the Kalman gain matrix.
     bicycle_t bicycle(fixed_velocity, dynamics_period);
 
-    /*
-     * Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
-     * TODO: naming here is poor
-     */
+    // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
+    // TODO: naming here is poor
     haptic::HandlebarDynamic handlebar_model(bicycle.model(), sa::HANDLEBAR_INERTIA);
 
     observer_initializer<observer_t> oi;
@@ -245,31 +229,27 @@ int main(void) {
     chTMObjectInit(&computation_time_measurement);
     chTMObjectInit(&transmission_time_measurement);
 
-    /*
-     * Transmit initial message containing gitsha1, model, and observer data.
-     * This initial transmission is blocking.
-     */
+    // Transmit initial message containing gitsha1, model, and observer data.
+    // This initial transmission is blocking.
     msg = msg_init;
     msg.timestamp = chVTGetSystemTime();
     message::set_simulation_full_model_observer(&msg, bicycle);
     size_t bytes_written = write_message_to_encode_buffer(msg);
 
-    /* block until ready */
+    // block until ready
     while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
         chThdSleepMilliseconds(10);
     }
 
-    /* transmit data */
+    // transmit data
     if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
         chTMStartMeasurementX(&transmission_time_measurement);
         usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
         chTMStopMeasurementX(&transmission_time_measurement);
     }
 
-    /*
-     * Normal main() thread activity, in this demo it simulates the bicycle
-     * dynamics in real-time (roughly).
-     */
+    // Normal main() thread activity, in this project it simulates the bicycle
+    // dynamics in real-time (roughly).
     chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread),
             NORMALPRIO - 1, kinematics_thread, static_cast<void*>(&bicycle));
     while (true) {
@@ -277,7 +257,7 @@ int main(void) {
         chTMStartMeasurementX(&computation_time_measurement);
         constexpr float roll_torque = 0.0f;
 
-        /* get sensor measurements */
+        // get sensor measurements
         const float kistler_torque = static_cast<float>(
                 analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
                 sa::MAX_KISTLER_TORQUE);
@@ -289,22 +269,22 @@ int main(void) {
         const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
 
-        /* yaw angle, just use previous state value */
+        // yaw angle, just use previous state value
         const float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
-        /* calculate rider applied torque */
+        // calculate rider applied torque
         const float inertia_torque = -handlebar_model.feedback_torque(bicycle.observer().state());
         const float steer_torque = kistler_torque - inertia_torque;
 
-        /* simulate bicycle */
+        // simulate bicycle
         bicycle.set_v(fixed_velocity);
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
-        /* generate handlebar torque output */
+        // generate handlebar torque output
         const dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
         chTMStopMeasurementX(&computation_time_measurement);
 
-        /* prepare message for transmission */
+        // prepare message for transmission
         msg = msg_init;
         msg.timestamp = starttime;
         message::set_bicycle_input(&msg.input,
@@ -326,7 +306,7 @@ int main(void) {
         msg.has_feedback_torque = true;
         size_t bytes_written = write_message_to_encode_buffer(msg);
 
-        /* transmit message */
+        // transmit message
         if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
             chTMStartMeasurementX(&transmission_time_measurement);
             usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
