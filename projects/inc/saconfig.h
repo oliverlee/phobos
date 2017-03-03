@@ -58,6 +58,6 @@ constexpr float STEER_ASSEMBLY_INERTIA = STEER_ASSEMBLY_INERTIA_WITH_WEIGHT; /* 
 
 /* moment of inertia of the handlebars and steering column above the torque sensor, about the steer axis 
  * determined from scripts/calculate_handlebar_inertia.py */
-constexpr float HANDLEBAR_INERTIA = 0.118; /* kg-m^2 */
+constexpr float HANDLEBAR_INERTIA = 0.1384; // kg-m^2
 
 } // namespace
