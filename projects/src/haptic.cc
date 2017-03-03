@@ -99,4 +99,7 @@ model::real_t HandlebarDynamic::torque(const model::Bicycle::state_t& x, const m
     return steer_acceleration*m_I_delta - model::Bicycle::get_input_element(u, model::Bicycle::input_index_t::steer_torque);
 }
 
+model::real_t HandlebarDynamic::moment_of_inertia() const {
+    return m_I_delta;
+}
 } //namespace haptic
