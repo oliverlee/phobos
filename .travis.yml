@@ -24,17 +24,21 @@ addons:
     sources:
       - george-edison55-precise-backports # cmake 3.2.3
       - ubuntu-toolchain-r-test
+      - llvm-toolchain-precise-3.9
       - git-core
     packages:
       - cmake
       - cmake-data
       - g++-6
+      - clang-3.9
       - git
 
 env:
-  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Debug -DCHIBIOS_USE_LTO=0"
-  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Debug -DCHIBIOS_USE_LTO=1"
-  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Release -DCHIBIOS_USE_LTO=1"
+  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Debug -DCHIBIOS_USE_LTO=0 -DPHOBOS_BUILD_DEMOS=1 -DPHOBOS_BUILD_PROJECTS=1 -DPHOBOS_BUILD_TOOLS=0 -DPHOBOS_BUILD_TESTS=0"
+  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Debug -DCHIBIOS_USE_LTO=1 -DPHOBOS_BUILD_DEMOS=1 -DPHOBOS_BUILD_PROJECTS=1 -DPHOBOS_BUILD_TOOLS=0 -DPHOBOS_BUILD_TESTS=0"
+  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Release -DCHIBIOS_USE_LTO=1 -DPHOBOS_BUILD_DEMOS=1 -DPHOBOS_BUILD_PROJECTS=1 -DPHOBOS_BUILD_TOOLS=0 -DPHOBOS_BUILD_TESTS=0"
+  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Debug -DPHOBOS_BUILD_DEMOS=0 -DPHOBOS_BUILD_PROJECTS=0 -DPHOBOS_BUILD_TOOLS=1 -DPHOBOS_BUILD_TESTS=1" CC_COMPILER="gcc-6" CXX_COMPILER="g++-6"
+  - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Debug -DPHOBOS_BUILD_DEMOS=0 -DPHOBOS_BUILD_PROJECTS=0 -DPHOBOS_BUILD_TOOLS=1 -DPHOBOS_BUILD_TESTS=1" CC_COMPILER="clang-3.9" CXX_COMPILER="clang++-3.9"
 
 install:
   - bash travis/install-toolchain.sh
@@ -43,7 +47,7 @@ install:
   - ls $HOME/protobuf
   - bash travis/checkout-submodules.sh
   - ls $HOME/submodules
-  - export CXX="g++-6" CC="gcc-6"
+  - export CXX=$CXX_COMPILER CC=$CC_COMPILER
 
 script:
   - mkdir build
