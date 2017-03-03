@@ -55,6 +55,7 @@ class HandlebarDynamic final : public HandlebarBase {
         virtual model::real_t feedback_torque(
                 const model::Bicycle::state_t& x,
                 const model::Bicycle::input_t& u = model::Bicycle::input_t::Zero()) const override;
+        model::real_t moment_of_inertia() const;
 
     private:
         model::Bicycle& m_bicycle;
