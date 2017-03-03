@@ -64,7 +64,7 @@ namespace {
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
 
-    constexpr float fixed_velocity = 7.0f;
+    constexpr float fixed_velocity = 5.0f;
 
     /* transmission */
     std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> encode_buffer;
