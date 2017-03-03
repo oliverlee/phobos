@@ -69,8 +69,11 @@ if(PHOBOS_BUILD_PROJECT_DRUNLO)
     add_subdirectory(drunlo)
 endif()
 
-option(PHOBOS_BUILD_PROJECT_FLIMNAP "Build Flimnap (static simulator) demo" TRUE)
-if(PHOBOS_BUILD_PROJECT_FLIMNAP)
+option(PHOBOS_BUILD_PROJECT_FLIMNAP_WHIPPLE
+    "Build Flimnap (static simulator) demo using the Whipple bicycle model" TRUE)
+option(PHOBOS_BUILD_PROJECT_FLIMNAP_KINEMATIC
+    "Build Flimnap (static simulator) demo using the kinematic bicycle model" TRUE)
+if(PHOBOS_BUILD_PROJECT_FLIMNAP_WHIPPLE OR PHOBOS_BUILD_PROJECT_FLIMNAP_KINEMATIC)
     add_subdirectory(flimnap)
 endif()
 

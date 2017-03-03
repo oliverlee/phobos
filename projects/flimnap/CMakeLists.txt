@@ -30,7 +30,11 @@ set(FLIMNAP_COMMON_SRC
     ${PROTOBUF_GENERATED_SOURCE}
     ${BICYCLE_SOURCE})
 
+if(PHOBOS_BUILD_PROJECT_FLIMNAP_WHIPPLE)
 add_phobos_executable(flimnap_whipple ${FLIMNAP_COMMON_SRC})
+endif()
+if(PHOBOS_BUILD_PROJECT_FLIMNAP_KINEMATIC)
 add_phobos_executable(flimnap_kinematic ${FLIMNAP_COMMON_SRC})
 target_compile_definitions(flimnap_kinematic
     PRIVATE USE_BICYCLE_KINEMATIC_MODEL)
+endif()
