@@ -9,8 +9,29 @@ namespace cobs {
 
     size_t max_decoded_length(size_t encoded_length);
 
-    size_t encode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len);
+    struct EncodeResult {
+        enum class Status {
+            OK,
+            WRITE_OVERFLOW
+        };
+        const Status status;
+        const size_t written;
+    };
 
-    size_t decode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len);
+    EncodeResult encode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len);
+
+    struct DecodeResult {
+        enum class Status {
+            OK,
+            WRITE_OVERFLOW,
+            READ_OVERFLOW,
+            UNEXPECTED_ZERO
+        };
+        const Status status;
+        const size_t read;
+        const size_t written;
+    };
+
+    DecodeResult decode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len);
 
 }

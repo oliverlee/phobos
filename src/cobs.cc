@@ -108,7 +108,7 @@ namespace cobs {
     /**
     COBS encode a byte array.
     */
-    size_t encode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len) {
+    EncodeResult encode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len) {
         const uint8_t * const src_end = src_start + src_len;
         const uint8_t * const dst_end = dst_start + dst_len;
 
@@ -124,15 +124,28 @@ namespace cobs {
         uint8_t * dst_copy = dst_start;
         uint8_t * dst_offset = dst_copy++;
 
+        auto result = [&dst_copy, &dst_start](EncodeResult::Status status) -> EncodeResult {
+            return EncodeResult {
+                status,
+
+                // Bytes written, can cast because dst_copy >= dst_start.
+                (size_t) (dst_copy - dst_start)
+            };
+        };
+
         while (src < src_end) {
             const uint8_t byte = *(src++);
             if (byte != 0x00) {
-                // Append the data byte.
-                debug_assert(dst_copy < dst_end, "buffer write overflow");
+                // Append the data byte if possible.
+                if (dst_copy >= dst_end) {
+                    return result(EncodeResult::Status::WRITE_OVERFLOW);
+                }
                 *(dst_copy++) = byte;
+
                 // Unless we hit the maximum offset, keep copying.
                 if ((dst_copy - dst_offset) != 0xff) continue;
             }
+
             // Write back the offset, set the offset index to the
             // current copy location and advance the copy index.
             *(dst_offset) = dst_copy - dst_offset;
@@ -143,17 +156,19 @@ namespace cobs {
         // anymore.
         *(dst_offset) = dst_copy - dst_offset;
 
-        // Append the frame marker. For consistency, update the pointer.
-        debug_assert(dst_copy < dst_end, "buffer write overflow");
+        // Append the zero marker if possible. 
+        if (dst_copy >= dst_end) {
+            return result(EncodeResult::Status::WRITE_OVERFLOW);
+        }
         *(dst_copy++) = 0x00;
 
-        return dst_copy - dst_start;
+        return result(EncodeResult::Status::OK);
     }
 
     /**
     COBS decode a byte array.
     */
-    size_t decode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len) {
+    DecodeResult decode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len) {
         const uint8_t * const src_end = src_start + src_len;
         const uint8_t * const dst_end = dst_start + dst_len;
 
@@ -163,29 +178,60 @@ namespace cobs {
         // This variable will always point to the next byte to write.
         uint8_t * dst = dst_start;
 
+        auto result = [&src, &src_start, &dst, &dst_start](DecodeResult::Status status) -> DecodeResult {
+            return DecodeResult {
+                status,
+
+                // Bytes read, can cast because src >= src_start.
+                (size_t) (src - src_start),
+
+                // Bytes written, can cast because dst >= dst_start.
+                (size_t) (dst - dst_start)
+            };
+        };
+
         // Read the first offset.
-        debug_assert(src < src_end, "buffer read overflow");
+        if (src >= src_end) {
+            return result(DecodeResult::Status::READ_OVERFLOW);
+        }
         uint8_t offset = *(src++);
 
         // If the first offset is 0x00 we can stop immediately.
-        if (offset == 0x00) return dst - dst_start;
+        if (offset == 0x00) {
+            return result(DecodeResult::Status::UNEXPECTED_ZERO);
+        }
 
         while (true) {
             // Compute the location of the next zero. Subtract one
             // because src has already been incremented.
             const uint8_t * const src_zero = src + offset - 1;
 
+            // Check if we can copy the data until the next zero. 
+            if (src_zero >= src_end) {
+                return result(DecodeResult::Status::READ_OVERFLOW);
+            }
+            if (dst + offset - 1 >= dst_end) {
+                return result(DecodeResult::Status::WRITE_OVERFLOW);
+            }
+
             // Copy data until we are at the next zero.
-            debug_assert(src_zero < src_end, "buffer read overflow");
-            debug_assert(dst + offset - 1 < dst_end, "buffer write overflow");
             while (src < src_zero) {
                 const uint8_t byte = *(src++);
-                debug_assert(byte != 0x00, "unexpected data value");
+
+                // We should not encounter a zero in the encoded data.
+                // Return control to the caller so it can restart a
+                // decoding operation from src.
+                if (byte == 0x00) {
+                    return result(DecodeResult::Status::UNEXPECTED_ZERO);
+                }
+
                 *(dst++) = byte;
             }
 
             // Retrieve the next zero offset.
-            debug_assert(src < src_end, "buffer read overflow");
+            if (src >= src_end) {
+                return result(DecodeResult::Status::READ_OVERFLOW);
+            }
             const uint8_t next_offset = *(src++);
 
             // Check if we've hit the end.
@@ -194,7 +240,9 @@ namespace cobs {
             // If the last offset was not equal to 0xff and we have not
             // reached the end, output a zero.
             if (offset != 0xff) {
-                debug_assert(dst < dst_end, "buffer write overflow");
+                if (dst >= dst_end) {
+                    return result(DecodeResult::Status::WRITE_OVERFLOW);
+                }
                 *(dst++) = 0x00;
             }
 
@@ -202,6 +250,6 @@ namespace cobs {
             offset = next_offset;
         }
 
-        return dst - dst_start;
+        return result(DecodeResult::Status::OK);
     }
 }

@@ -64,8 +64,8 @@ void test_max_decoded_length() {
 }
 
 /**
-Ensure that cobs::encode(decoded) -> encoded and cobs::decode(encoded)
--> decode.
+Ensure that cobs::encode(decoded) == encoded and cobs::decode(encode) ==
+decoded.
 */
 void test_encode_decode(std::vector<Rep> decoded, std::vector<Rep> encoded) {
     // Define a filler byte value.
@@ -82,14 +82,18 @@ void test_encode_decode(std::vector<Rep> decoded, std::vector<Rep> encoded) {
     const size_t dec_exp_len = fill_repetitions(dec_exp, decoded);
 
     // Encode.
-    const size_t enc_act_len = cobs::encode(dec_exp, dec_exp_len, enc_act, sizeof(enc_act));
-    assert_equal_buffers(enc_exp, enc_exp_len, enc_act, enc_act_len);
+    const cobs::EncodeResult enc_act_res = cobs::encode(dec_exp, dec_exp_len, enc_act, sizeof(enc_act));
+    assert(enc_act_res.status == cobs::EncodeResult::Status::OK);
+    assert(enc_act_res.written == enc_exp_len);
+    assert_equal_buffers(enc_exp, sizeof(enc_exp), enc_act, sizeof(enc_act));
 
     // Decode.
-    const size_t dec_act_len = cobs::decode(enc_exp, enc_exp_len, dec_act, sizeof(dec_act));
-    assert_equal_buffers(dec_exp, dec_exp_len, dec_act, dec_act_len);
+    const cobs::DecodeResult dec_act_res = cobs::decode(enc_exp, enc_exp_len, dec_act, sizeof(dec_act));
+    assert(dec_act_res.status == cobs::DecodeResult::Status::OK);
+    assert(dec_act_res.read == enc_exp_len);
+    assert(dec_act_res.written == dec_exp_len);
+    assert_equal_buffers(dec_exp, sizeof(dec_exp), dec_act, sizeof(dec_act));
 }
-
 
 int main() {
     test_max_encoded_length();
