@@ -108,88 +108,100 @@ namespace cobs {
     /**
     COBS encode a byte array.
     */
-    size_t encode(const uint8_t * const src, size_t src_len, uint8_t * const dst, size_t dst_len) {
-        size_t src_idx = 0;
-        size_t dst_offset_idx = 0;
-        size_t dst_copy_idx = 1;
-        size_t offset = 1;
+    size_t encode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len) {
+        const uint8_t * const src_end = src_start + src_len;
+        const uint8_t * const dst_end = dst_start + dst_len;
 
-        while (src_idx < src_len) {
-            const uint8_t byte = src[src_idx++];
+        // This variable will always point to the next byte to read.
+        const uint8_t * src = src_start;
+
+        // Because this implementation copies bytes while seeking for
+        // the next zero, we need to have two pointers. One to point to
+        // the next location to copy bytes to and one to point to the
+        // location where we should write the offset. Since dst_offset
+        // is always < dst_copy when writing so we don't have to check
+        // for a write overflow.
+        uint8_t * dst_copy = dst_start;
+        uint8_t * dst_offset = dst_copy++;
+
+        while (src < src_end) {
+            const uint8_t byte = *(src++);
             if (byte != 0x00) {
                 // Append the data byte.
-                debug_assert(dst_copy_idx < dst_len, "buffer write overflow");
-                dst[dst_copy_idx++] = byte;
-                offset++;
+                debug_assert(dst_copy < dst_end, "buffer write overflow");
+                *(dst_copy++) = byte;
                 // Unless we hit the maximum offset, keep copying.
-                if (offset != 0xff) continue;
+                if ((dst_copy - dst_offset) != 0xff) continue;
             }
             // Write back the offset, set the offset index to the
             // current copy location and advance the copy index.
-            debug_assert(dst_offset_idx < dst_len, "buffer write overflow");
-            dst[dst_offset_idx] = offset;
-            offset = 1;
-            dst_offset_idx = dst_copy_idx++;
+            *(dst_offset) = dst_copy - dst_offset;
+            dst_offset = dst_copy++;
         }
 
         // Write back the offset. There is no need to update the pointer
         // anymore.
-        debug_assert(dst_offset_idx < dst_len, "buffer write overflow");
-        dst[dst_offset_idx] = offset;
+        *(dst_offset) = dst_copy - dst_offset;
 
         // Append the frame marker. For consistency, update the pointer.
-        debug_assert(dst_copy_idx < dst_len, "buffer write overflow");
-        dst[dst_copy_idx++] = 0x00;
+        debug_assert(dst_copy < dst_end, "buffer write overflow");
+        *(dst_copy++) = 0x00;
 
-        return dst_copy_idx;
+        return dst_copy - dst_start;
     }
 
     /**
     COBS decode a byte array.
     */
-    size_t decode(const uint8_t * const src, size_t src_len, uint8_t * const dst, size_t dst_len) {
-        size_t src_idx = 0;
-        size_t dst_idx = 0;
+    size_t decode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len) {
+        const uint8_t * const src_end = src_start + src_len;
+        const uint8_t * const dst_end = dst_start + dst_len;
+
+        // This variable will always point to the next byte to read.
+        const uint8_t * src = src_start;
+
+        // This variable will always point to the next byte to write.
+        uint8_t * dst = dst_start;
 
         // Read the first offset.
-        debug_assert(src_idx < src_len, "buffer read overflow");
-        uint8_t zero_offset = src[src_idx++];
+        debug_assert(src < src_end, "buffer read overflow");
+        uint8_t offset = *(src++);
 
         // If the first offset is 0x00 we can stop immediately.
-        if (zero_offset == 0x00) return dst_idx;
+        if (offset == 0x00) return dst - dst_start;
 
         while (true) {
-            // Compute the index of the next zero. Subtract one
-            // to get the number of data bytes to read.
-            const size_t src_zero_idx = src_idx + zero_offset - 1;
+            // Compute the location of the next zero. Subtract one
+            // because src has already been incremented.
+            const uint8_t * const src_zero = src + offset - 1;
 
             // Copy data until we are at the next zero.
-            debug_assert(src_zero_idx < src_len, "buffer read overflow");
-            debug_assert(dst_idx + zero_offset < dst_len, "buffer write overflow");
-            while (src_idx < src_zero_idx) {
-                const uint8_t byte = src[src_idx++];
+            debug_assert(src_zero < src_end, "buffer read overflow");
+            debug_assert(dst + offset - 1 < dst_end, "buffer write overflow");
+            while (src < src_zero) {
+                const uint8_t byte = *(src++);
                 debug_assert(byte != 0x00, "unexpected data value");
-                dst[dst_idx++] = byte;
+                *(dst++) = byte;
             }
 
             // Retrieve the next zero offset.
-            debug_assert(src_idx < src_len, "buffer read overflow");
-            const uint8_t next_zero_offset = src[src_idx++];
+            debug_assert(src < src_end, "buffer read overflow");
+            const uint8_t next_offset = *(src++);
 
             // Check if we've hit the end.
-            if (next_zero_offset == 0x00) break;
+            if (next_offset == 0x00) break;
 
-            // If the last offset was not equal to 0xff, output a
-            // zero.
-            if (zero_offset != 0xff) {
-                debug_assert(dst_idx < dst_len, "buffer write overflow");
-                dst[dst_idx++] = 0x00;
+            // If the last offset was not equal to 0xff and we have not
+            // reached the end, output a zero.
+            if (offset != 0xff) {
+                debug_assert(dst < dst_end, "buffer write overflow");
+                *(dst++) = 0x00;
             }
 
-            // Store the zero_offset for the next iteration.
-            zero_offset = next_zero_offset;
+            // Store the offset for the next iteration.
+            offset = next_offset;
         }
 
-        return dst_idx;
+        return dst - dst_start;
     }
 }
