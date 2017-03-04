@@ -20,7 +20,7 @@ m_state_full(full_state_t::Zero()),
 m_pose(BicyclePoseMessage_init_zero) {
     // Note: User must initialize Kalman matrices in application.
     // TODO: Do this automatically with default values?
-    chBSemObjectInit(&m_state_sem, false); /* initialize to not taken */
+    chBSemObjectInit(&m_state_sem, false); // initialize to not taken
 
 static_assert((!std::is_same<Model, model::BicycleKinematic>::value) ||
               std::is_same<Haptic, haptic::HandlebarStatic>::value,
@@ -60,16 +60,15 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
     real_t yaw_angle_measurement,
     real_t steer_angle_measurement,
     real_t rear_wheel_angle_measurement) {
-    /*
-     * While the rear wheel angle measurement can be used to determine velocity,
-     * it is assumed that velocity is determined outside this class and passed as
-     * an input. This allows the velocity resolution, and thus the model update
-     * frequency, to be determined by a filter unrelated to the bicycle model.
-     *
-     * While this also could be used to determine the wheel angles, we assume
-     * no-slip conditions and calculate the wheel angles during the kinematic
-     * update and solely from bicycle velocity.
-     */
+
+    //  While the rear wheel angle measurement can be used to determine velocity,
+    //  it is assumed that velocity is determined outside this class and passed as
+    //  an input. This allows the velocity resolution, and thus the model update
+    //  frequency, to be determined by a filter unrelated to the bicycle model.
+    //
+    //  This could also be used to determine the wheel angles, as we assume
+    //  no-slip conditions. However, we calculate the wheel angles during the
+    //  kinematic  update and solely from bicycle velocity.
     (void)rear_wheel_angle_measurement;
 
     input_t input = input_t::Zero();
@@ -80,10 +79,8 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
     model_t::set_output_element(measurement, model_t::output_index_t::yaw_angle, yaw_angle_measurement);
     model_t::set_output_element(measurement, model_t::output_index_t::steer_angle, steer_angle_measurement);
 
-    /*
-     * The auxiliary states _must_ also be integrated at the same time as the
-     * dynamic state. After the observer update, we "merge" dynamic states together.
-     */
+    // The auxiliary states _must_ also be integrated at the same time as the
+    // dynamic state. After the observer update, we "merge" dynamic states together.
     full_state_t state_full = m_model.integrate_full_state(
             m_state_full, input, m_model.dt(), measurement);
     m_observer.update_state(input, measurement);
@@ -92,7 +89,7 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
         chSysHalt("");
     }
 
-    { /* limit allowed bicycle state */
+    { // limit allowed bicycle state
         state_t x = m_observer.state();
 
         auto limit_state_element = [&x](model::Bicycle::state_index_t index, real_t limit) {
@@ -105,7 +102,7 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
         real_t roll_angle = model_t::get_state_element(m_observer.state(),
                 model_t::state_index_t::roll_angle);
         if (std::abs(roll_angle) > constants::pi) {
-            /* state normalization limits angles to the range [-2*pi, 2*pi] */
+            // state normalization limits angles to the range [-2*pi, 2*pi]
             roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
         }
 
@@ -117,17 +114,15 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
 
     m_T_m = m_haptic.feedback_torque(m_observer.state(), input);
 
-    /*
-     * Merge observer and model states
-     *
-     * We simply copy the observer state estimate to the full state vector
-     * this may result in accumulated error in the auxiliary states but
-     * convergence of the observer estimate should keep it low.
-     * Also, we have no way to correct auxiliary states as there are no sensors
-     * to measure them and that's because they are _purely_ virtual.
-     *
-     * TODO: improve this
-     */
+    // Merge observer and model states
+    //
+    // We simply copy the observer state estimate to the full state vector
+    // this may result in accumulated error in the auxiliary states but
+    // convergence of the observer estimate should keep it low.
+    // Also, we have no way to correct auxiliary states as there are no sensors
+    // to measure them and that's because they are _purely_ virtual.
+    //
+    // TODO: improve this
     chBSemWait(&m_state_sem);
     m_state_full = model_t::make_full_state(
             model_t::get_auxiliary_state_part(state_full),

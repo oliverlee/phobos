@@ -3,10 +3,10 @@
 #include "pose.pb.h"
 #include "saconfig.h"
 #include "haptic.h"
-/* bicycle submodule imports */
+// bicycle submodule imports
 #include "bicycle/bicycle.h"
 #include "observer.h"
-#include "constants.h" /* rad/deg constants, real_t */
+#include "constants.h" // rad/deg constants, real_t
 #include "parameters.h"
 
 #include <type_traits>
@@ -43,33 +43,33 @@ class Bicycle {
         using measurement_t = typename model_t::output_t;
         using full_state_index_t = typename model_t::full_state_index_t;
 
-        /* default bicycle model parameters */
-        static constexpr real_t default_fs = 200.0; /* sample rate, Hz */
-        static constexpr real_t default_dt = 1.0/default_fs; /* sample period, s */
-        static constexpr real_t default_v = 5.0; /* forward speed, m/s */
-        static constexpr real_t default_steer_inertia = sa::STEER_ASSEMBLY_INERTIA; /* kg-m^2 */
-        static constexpr real_t v_quantization_resolution = 0.1; /* m/s */
-        static constexpr real_t roll_rate_limit = 1e10; /* rad */
-        static constexpr real_t steer_rate_limit = 1e10; /* rad */
-        static constexpr real_t observer_prime_period = 1.0; /* seconds */
+        // default bicycle model parameters
+        static constexpr real_t default_fs = 200.0; // sample rate, Hz
+        static constexpr real_t default_dt = 1.0/default_fs; // sample period, s
+        static constexpr real_t default_v = 5.0; // forward speed, m/s
+        static constexpr real_t default_steer_inertia = sa::STEER_ASSEMBLY_INERTIA; // kg-m^2
+        static constexpr real_t v_quantization_resolution = 0.1; // m/s
+        static constexpr real_t roll_rate_limit = 1e10; // rad
+        static constexpr real_t steer_rate_limit = 1e10; // rad
+        static constexpr real_t observer_prime_period = 1.0; // seconds
 
         Bicycle(real_t v = default_v, real_t dt = default_dt, real_t steer_inertia = default_steer_inertia);
 
         void set_v(real_t v);
         void set_dt(real_t dt);
         void reset();
-        void update_dynamics(real_t roll_torque_input,      /* update bicycle internal state */
-                real_t steer_torque_input,                  /* and handlebar feedback torque */
+        void update_dynamics(real_t roll_torque_input, // update bicycle internal state
+                real_t steer_torque_input,             // and handlebar feedback torque
                 real_t yaw_angle_measurement,
                 real_t steer_angle_measurement,
                 real_t rear_wheel_angle_measurement);
-        void update_kinematics();                           /* update bicycle pose */
-        void prime_observer();                         /* perform observer specific initialization routine */
+        void update_kinematics(); // update bicycle pose
+        void prime_observer(); // perform observer specific initialization routine
 
-        const BicyclePoseMessage& pose() const; /* get most recently computed pose */
-        real_t handlebar_feedback_torque() const; /* get most recently computed feedback torque */
+        const BicyclePoseMessage& pose() const; // get most recently computed pose
+        real_t handlebar_feedback_torque() const; // get most recently computed feedback torque
 
-        /* common bicycle model member variables */
+        // common bicycle model member variables
         model_t& model();
         const model_t& model() const;
         observer_t& observer();
@@ -88,13 +88,13 @@ class Bicycle {
         const full_state_t& full_state() const;
 
     private:
-        model_t m_model; /* bicycle model object */
-        observer_t m_observer; /* observer object */
-        haptic_t m_haptic; /* handlebar feedback calculation object */
-        full_state_t m_state_full; /* auxiliary + dynamic state */
-        BicyclePoseMessage m_pose; /* Unity visualization message */
-        binary_semaphore_t m_state_sem; /* bsem for synchronizing kinematics update */
-        real_t m_T_m; /* handlebar feedback torque */
+        model_t m_model; // bicycle model object
+        observer_t m_observer; // observer object
+        haptic_t m_haptic; // handlebar feedback calculation object
+        full_state_t m_state_full; // auxiliary + dynamic state
+        BicyclePoseMessage m_pose; // Unity visualization message
+        binary_semaphore_t m_state_sem; // bsem for synchronizing kinematics update
+        real_t m_T_m; // handlebar feedback torque
 };
 
 } // namespace sim
