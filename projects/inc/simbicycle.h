@@ -14,25 +14,26 @@
 namespace sim {
 
 /*
- * This template class simulates a bicycle model (template argument T)
- * with an observer type (template argument U) and a handlebar feedback type V
+ * This template class simulates a bicycle model (template argument Model)
+ * with an observer type (template argument Observer) and a handlebar feedback type Haptic
  *  - incorporates fields necessary for visualization, such as wheel angle
  *  - provides a single interface for using different bicycle models
  *  - allows simulation of dynamics and kinematics separately
  */
-template <typename T, typename U, typename V = haptic::null_t>
+template <typename Model, typename Observer, typename Haptic = haptic::null_t>
 class Bicycle {
-    static_assert(std::is_base_of<model::Bicycle, T>::value,
+    static_assert(std::is_base_of<model::Bicycle, Model>::value,
             "Invalid template parameter type for sim::Bicycle");
-    static_assert(std::is_base_of<observer::ObserverBase, U>::value,
+    static_assert(std::is_base_of<observer::ObserverBase, Observer>::value,
             "Invalid template parameter type for sim::Bicycle");
-    static_assert(std::is_base_of<haptic::HandlebarBase, V>::value,
+    static_assert(std::is_base_of<haptic::HandlebarBase, Haptic>::value,
             "Invalid template parameter type for sim::Bicycle");
 
     public:
-        using model_t = T;
-        using observer_t = U;
-        using haptic_t = V; /* right now we only have handlebar feedback with pedaling feedback to be implemented */
+        using model_t = Model;
+        using observer_t = Observer;
+        using haptic_t = Haptic; // right now we only have handlebar feedback
+                                 // with pedaling feedback to be implemented
         using real_t = model::real_t;
         using second_order_matrix_t = typename model_t::second_order_matrix_t;
         using state_t = typename model_t::state_t;
