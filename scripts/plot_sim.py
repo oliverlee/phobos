@@ -77,7 +77,22 @@ def plot_entries(t, entries, n, m):
     return fig, ax
 
 
-def plot_kalman_gain_entries(t, kalman):
+def plot_symmetric_entries(t, entries, n):
+    color = sns.husl_palette(len(entries[0]))
+    fig, axes = plt.subplots(n, n, sharex=True)
+    # Eigen defaults to column order so our data is in column order however,
+    # since this matrix is symmetric, this is also row order.
+    for i, x, y in zip(range(len(color)), *np.triu_indices(n)):
+        axes[x, y].plot(t, entries[:, i], color=color[i])
+        axes[x, y].set_xlabel('time [s]')
+
+    # hide subplots without data
+    for x, y in zip(*np.tril_indices(n, -1)):
+        axes[x, y].axis('off')
+    return fig, axes
+
+
+def get_kalman_state_size(kalman):
     ec = kalman[0].error_covariance
     y = len(ec) # number of entries
     # since error covariance is symmetric, size is (n, n) where
@@ -94,10 +109,23 @@ def plot_kalman_gain_entries(t, kalman):
             pass
     msg = "unable to determine size of state vector from Kalman object"
     assert n != 0, msg
+    return n
+
+
+def plot_kalman_gain_entries(t, kalman):
+    n = get_kalman_state_size(kalman)
     m = len(kalman[0].kalman_gain)//n # input size
     fig, ax = plot_entries(t, kalman.kalman_gain, n, m)
     fig.suptitle('Kalman gain entries')
     return fig, ax
+
+
+def plot_kalman_error_covariance_entries(t, kalman):
+    n = get_kalman_state_size(kalman)
+    entries = kalman.error_covariance
+    fig, axes = plot_symmetric_entries(t, kalman.error_covariance, n)
+    fig.suptitle('Kalman error covariance matrix entries')
+    return fig, axes
 
 
 if __name__ == '__main__':
@@ -163,6 +191,7 @@ if __name__ == '__main__':
     ax3.legend()
 
     fig4, ax4 = plot_kalman_gain_entries(t, records.kalman)
+    fig5, ax5 = plot_kalman_error_covariance_entries(t, records.kalman)
 
     plt.show()
 
