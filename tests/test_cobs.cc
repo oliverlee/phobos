@@ -59,14 +59,14 @@ void test_encode_decode(std::vector<Rep> decoded, std::vector<Rep> encoded) {
     // Encode.
     const cobs::EncodeResult enc_act_res = cobs::encode(dec_exp, dec_exp_len, enc_act, sizeof(enc_act));
     EXPECT_EQ(enc_act_res.status, cobs::EncodeResult::Status::OK);
-    EXPECT_EQ(enc_act_res.written, enc_exp_len);
+    EXPECT_EQ(enc_act_res.produced, enc_exp_len);
     test_equal_buffers(enc_exp, sizeof(enc_exp), enc_act, sizeof(enc_act));
 
     // Decode.
     const cobs::DecodeResult dec_act_res = cobs::decode(enc_exp, enc_exp_len, dec_act, sizeof(dec_act));
     EXPECT_EQ(dec_act_res.status, cobs::DecodeResult::Status::OK);
-    EXPECT_EQ(dec_act_res.read, enc_exp_len);
-    EXPECT_EQ(dec_act_res.written, dec_exp_len);
+    EXPECT_EQ(dec_act_res.consumed, enc_exp_len);
+    EXPECT_EQ(dec_act_res.produced, dec_exp_len);
     test_equal_buffers(dec_exp, sizeof(dec_exp), dec_act, sizeof(dec_act));
 }
 

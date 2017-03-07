@@ -15,7 +15,12 @@ namespace cobs {
             WRITE_OVERFLOW
         };
         const Status status;
-        const size_t written;
+
+        /**
+        If the status is OK, the number of bytes that were written to dst_start.
+        Otherwise it is set to 0.
+        */
+        const size_t produced;
     };
 
     EncodeResult encode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len);
@@ -28,8 +33,18 @@ namespace cobs {
             UNEXPECTED_ZERO
         };
         const Status status;
-        const size_t read;
-        const size_t written;
+
+        /**
+        If the status is OK, the number of bytes that were written to dst_start.
+        Otherwise it is set to 0.
+        */
+        const size_t consumed;
+
+        /**
+        If the status is OK or UNEXPECTED_ZERO, the number of bytes that were
+        read from src_start. Otherwise it is set to 0.
+        */
+        const size_t produced;
     };
 
     DecodeResult decode(const uint8_t * const src_start, size_t src_len, uint8_t * const dst_start, size_t dst_len);
