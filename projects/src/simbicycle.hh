@@ -76,7 +76,7 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_measur
     measurement_t measurement = measurement_t::Zero();
 
     // Convert roll, steer torque from physical to virtual.
-    const float upper_inertia_torque = m_inertia_upper_virtual.feedback_torque(m_observer.state());
+    const float upper_inertia_torque = m_inertia_upper_virtual.torque(m_observer.state());
     // steer_torque_measurement sign is correct when considering the lower assembly but needs
     // to be flipped when considering the upper assembly.
     const float steer_torque = steer_torque_measurement + upper_inertia_torque;
@@ -120,7 +120,7 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_measur
         m_observer.set_state(x);
     }
 
-    m_T_m = m_inertia_lower_physical.feedback_torque(m_observer.state(), input) - steer_torque_measurement;
+    m_T_m = m_inertia_lower_physical.torque(m_observer.state(), input) - steer_torque_measurement;
 
     // Merge observer and model states
     //
