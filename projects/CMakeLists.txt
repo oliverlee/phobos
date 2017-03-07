@@ -77,12 +77,12 @@ if(PHOBOS_BUILD_PROJECT_FLIMNAP_WHIPPLE OR PHOBOS_BUILD_PROJECT_FLIMNAP_KINEMATI
     add_subdirectory(flimnap)
 endif()
 
-option(PHOBOS_BUILD_PROJECT_GULLIVER "Build New (static simulator) demo" TRUE)
+option(PHOBOS_BUILD_PROJECT_GULLIVER "Build Gulliver (static simulator) demo" TRUE)
 if(PHOBOS_BUILD_PROJECT_GULLIVER)
     add_subdirectory(gulliver)
 endif()
 
-option(PHOBOS_BUILD_PROJECT_HALL "Build New (static simulator) demo" TRUE)
+option(PHOBOS_BUILD_PROJECT_HALL "Build Hall (static simulator) demo" TRUE)
 if(PHOBOS_BUILD_PROJECT_HALL)
     add_subdirectory(hall)
 endif()
