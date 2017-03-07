@@ -221,7 +221,9 @@ int main(void) {
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
+#if !defined(FLIMNAP_ZERO_INPUT)
     haptic::HandlebarDynamic handlebar_model(bicycle.model(), sa::HANDLEBAR_INERTIA);
+#endif  // !defined(FLIMNAP_ZERO_INPUT)
 
     observer_initializer<observer_t> oi;
     oi.initialize(bicycle);
@@ -268,13 +270,19 @@ int main(void) {
         const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
         const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
+        (void)motor_torque; // not currently used
 
         // yaw angle, just use previous state value
         const float yaw_angle = angle::wrap(bicycle.pose().yaw);
 
         // calculate rider applied torque
+#if defined(FLIMNAP_ZERO_INPUT)
+        const float steer_torque = 0.0f;
+        (void)kistler_torque;
+#else // defined(FLIMNAP_ZERO_INPUT)
         const float inertia_torque = -handlebar_model.feedback_torque(bicycle.observer().state());
         const float steer_torque = kistler_torque - inertia_torque;
+#endif // defined(FLIMNAP_ZERO_INPUT)
 
         // simulate bicycle
         bicycle.set_v(fixed_velocity);

@@ -73,16 +73,20 @@ option(PHOBOS_BUILD_PROJECT_FLIMNAP_WHIPPLE
     "Build Flimnap (static simulator) demo using the Whipple bicycle model" TRUE)
 option(PHOBOS_BUILD_PROJECT_FLIMNAP_KINEMATIC
     "Build Flimnap (static simulator) demo using the kinematic bicycle model" TRUE)
-if(PHOBOS_BUILD_PROJECT_FLIMNAP_WHIPPLE OR PHOBOS_BUILD_PROJECT_FLIMNAP_KINEMATIC)
+option(PHOBOS_BUILD_PROJECT_FLIMNAP_ZERO_INPUT
+    "Build Flimnap (static simulator) demo using the Whipple bicycle model with input fixed to zero" TRUE)
+if(PHOBOS_BUILD_PROJECT_FLIMNAP_WHIPPLE OR
+   PHOBOS_BUILD_PROJECT_FLIMNAP_KINEMATIC OR
+   PHOBOS_BUILD_PROJECT_FLIMNAP_ZERO_INPUT)
     add_subdirectory(flimnap)
 endif()
 
-option(PHOBOS_BUILD_PROJECT_GULLIVER "Build New (static simulator) demo" TRUE)
+option(PHOBOS_BUILD_PROJECT_GULLIVER "Build Gulliver (static simulator) demo" TRUE)
 if(PHOBOS_BUILD_PROJECT_GULLIVER)
     add_subdirectory(gulliver)
 endif()
 
-option(PHOBOS_BUILD_PROJECT_HALL "Build New (static simulator) demo" TRUE)
+option(PHOBOS_BUILD_PROJECT_HALL "Build Hall (static simulator) demo" TRUE)
 if(PHOBOS_BUILD_PROJECT_HALL)
     add_subdirectory(hall)
 endif()

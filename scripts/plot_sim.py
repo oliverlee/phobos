@@ -9,7 +9,7 @@ import seaborn as sns
 from load_sim import load_messages, get_records_from_messages, get_time_vector
 
 MAX_KOLLMORGEN_TORQUE = 10.78
-KOLLMORGEN_DAC_ZERO_OFFSET = 2048 - 125
+KOLLMORGEN_DAC_ZERO_OFFSET = 2048 - 155
 HANDLEBAR_INERTIA = 0.11889455460271312
 
 STATE_LABELS = ['roll angle', 'steer angle', 'roll rate', 'steer rate']
