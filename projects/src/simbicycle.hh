@@ -120,6 +120,7 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_measur
         m_observer.set_state(x);
     }
 
+    m_input = input;
     m_T_m = m_inertia_lower_physical.torque(m_observer.state(), input) - steer_torque_measurement;
 
     // Merge observer and model states
@@ -189,6 +190,11 @@ const BicyclePoseMessage& Bicycle<Model, Observer, Haptic>::pose() const {
 template <typename Model, typename Observer, typename Haptic>
 model::real_t Bicycle<Model, Observer, Haptic>::handlebar_feedback_torque() const {
     return m_T_m;
+}
+
+template <typename Model, typename Observer, typename Haptic>
+const typename Bicycle<Model, Observer, Haptic>::input_t& Bicycle<Model, Observer, Haptic>::input() const {
+    return m_input;
 }
 
 template <typename Model, typename Observer, typename Haptic>
