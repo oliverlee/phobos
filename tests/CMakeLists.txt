@@ -14,8 +14,18 @@ set(CMAKE_CXX_FLAGS
 
 add_executable(test_cobs
   test_cobs.cc
+  test_cobs_util.cc
   ../src/cobs.cc
 )
 target_include_directories(test_cobs PRIVATE ../inc)
 target_link_libraries(test_cobs gtest_main)
 add_test(NAME test_cobs COMMAND test_cobs)
+
+add_executable(test_cobs_random
+  test_cobs_random.cc
+  test_cobs_util.cc
+  ../src/cobs.cc
+)
+target_include_directories(test_cobs_random PRIVATE ../inc)
+target_link_libraries(test_cobs_random gtest_main)
+add_test(NAME test_cobs_random COMMAND test_cobs_random)
