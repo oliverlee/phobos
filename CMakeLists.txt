@@ -123,7 +123,7 @@ if(PHOBOS_BUILD_PROJECTS)
     add_subdirectory(projects)
 endif()
 
-option(PHOBOS_BUILD_TOOLS "Build various tools" TRUE)
+option(PHOBOS_BUILD_TOOLS "Build host machine tools" TRUE)
 if(PHOBOS_BUILD_TOOLS)
     include(ExternalProject)
     ExternalProject_Add(phobos_tools
@@ -141,5 +141,16 @@ endif()
 
 option(PHOBOS_BUILD_TESTS "Build host machine tests" TRUE)
 if(PHOBOS_BUILD_TESTS)
-    #add_subdirectory(tests) # this hasn't been added yet
+    include(ExternalProject)
+    ExternalProject_Add(phobos_tests
+        PREFIX ${PROJECT_BINARY_DIR}
+        TMP_DIR ""
+        STAMP_DIR ""
+        DOWNLOAD_DIR ""
+        SOURCE_DIR ${PROJECT_SOURCE_DIR}/tests
+        BINARY_DIR ${PROJECT_BINARY_DIR}/tests
+        CMAKE_ARGS "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+        INSTALL_COMMAND "")
+    set_directory_properties(PROPERTY
+        ADDITIONAL_MAKE_CLEAN_FILES ${PROJECT_BINARY_DIR}/tests)
 endif()

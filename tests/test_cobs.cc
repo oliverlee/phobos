@@ -1,7 +1,12 @@
 #include "cobs.h"
-#include <cassert>
+#include "gtest/gtest.h"
 #include <vector>
 #include <cstring>
+
+namespace {
+
+// non-zero payload
+const uint8_t X = 0xdd;
 
 /**
 Fill a byte buffer with a given value.
@@ -32,35 +37,13 @@ size_t fill_repetitions(uint8_t * const buffer, std::vector<Rep> repetitions) {
     return offset;
 }
 
-void assert_equal_buffers(uint8_t * expected,  size_t expected_len, uint8_t * actual, size_t actual_len) {
-    assert(expected_len == actual_len);
+void test_equal_buffers(uint8_t * expected,  size_t expected_len, uint8_t * actual, size_t actual_len) {
+    EXPECT_EQ(expected_len, actual_len);
 
     const uint8_t * expected_end = expected + expected_len;
     while (expected < expected_end) {
-        assert(*(expected++) == *(actual++));
+        EXPECT_EQ(*(expected++), *(actual++));
     }
-}
-
-void test_max_encoded_length() {
-    assert(cobs::max_encoded_length(  0) ==   2);
-    assert(cobs::max_encoded_length(  1) ==   3);
-    assert(cobs::max_encoded_length(  2) ==   4);
-
-    assert(cobs::max_encoded_length(253) == 255);
-    assert(cobs::max_encoded_length(254) == 257);
-    assert(cobs::max_encoded_length(255) == 258);
-
-    assert(cobs::max_encoded_length(507) == 510);
-    assert(cobs::max_encoded_length(508) == 512);
-    assert(cobs::max_encoded_length(509) == 513);
-}
-
-void test_max_decoded_length() {
-    assert(cobs::max_decoded_length(  2) ==   0);
-    assert(cobs::max_decoded_length(255) == 253);
-    assert(cobs::max_decoded_length(256) == 254);
-    assert(cobs::max_decoded_length(257) == 255);
-    assert(cobs::max_decoded_length(258) == 256);
 }
 
 /**
@@ -83,25 +66,43 @@ void test_encode_decode(std::vector<Rep> decoded, std::vector<Rep> encoded) {
 
     // Encode.
     const cobs::EncodeResult enc_act_res = cobs::encode(dec_exp, dec_exp_len, enc_act, sizeof(enc_act));
-    assert(enc_act_res.status == cobs::EncodeResult::Status::OK);
-    assert(enc_act_res.written == enc_exp_len);
-    assert_equal_buffers(enc_exp, sizeof(enc_exp), enc_act, sizeof(enc_act));
+    EXPECT_EQ(enc_act_res.status, cobs::EncodeResult::Status::OK);
+    EXPECT_EQ(enc_act_res.written, enc_exp_len);
+    test_equal_buffers(enc_exp, sizeof(enc_exp), enc_act, sizeof(enc_act));
 
     // Decode.
     const cobs::DecodeResult dec_act_res = cobs::decode(enc_exp, enc_exp_len, dec_act, sizeof(dec_act));
-    assert(dec_act_res.status == cobs::DecodeResult::Status::OK);
-    assert(dec_act_res.read == enc_exp_len);
-    assert(dec_act_res.written == dec_exp_len);
-    assert_equal_buffers(dec_exp, sizeof(dec_exp), dec_act, sizeof(dec_act));
+    EXPECT_EQ(dec_act_res.status, cobs::DecodeResult::Status::OK);
+    EXPECT_EQ(dec_act_res.read, enc_exp_len);
+    EXPECT_EQ(dec_act_res.written, dec_exp_len);
+    test_equal_buffers(dec_exp, sizeof(dec_exp), dec_act, sizeof(dec_act));
 }
 
-int main() {
-    test_max_encoded_length();
-    test_max_decoded_length();
+} // namespace
 
-    // non-zero payload
-    const uint8_t X = 0xdd;
+TEST(cobs, max_encode_length) {
+    EXPECT_EQ(cobs::max_encoded_length(  0),   2U);
+    EXPECT_EQ(cobs::max_encoded_length(  1),   3U);
+    EXPECT_EQ(cobs::max_encoded_length(  2),   4U);
 
+    EXPECT_EQ(cobs::max_encoded_length(253), 255U);
+    EXPECT_EQ(cobs::max_encoded_length(254), 257U);
+    EXPECT_EQ(cobs::max_encoded_length(255), 258U);
+
+    EXPECT_EQ(cobs::max_encoded_length(507), 510U);
+    EXPECT_EQ(cobs::max_encoded_length(508), 512U);
+    EXPECT_EQ(cobs::max_encoded_length(509), 513U);
+}
+
+TEST(cobs, max_decode_length) {
+    EXPECT_EQ(cobs::max_decoded_length(  2),   0U);
+    EXPECT_EQ(cobs::max_decoded_length(255), 253U);
+    EXPECT_EQ(cobs::max_decoded_length(256), 254U);
+    EXPECT_EQ(cobs::max_decoded_length(257), 255U);
+    EXPECT_EQ(cobs::max_decoded_length(258), 256U);
+}
+
+TEST(cobs, encode_decode_empty_packet) {
     // Encode the empty packet.
     // [] -> [ 1, 0 ]
     test_encode_decode(
@@ -111,7 +112,9 @@ int main() {
             { 1, 0 }
         }
     );
+}
 
+TEST(cobs, encode_decode_1_byte_packet) {
     // Encode a packet of 1 non-zero byte.
     // [ x ] -> [ 2, x, 0 ]
     test_encode_decode(
@@ -124,7 +127,9 @@ int main() {
             { 1, 0 }
         }
     );
+}
 
+TEST(cobs, encode_decode_1_zero_byte_packet) {
     // Encode a packet of 1 zero byte.
     // [ 0 ] -> [ 1, 1, 0 ]
     test_encode_decode(
@@ -137,7 +142,9 @@ int main() {
             { 1, 0 }
         }
     );
+}
 
+TEST(cobs, encode_decode_253_byte_packet) {
     // Encode a packet of 253 non-zero bytes.
     // [ 253x ] -> [ 254, 253x, 0 ]
     test_encode_decode(
@@ -150,7 +157,9 @@ int main() {
             {   1,   0 }
         }
     );
+}
 
+TEST(cobs, encode_decode_254_byte_packet) {
     // Encode a packet of 254 non-zero bytes.
     // [ 254x ] -> [ 255, 254x, 1, 0 ]
     test_encode_decode(
@@ -165,6 +174,9 @@ int main() {
         }
     );
 
+}
+
+TEST(cobs, encode_decode_255_byte_packet) {
     // Encode a packet of 255 non-zero bytes. Smallest possible packet
     // that causes insertion of an extra offset marker.
     // [ 255x ] -> [ 255, 254x, 2, x, 0 ]
@@ -180,7 +192,9 @@ int main() {
             {   1,   0 }
         }
     );
+}
 
+TEST(cobs, encode_decode_non_maximal_offset_packet) {
     // Encode a packet with non-maximal offsets.
     // [ 20x, 0, 4x, 0, 0, 300x ] -> [ 21, 20x, 5, 4x, 1, 255, 254x, 47, 46x, 0 ]
     test_encode_decode(
@@ -204,7 +218,4 @@ int main() {
             {   1,   0 }
         }
     );
-
-    return 0;
 }
-
