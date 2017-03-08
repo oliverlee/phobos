@@ -68,6 +68,8 @@ class Bicycle {
 
         const BicyclePoseMessage& pose() const; // get most recently computed pose
         real_t handlebar_feedback_torque() const; // get most recently computed feedback torque
+        const input_t& input() const; // get most recently computed input
+        const full_state_t& full_state() const; // get most recently computed full state
 
         // common bicycle model member variables
         model_t& model();
@@ -85,7 +87,6 @@ class Bicycle {
         real_t front_wheel_radius() const;
         real_t v() const;
         real_t dt() const;
-        const full_state_t& full_state() const;
 
     private:
         model_t m_model; // bicycle model object
@@ -93,6 +94,7 @@ class Bicycle {
         haptic_t m_haptic; // handlebar feedback calculation object
         full_state_t m_state_full; // auxiliary + dynamic state
         BicyclePoseMessage m_pose; // Unity visualization message
+        input_t m_input; // bicycle model input vector
         binary_semaphore_t m_state_sem; // bsem for synchronizing kinematics update
         real_t m_T_m; // handlebar feedback torque
 };
