@@ -24,17 +24,22 @@ class CobsRandomDataTest: public ::testing::TestWithParam<size_t> {
 void CobsRandomDataTest::SetUp() {
     m_gen = std::mt19937(m_rd()); // seed random number generator
 
-    const size_t size = GetParam();
-    const size_t max_encoded_size = cobs::max_encoded_length(size);
-    const size_t max_decoded_size = cobs::max_decoded_length(max_encoded_size);
-    b1.reserve(size);
-    b2.reserve(max_encoded_size);
-    b3.reserve(max_decoded_size);
+    // Compute buffer sizes.
+    const size_t b1_size = GetParam();
+    const size_t b2_size = cobs::max_encoded_length(b1_size);
+    const size_t b3_size = cobs::max_decoded_length(b2_size);
 
-    // generate random data for b1
+    // Fill b1 with random data.
+    b1.reserve(b1_size);
     for (size_t i = 0; i < b1.capacity(); ++i) {
         b1.push_back(m_dist(m_gen));
     }
+
+    // Resize vectors to the maximum size, will be trimmed later with resize.
+    // Shouldn't use reserve because that will cause the resize call to
+    // overwrite data.
+    b2.resize(b2_size);
+    b3.resize(b3_size);
 }
 
 void CobsRandomDataTest::test_encode_decode() {
