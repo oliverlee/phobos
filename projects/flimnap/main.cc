@@ -58,7 +58,9 @@ namespace {
 
     // sensors
     Analog analog;
-    Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
+    EncoderFoaw<float, 32> encoder_steer(sa::RLS_ROLIN_ENC,
+                                         sa::RLS_ROLIN_ENC_INDEX_CFG,
+                                         MS2ST(1), 3.0f);
     EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC,
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1), 3.0f);
@@ -267,6 +269,7 @@ int main(void) {
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
         const float steer_angle = angle::encoder_count<float>(encoder_steer);
+        const float steer_rate = angle::encoder_rate<float>(encoder_steer);
         const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
         const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
@@ -286,7 +289,7 @@ int main(void) {
 
         // simulate bicycle
         bicycle.set_v(fixed_velocity);
-        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, steer_rate, rear_wheel_angle);
 
         // generate handlebar torque output
         const dacsample_t handlebar_torque_dac = set_handlebar_torque(bicycle.handlebar_feedback_torque());
