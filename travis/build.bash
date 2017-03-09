@@ -17,7 +17,7 @@ cmake $BUILD_TYPE -DTOOLCHAIN_DIR=$TRAVIS_BUILD_DIR/toolchain/gcc-arm-none-eabi-
 # Build project.
 cmake --build .
 
-if [ -n "$(grep PHOBOS_BUILD_TESTS:BOOL=ON CMakeCache.txt)" ]; then
+if [ -d "tests" ]; then
     pushd tests
     ctest --verbose --output-on-failure
     popd #tests
