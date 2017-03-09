@@ -70,6 +70,24 @@ void test_encode_decode(std::vector<Rep> decoded, std::vector<Rep> encoded) {
     test_equal_buffers(dec_exp, sizeof(dec_exp), dec_act, sizeof(dec_act));
 }
 
+void test_decode_error(std::vector<Rep> encoded, cobs::DecodeResult result) {
+    // Define a filler byte value.
+    const uint8_t F = 0xdd;
+
+    // Allocate buffers.
+    uint8_t dec_act[1000]; fill(dec_act, sizeof(dec_act), F);
+    uint8_t enc_exp[1000]; fill(enc_exp, sizeof(enc_exp), F);
+
+    // Write expected outcomes.
+    const size_t enc_exp_len = fill_repetitions(enc_exp, encoded);
+
+    // Decode.
+    const cobs::DecodeResult dec_act_res = cobs::decode(enc_exp, enc_exp_len, dec_act, sizeof(dec_act));
+    EXPECT_EQ(dec_act_res.status, result.status);
+    EXPECT_EQ(dec_act_res.consumed, result.consumed);
+    EXPECT_EQ(dec_act_res.produced, result.produced);
+}
+
 } // namespace
 
 TEST(cobs, max_encode_length) {
@@ -208,6 +226,107 @@ TEST(cobs, encode_decode_non_maximal_offset_packet) {
             {   1,  47 },
             {  46,   X },
             {   1,   0 }
+        }
+    );
+}
+
+TEST(cobs, encode_error_write_overflow) {
+    // Arguments.
+    const auto decoded = std::vector<Rep> {
+        { 500, X }
+    };
+    const cobs::EncodeResult result = {
+        cobs::EncodeResult::Status::WRITE_OVERFLOW,
+        0
+    };
+    const size_t enc_act_len = 400;
+
+    // Define a filler byte value.
+    const uint8_t F = 0xdd;
+
+    // Allocate buffers.
+    uint8_t dec_exp[1000]; fill(dec_exp, sizeof(dec_exp), F);
+    uint8_t enc_act[1000]; fill(enc_act, sizeof(enc_act), F);
+
+    // Write expected outcomes.
+    const size_t dec_exp_len = fill_repetitions(dec_exp, decoded);
+
+    // Encode.
+    const cobs::EncodeResult enc_act_res = cobs::encode(dec_exp, dec_exp_len, enc_act, enc_act_len);
+    ASSERT_EQ(enc_act_res.status, result.status);
+    ASSERT_EQ(enc_act_res.produced, result.produced);
+}
+
+TEST(cobs, decode_error_unexpected_zero_at_start) {
+    test_decode_error(
+        std::vector<Rep> {
+            { 1, 0 }
+        },
+        cobs::DecodeResult {
+            cobs::DecodeResult::Status::UNEXPECTED_ZERO,
+            1,
+            0
+        }
+    );
+}
+
+TEST(cobs, decode_error_write_overflow) {
+    const auto encoded = std::vector<Rep> {
+        {   1, 255 },
+        { 254,   X },
+        {   1, 255 },
+        { 254,   X },
+        {   1,  93 },
+        {  92,   X },
+        {   1,   0 }
+    };
+    const cobs::DecodeResult result = {
+        cobs::DecodeResult::Status::WRITE_OVERFLOW,
+        0,
+        0
+    };
+    const size_t dec_act_len = 400;
+
+    // Define a filler byte value.
+    const uint8_t F = 0xdd;
+
+    // Allocate buffers.
+    uint8_t dec_act[1000]; fill(dec_act, sizeof(dec_act), F);
+    uint8_t enc_exp[1000]; fill(enc_exp, sizeof(enc_exp), F);
+
+    // Write expected outcomes.
+    const size_t enc_exp_len = fill_repetitions(enc_exp, encoded);
+
+    // Decode.
+    const cobs::DecodeResult dec_act_res = cobs::decode(enc_exp, enc_exp_len, dec_act, dec_act_len);
+    EXPECT_EQ(dec_act_res.status, result.status);
+    EXPECT_EQ(dec_act_res.consumed, result.consumed);
+    EXPECT_EQ(dec_act_res.produced, result.produced);
+}
+
+TEST(cobs, decode_error_read_overflow) {
+    test_decode_error(
+        std::vector<Rep> {
+            { 1, 1 }
+        },
+        cobs::DecodeResult {
+            cobs::DecodeResult::Status::READ_OVERFLOW,
+            0,
+            0
+        }
+    );
+}
+
+TEST(cobs, decode_error_read_overflow_after_maximum_offset) {
+    test_decode_error(
+        std::vector<Rep> {
+            {   1, 255 },
+            { 254,   X }
+        },
+        cobs::DecodeResult {
+            cobs::DecodeResult::Status::READ_OVERFLOW,
+            0,
+            0
         }
     );
 }
