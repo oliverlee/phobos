@@ -63,9 +63,9 @@ namespace {
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
-    filter::MovingAverage<float, 5> kistler_filter;
+    filter::MovingAverage<float, 3> kistler_filter;
 
-    constexpr float fixed_velocity = 5.0f;
+    constexpr float fixed_velocity = 7.0f;
 
     // transmission
     std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> encode_buffer;
@@ -127,7 +127,7 @@ namespace {
             typename S::observer_t& observer = bicycle.observer();
             observer.set_Q(parameters::defaultvalue::kalman::Q(observer.dt()));
             // Reduce steer measurement noise covariance
-            observer.set_R(parameters::defaultvalue::kalman::R/1000);
+            observer.set_R(parameters::defaultvalue::kalman::R/10);
 
             // prime the Kalman gain matrix
             bicycle.prime_observer();
@@ -161,6 +161,23 @@ namespace {
             } else {
                 chThdSleep(sleeptime);
             }
+        }
+    }
+
+    THD_WORKING_AREA(wa_analog_filter_thread, 1024);
+    THD_FUNCTION(analog_filter_thread, arg) {
+        (void)arg;
+        event_listener_t adc_listener;
+        chEvtRegisterMaskWithFlags(&adc_event_source, &adc_listener, EVENT_MASK(0),
+                adc_eventflag_complete);
+
+        chRegSetThreadName("analog_filter");
+        while(true) {
+            chEvtWaitAny(ALL_EVENTS);
+            chEvtGetAndClearFlags(&adc_listener);
+            kistler_filter.output(
+                adc_to_nm(analog.get_adc12(),
+                    sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE));
         }
     }
 
@@ -258,6 +275,8 @@ int main(void) {
     // dynamics in real-time (roughly).
     chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread),
             NORMALPRIO - 1, kinematics_thread, static_cast<void*>(&bicycle));
+    chThdCreateStatic(wa_analog_filter_thread, sizeof(wa_analog_filter_thread),
+            NORMALPRIO + 1, analog_filter_thread, nullptr);
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
@@ -265,9 +284,10 @@ int main(void) {
 
         // get sensor measurements
 #if !defined(FLIMNAP_ZERO_INPUT)
-        const float kistler_torque = kistler_filter.output(
-                adc_to_nm(analog.get_adc12(),
-                    sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE));
+        //const float kistler_torque = kistler_filter.output(
+        //        adc_to_nm(analog.get_adc12(),
+        //            sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE));
+        const float kistler_torque = kistler_filter.output();
 #endif // !defined(FLIMNAP_ZERO_INPUT)
         const float motor_torque = adc_to_nm(analog.get_adc13(),
                 sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
