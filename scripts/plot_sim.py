@@ -7,13 +7,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from load_sim import load_messages, get_records_from_messages, get_time_vector
+from phobos.constants import sa
 
-MAX_KISTLER_TORQUE = 50
-KISTLER_ADC_ZERO_OFFSET = 2047
-MAX_KOLLMORGEN_TORQUE = 10.78
-KOLLMORGEN_DAC_ZERO_OFFSET = 2048 - 155
-KOLLMORGEN_ADC_ZERO_OFFSET = 2026
-HANDLEBAR_INERTIA = 0.1314
 
 STATE_LABELS = ['roll angle', 'steer angle', 'roll rate', 'steer rate']
 SENSOR_LABELS = ['kistler measured torque', 'kollmorgen actual torque',
@@ -33,7 +28,7 @@ def handlebar_inertia_torque(records, A):
     A_delta_dd = A[4, :]
     state = records.state
     steer_accel = np.dot(A_delta_dd, state.T)
-    inertia_torque = HANDLEBAR_INERTIA * steer_accel
+    inertia_torque = sa.HANDLEBAR_INERTIA * steer_accel
     return inertia_torque, steer_accel
 
 
@@ -151,13 +146,13 @@ if __name__ == '__main__':
 
     fig3, ax3 = plt.subplots()
     ax3.plot(t, bits_to_Nm(records.actuators.kollmorgen_command_torque,
-                           MAX_KOLLMORGEN_TORQUE, KOLLMORGEN_DAC_ZERO_OFFSET),
+                           sa.MAX_KOLLMORGEN_TORQUE, sa.KOLLMORGEN_DAC_ZERO_OFFSET),
              label='kollmorgen command torque', color=STATE_COLOR[9])
     ax3.plot(t, bits_to_Nm(records.sensors.kollmorgen_actual_torque,
-                           MAX_KOLLMORGEN_TORQUE, KOLLMORGEN_ADC_ZERO_OFFSET),
+                           sa.MAX_KOLLMORGEN_TORQUE, sa.KOLLMORGEN_ADC_ZERO_OFFSET),
              label=SENSOR_LABELS[1], color=STATE_COLOR[8])
     ax3.plot(t, bits_to_Nm(records.sensors.kistler_measured_torque,
-                           MAX_KISTLER_TORQUE, KISTLER_ADC_ZERO_OFFSET),
+                           sa.MAX_KISTLER_TORQUE, sa.KISTLER_ADC_ZERO_OFFSET),
              label=SENSOR_LABELS[0], color=STATE_COLOR[5])
     ax3.plot(t, records.input[:, 1], label='steer torque', color=STATE_COLOR[3])
     ax3.plot(t, inertia_torque, label='handlebar inertia torque',
