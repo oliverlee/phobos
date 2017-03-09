@@ -126,7 +126,7 @@ namespace cobs {
 
         auto bytes_produced = [&dst_copy, &dst_start]() -> size_t {
             // Can cast because dst_copy >= dst_start.
-            return (size_t) (dst_copy - dst_start);
+            return static_cast<size_t> (dst_copy - dst_start);
         };
 
         auto create_ok_status = [&bytes_produced]() -> EncodeResult {
@@ -184,12 +184,12 @@ namespace cobs {
 
         auto bytes_consumed = [&src, &src_start]() -> size_t {
             // Can cast because src >= src_start.
-            return (size_t) (src - src_start);
+            return static_cast<size_t> (src - src_start);
         };
 
         auto bytes_produced = [&dst, &dst_start]() -> size_t {
             // Can cast because dst >= dst_start.
-            return (size_t) (dst - dst_start);
+            return static_cast<size_t> (dst - dst_start);
         };
 
         auto create_ok_status = [&bytes_consumed, &bytes_produced]() -> DecodeResult {
