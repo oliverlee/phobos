@@ -121,7 +121,8 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_measur
     }
 
     m_input = input;
-    m_T_m = m_inertia_lower_physical.torque(m_observer.state(), input) + steer_torque_measurement;
+    //m_T_m = m_inertia_lower_physical.torque(m_observer.state(), input) + steer_torque_measurement;
+    m_T_m = 3.1816*m_inertia_lower_physical.torque(m_observer.state(), input) + steer_torque_measurement;
 
     // Merge observer and model states
     //
