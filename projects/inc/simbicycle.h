@@ -55,7 +55,7 @@ class Bicycle {
         Bicycle(real_t v = default_v, real_t dt = default_dt,
                 real_t upper_assembly_inertia_virtual = sa::UPPER_ASSEMBLY_INERTIA_VIRTUAL,
                 real_t lower_assembly_inertia_physical = (sa::FULL_ASSEMBLY_INERTIA -
-                                                          sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL));
+                                                          sa::UPPER_ASSEMBLY_INERTIA_VIRTUAL));
 
         void set_v(real_t v);
         void set_dt(real_t dt);
