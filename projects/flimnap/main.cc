@@ -301,6 +301,9 @@ int main(void) {
         message::set_bicycle_input(&msg.input,
                 (model_t::input_t() << roll_torque, steer_torque).finished());
         msg.has_input = true;
+        message::set_bicycle_measurement(&msg.measurement,
+                (model_t::output_t() << yaw_angle, steer_angle, steer_rate).finished());
+        msg.has_measurement = true;
         message::set_simulation_state(&msg, bicycle);
         message::set_simulation_auxiliary_state(&msg, bicycle);
         if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
