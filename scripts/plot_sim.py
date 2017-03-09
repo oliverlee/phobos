@@ -15,6 +15,7 @@ HANDLEBAR_INERTIA = 0.11889455460271312
 STATE_LABELS = ['roll angle', 'steer angle', 'roll rate', 'steer rate']
 SENSOR_LABELS = ['kistler measured torque', 'kollmorgen actual torque',
                  'steer encoder count', 'rear wheel encoder count']
+MEASUREMENT_LABELS = ['yaw angle', 'steer angle', 'steer rate']
 
 STATE_COLOR = np.roll(sns.color_palette('Paired', 10), 2, axis=0)
 
@@ -65,6 +66,44 @@ def plot_states(t, states, second_yaxis=False, convert_to_degrees=True):
     ax1.set_xlabel('time [s]')
     ax1.legend()
     return fig, ax1
+
+
+def plot_steer_states(t, records):
+    states = records.state[:, 1:] * 180/np.pi
+    measurements = records.measurement * 180/np.pi
+
+    encoder_count = records.sensors.steer_encoder_count
+    encoder_angle = encoder_count / 152000 * 360
+    encoder_angle[np.where(encoder_angle > 180)[0]] -= 360
+    # calculate a simple numerical derivative of encoder_angle
+    # timestamps units are system ticks, at 10 kHz
+    dt = np.insert(np.diff(t), 0, 0)
+    encoder_rate = np.insert(np.diff(encoder_angle), 0, 0) / dt
+
+    fig, ax = plt.subplots()
+
+    index = STATE_LABELS.index('steer angle')
+    ax.plot(t, states[:, index], label=STATE_LABELS[index],
+            color=STATE_COLOR[1 + 2*index])
+    ax.plot(t, encoder_angle, label='encoder angle',
+            color=STATE_COLOR[2*index])
+
+    index = STATE_LABELS.index('steer rate')
+    ax.plot(t, states[:, index], label=STATE_LABELS[index],
+            color=STATE_COLOR[1 + 2*index])
+    ax.plot(t, encoder_rate, label='encoder rate', color=STATE_COLOR[2*index])
+
+    index = MEASUREMENT_LABELS.index('steer rate')
+    ax.plot(t, measurements[:, index],
+            label='measured ' + MEASUREMENT_LABELS[index],
+            color=STATE_COLOR[9])
+    ax.plot(t, steer_accel, label='estimated steer accel',
+             color=STATE_COLOR[1])
+
+    ax.set_ylabel('deg, deg/s')
+    ax.set_xlabel('time [s]')
+    ax.legend()
+    return fig, ax
 
 
 def plot_entries(t, entries, n, m):
@@ -129,22 +168,7 @@ if __name__ == '__main__':
     dt = np.insert(np.diff(t), 0, 0)
     encoder_rate = np.insert(np.diff(encoder_angle), 0, 0) / dt
 
-    fig2, ax2 = plt.subplots()
-    index = STATE_LABELS.index('steer angle')
-    ax2.plot(t, states[:, index], label=STATE_LABELS[index],
-             color=STATE_COLOR[1 + 2*index])
-    ax2.plot(t, encoder_angle, label='encoder angle',
-             color=STATE_COLOR[2*index])
-
-    index = STATE_LABELS.index('steer rate')
-    ax2.plot(t, states[:, index], label=STATE_LABELS[index],
-             color=STATE_COLOR[1 + 2*index])
-    ax2.plot(t, encoder_rate, label='encoder rate', color=STATE_COLOR[2*index])
-    ax2.plot(t, steer_accel, label='estimated steer accel',
-             color=STATE_COLOR[1])
-    ax2.set_ylabel('deg, deg/s')
-    ax2.set_xlabel('time [s]')
-    ax2.legend()
+    fig2, ax2 = plot_steer_states(t, records)
 
     fig3, ax3 = plt.subplots()
     ax3.plot(t, bits_to_Nm(records.actuators.kollmorgen_command_torque,
