@@ -50,12 +50,7 @@ install:
   - export CXX=$CXX_COMPILER CC=$CC_COMPILER
 
 script:
-  - mkdir build
-  - cd build
-  - cmake $BUILD_TYPE -DTOOLCHAIN_DIR=$TRAVIS_BUILD_DIR/toolchain/gcc-arm-none-eabi-5_4-2016q2 -DPROTOBUF_PROTOC_EXECUTABLE=$HOME/protobuf/bin/protoc -DCMAKE_TOOLCHAIN_FILE=../toolchain-gcc-arm-none-eabi-5_4-2016q2.cmake ..
-  - make
-    # if CC_COMPILER is set, assume tests are built and run them
-  - if [ -z "$CC_COMPILER" ]; then CTEST_OUTPUT_ON_FAILURE=1 make test; fi
+  - travis/build.bash
 
 branches:
   only:
