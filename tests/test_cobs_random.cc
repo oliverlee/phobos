@@ -46,13 +46,13 @@ void CobsRandomDataTest::test_encode_decode() {
     // encode b1 to b2
     const cobs::EncodeResult enc_res = cobs::encode(b1.data(), b1.size(), b2.data(), b2.capacity());
     ASSERT_EQ(enc_res.status, cobs::EncodeResult::Status::OK);
-    b2.resize(enc_res.written);
+    b2.resize(enc_res.produced);
 
     // decode b2 to b3
     const cobs::DecodeResult dec_res = cobs::decode(b2.data(), b2.size(), b3.data(), b3.capacity());
     ASSERT_EQ(dec_res.status, cobs::DecodeResult::Status::OK);
-    ASSERT_EQ(dec_res.read, b2.size());
-    b3.resize(dec_res.written);
+    ASSERT_EQ(dec_res.consumed, b2.size());
+    b3.resize(dec_res.produced);
 
     // test b1 == b3
     test_equal_buffers(b1.data(), b1.size(), b3.data(), b3.size());
