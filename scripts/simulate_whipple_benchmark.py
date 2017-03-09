@@ -39,15 +39,35 @@ def simulate(v, x0, dt, n, u=None):
 
 
 if __name__ == '__main__':
-    from plot_sim import plot_states
+    import sys
     import matplotlib.pyplot as plt
+    from plot_sim import plot_states
 
-    v = 7
-    dt = 0.005
-    n = int(4.5/dt) # simulate for 4.5 seconds
-    x0 = np.array(
-        [ 0.0031247 ,  0.09299604, -0.03369007, -0.05003717]
-        ).reshape((4, 1))
+    sim_time = 5 # time for our Whipple simulation [s]
+
+    if len(sys.argv) > 1:
+        from load_sim import (load_messages, get_records_from_messages,
+                              get_time_vector)
+        messages = load_messages(sys.argv[1])
+        records = get_records_from_messages(messages)
+        t = get_time_vector(records)
+        t -= t[0] # redefine zero time for simulator data
+        m = messages[0]
+        states = records.state[:, 1:]
+        fig2, ax2 = plot_states(t, states)
+
+        v = m.model.v
+        dt = m.model.dt
+        n = int(sim_time/dt)
+        x0 = np.array(messages[1].state.x[1:]).reshape((4, 1))
+    else:
+        v = 5
+        dt = 0.005
+        n = int(sim_time/dt)
+        x0 = np.array(
+            [ 0.0031247 ,  0.09299604, -0.03369007, -0.05003717]
+            ).reshape((4, 1))
+
     x = simulate(v, x0, dt, n)
     t = np.array(range(n + 1)) * dt
     fig, ax = plot_states(t, np.hstack((x0, x)).T)
