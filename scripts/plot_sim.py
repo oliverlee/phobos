@@ -8,8 +8,11 @@ import seaborn as sns
 
 from load_sim import load_messages, get_records_from_messages, get_time_vector
 
+MAX_KISTLER_TORQUE = 50
+KISTLER_ADC_ZERO_OFFSET = 2047
 MAX_KOLLMORGEN_TORQUE = 10.78
 KOLLMORGEN_DAC_ZERO_OFFSET = 2048 - 155
+KOLLMORGEN_ADC_ZERO_OFFSET = 2026
 HANDLEBAR_INERTIA = 0.11889455460271312
 
 STATE_LABELS = ['roll angle', 'steer angle', 'roll rate', 'steer rate']
@@ -151,9 +154,10 @@ if __name__ == '__main__':
                            MAX_KOLLMORGEN_TORQUE, KOLLMORGEN_DAC_ZERO_OFFSET),
              label='kollmorgen command torque', color=STATE_COLOR[9])
     ax3.plot(t, bits_to_Nm(records.sensors.kollmorgen_actual_torque,
-                           MAX_KOLLMORGEN_TORQUE),
+                           MAX_KOLLMORGEN_TORQUE, KOLLMORGEN_ADC_ZERO_OFFSET),
              label=SENSOR_LABELS[1], color=STATE_COLOR[8])
-    ax3.plot(t, bits_to_Nm(records.sensors.kistler_measured_torque, 50),
+    ax3.plot(t, bits_to_Nm(records.sensors.kistler_measured_torque,
+                           MAX_KISTLER_TORQUE, KISTLER_ADC_ZERO_OFFSET),
              label=SENSOR_LABELS[0], color=STATE_COLOR[5])
     ax3.plot(t, records.input[:, 1], label='steer torque', color=STATE_COLOR[3])
     ax3.plot(t, inertia_torque, label='handlebar inertia torque',
