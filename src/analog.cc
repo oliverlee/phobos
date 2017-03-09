@@ -25,11 +25,9 @@
  * TODO: move functions from unnamed namespace to private static methods
  */
 
-namespace {
-    const eventflags_t adc_eventflag_complete = EVENT_MASK(0);
-    const eventflags_t adc_eventflag_error = EVENT_MASK(1);
-    event_source_t adc_event_source;
+event_source_t adc_event_source;
 
+namespace {
     void adcerrorcallback(ADCDriver* adcp, adcerror_t err) {
         (void)adcp;
         (void)err;

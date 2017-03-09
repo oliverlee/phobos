@@ -2,6 +2,10 @@
 #include "hal.h"
 #include <array>
 
+constexpr eventflags_t adc_eventflag_complete = EVENT_MASK(0);
+constexpr eventflags_t adc_eventflag_error = EVENT_MASK(1);
+extern event_source_t adc_event_source;
+
 class Analog {
     public:
         Analog();
