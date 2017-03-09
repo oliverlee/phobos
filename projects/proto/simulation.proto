@@ -2,24 +2,25 @@ syntax = "proto2";
 import "pose.proto";
 
 message SimulationMessage {
-    required uint32 timestamp =                 1;
-    optional FirmwareVersion gitsha1 =          2;
+    required uint32 timestamp =                                  1;
+    optional FirmwareVersion gitsha1 =                           2;
 
-    optional SensorMessage sensors =            3;
-    optional ActuatorMessage actuators =        4;
+    optional SensorMessage sensors =                             3;
+    optional ActuatorMessage actuators =                         4;
 
-    optional BicycleStateMessage state =        5;
-    optional BicycleInputMessage input =        6;
-    optional BicyclePoseMessage pose =          7;
+    optional BicycleStateMessage state =                         5;
+    optional BicycleInputMessage input =                         6;
+    optional BicycleOutputMessage measurement =                  7;
+    optional BicyclePoseMessage pose =                           8;
 
-    optional BicycleModelMessage model =        8;
-    optional BicycleKalmanMessage kalman =      9;
+    optional BicycleModelMessage model =                         9;
+    optional BicycleKalmanMessage kalman =                      10;
 
-    optional BicycleAuxiliaryStateMessage auxiliary_state = 10;
+    optional BicycleAuxiliaryStateMessage auxiliary_state =     11;
 
-    optional TimingMessage timing = 11;
+    optional TimingMessage timing =                             12;
 
-    optional float feedback_torque = 12;
+    optional float feedback_torque =                            13;
 }
 
 message FirmwareVersion {
@@ -39,6 +40,11 @@ message BicycleAuxiliaryStateMessage {
 // inputs are roll torque, steer torque (2)
 message BicycleInputMessage {
     repeated float u = 1;
+}
+
+// outputs are yaw angle, steer angle, steer rate (3)
+message BicycleOutputMessage {
+    repeated float y = 1;
 }
 
 // STM32F4 ADC, DAC are 12-bit
