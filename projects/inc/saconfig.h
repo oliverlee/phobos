@@ -35,6 +35,7 @@ constexpr EncoderConfig RLS_GTS35_ENC_CFG = {
 };
 
 constexpr float MAX_KISTLER_TORQUE = 50.0f; // maximum measured steer torque, N-m
+constexpr adcsample_t KISTLER_ADC_ZERO_OFFSET = 2047; // ADC value for zero torque, found experimentally
 
 /*
  * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
@@ -42,6 +43,7 @@ constexpr float MAX_KISTLER_TORQUE = 50.0f; // maximum measured steer torque, N-
  */
 constexpr float MAX_KOLLMORGEN_TORQUE = 10.78f; // max torque at 1.00 Arms/V, N-m
 constexpr dacsample_t KOLLMORGEN_DAC_ZERO_OFFSET = 2048 - 155; // DAC value for zero torque, found experimentally
+constexpr adcsample_t KOLLMORGEN_ADC_ZERO_OFFSET = 2026; // ADC value for zero torque, found experimentally
 
 constexpr DACDriver* KOLLM_DAC = &DACD1;
 
