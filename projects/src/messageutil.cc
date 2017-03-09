@@ -19,6 +19,11 @@ void set_bicycle_input(BicycleInputMessage* pb, const bicycle_t::input_t& u) {
     pb->u_count = sizeof(pb->u)/sizeof(pb->u[0]);
 }
 
+void set_bicycle_measurement(BicycleOutputMessage* pb, const bicycle_t::output_t& y) {
+    std::memcpy(pb->y, y.data(), sizeof(pb->y));
+    pb->y_count = sizeof(pb->y)/sizeof(pb->y[0]);
+}
+
 void set_state_matrix(StateMatrixMessage* pb, const bicycle_t::state_matrix_t& m) {
     std::memcpy(pb->m, m.data(), sizeof(pb->m));
     pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
