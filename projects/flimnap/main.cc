@@ -20,7 +20,7 @@
 #include "analog.h"
 #include "encoder.h"
 #include "encoderfoaw.h"
-#include "packet/frame.h"
+#include "cobs.h"
 #include "packet/serialize.h"
 #include "simulation.pb.h"
 #include "messageutil.h"
@@ -66,10 +66,10 @@ namespace {
     constexpr float fixed_velocity = 5.0f;
 
     // transmission
-    std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> encode_buffer;
-    std::array<uint8_t, SimulationMessage_size + packet::frame::PACKET_OVERHEAD> packet_buffer;
+    constexpr std::size_t VARINT_MAX_SIZE = 10;
+    std::array<uint8_t, SimulationMessage_size + VARINT_MAX_SIZE> encode_buffer;
+    std::array<uint8_t, cobs::max_encoded_length(SimulationMessage_size + VARINT_MAX_SIZE)> packet_buffer;
     SimulationMessage msg;
-    constexpr SimulationMessage msg_init = SimulationMessage_init_zero;
 
     // kinematics loop
     constexpr systime_t kinematics_loop_time = US2ST(8333); // update kinematics at 120 Hz
@@ -163,10 +163,25 @@ namespace {
     }
 
     size_t write_message_to_encode_buffer(const SimulationMessage& m) {
-        const size_t bytes_encoded = packet::serialize::encode_delimited(
-                m, encode_buffer.data(), encode_buffer.size());
-        return packet::frame::stuff(
-                encode_buffer.data(), packet_buffer.data(), bytes_encoded);
+        const size_t encode_buffer_len = packet::serialize::encode_delimited(
+            m,
+            encode_buffer.data(),
+            encode_buffer.size()
+        );
+
+        const cobs::EncodeResult encode_result = cobs::encode(
+            encode_buffer.data(),
+            encode_buffer_len,
+            packet_buffer.data(),
+            packet_buffer.size()
+        );
+
+        // Encoding only fails when the destination buffer is too small, this
+        // should not happen as long as we only encode SimulationMessage objects
+        // because we allocated packet_buffer based on its size.
+        chDbgAssert(encode_result.status == cobs::EncodeResult::Status::OK, "Expected encoding to succeed.");
+
+        return encode_result.produced;
     }
 } // namespace
 
@@ -241,7 +256,7 @@ int main(void) {
 
     // Transmit initial message containing gitsha1, model, and observer data.
     // This initial transmission is blocking.
-    msg = msg_init;
+    msg = SimulationMessage_init_zero;
     msg.timestamp = chVTGetSystemTime();
     message::set_simulation_full_model_observer(&msg, bicycle);
     size_t bytes_written = write_message_to_encode_buffer(msg);
@@ -302,7 +317,7 @@ int main(void) {
         chTMStopMeasurementX(&computation_time_measurement);
 
         // prepare message for transmission
-        msg = msg_init;
+        msg = SimulationMessage_init_zero;
         msg.timestamp = starttime;
         message::set_bicycle_input(&msg.input,
                 (model_t::input_t() << roll_torque, steer_torque).finished());
