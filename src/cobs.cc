@@ -202,20 +202,21 @@ namespace cobs {
         }
 
         while (true) {
-            // Compute the location of the next zero. Subtract one
-            // because src has already been incremented.
-            const uint8_t * const src_zero = src + offset - 1;
+            // Compute the location of the next zero. Subtract one from
+            // offset to get the number of data bytes that follow.
+            const uint8_t * const src_copy_end = src + offset - 1;
+            const uint8_t * const dst_copy_end = dst + offset - 1;
 
             // Check if we can copy the data until the next zero. 
-            if (src_zero >= src_end) {
+            if (src_copy_end > src_end) {
                 return result(DecodeResult::Status::READ_OVERFLOW);
             }
-            if (dst + offset - 1 >= dst_end) {
+            if (dst_copy_end > dst_end) {
                 return result(DecodeResult::Status::WRITE_OVERFLOW);
             }
 
             // Copy data until we are at the next zero.
-            while (src < src_zero) {
+            while (src < src_copy_end) {
                 const uint8_t byte = *(src++);
 
                 // We should not encounter a zero in the encoded data.
