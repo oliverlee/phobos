@@ -63,6 +63,7 @@ namespace {
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
+    filter::MovingAverage<float, 5> kistler_filter;
 
     constexpr float fixed_velocity = 5.0f;
 
@@ -264,8 +265,9 @@ int main(void) {
 
         // get sensor measurements
 #if !defined(FLIMNAP_ZERO_INPUT)
-        const float kistler_torque = adc_to_nm(analog.get_adc12(),
-                sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE);
+        const float kistler_torque = kistler_filter.output(
+                adc_to_nm(analog.get_adc12(),
+                    sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE));
 #endif // !defined(FLIMNAP_ZERO_INPUT)
         const float motor_torque = adc_to_nm(analog.get_adc13(),
                 sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
