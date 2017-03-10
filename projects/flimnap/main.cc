@@ -63,7 +63,7 @@ namespace {
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
-    filter::MovingAverage<float, 3> kistler_filter;
+    filter::MovingAverage<adcsample_t, 3> kistler_filter;
 
     constexpr float fixed_velocity = 7.0f;
 
@@ -175,9 +175,7 @@ namespace {
         while(true) {
             chEvtWaitAny(ALL_EVENTS);
             chEvtGetAndClearFlags(&adc_listener);
-            kistler_filter.output(
-                adc_to_nm(analog.get_adc12(),
-                    sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE));
+            kistler_filter.output(analog.get_adc12());
         }
     }
 
@@ -284,10 +282,8 @@ int main(void) {
 
         // get sensor measurements
 #if !defined(FLIMNAP_ZERO_INPUT)
-        //const float kistler_torque = kistler_filter.output(
-        //        adc_to_nm(analog.get_adc12(),
-        //            sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE));
-        const float kistler_torque = kistler_filter.output();
+        const float kistler_torque = adc_to_nm(kistler_filter.output(),
+                sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE);
 #endif // !defined(FLIMNAP_ZERO_INPUT)
         const float motor_torque = adc_to_nm(analog.get_adc13(),
                 sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
@@ -328,7 +324,7 @@ int main(void) {
         }
         message::set_simulation_actuators(&msg, handlebar_torque_dac);
         message::set_simulation_sensors(&msg,
-                analog.get_adc12(), analog.get_adc13(),
+                kistler_filter.output(), analog.get_adc13(),
                 encoder_steer.count(), encoder_rear_wheel.count());
         message::set_simulation_timing(&msg,
                 computation_time_measurement.last, transmission_time_measurement.last);
