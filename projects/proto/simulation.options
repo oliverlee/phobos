@@ -8,7 +8,7 @@ SensorMessage.kistler_measured_torque       int_size:IS_16
 SensorMessage.kollmorgen_actual_torque      int_size:IS_16
 SensorMessage.rear_wheel_encoder_count      int_size:IS_16
 
-ActuatorMessage.kollmorgen_command_torque   int_size:IS_16
+ActuatorMessage.kollmorgen_command_velocity int_size:IS_16
 
 SymmetricStateMatrixMessage.m               max_count:15
 SymmetricOutputMatrixMessage.m              max_count:3

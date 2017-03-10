@@ -80,12 +80,13 @@ namespace {
     time_measurement_t computation_time_measurement;
     time_measurement_t transmission_time_measurement;
 
-    dacsample_t set_handlebar_torque(float handlebar_torque) {
-        int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) +
-            sa::KOLLMORGEN_DAC_ZERO_OFFSET;
-        saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
-        dacsample_t aout = static_cast<dacsample_t>(saturated_value);
-        dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+    dacsample_t set_handlebar_velocity(float velocity) {
+        // limit velocity to a maximum magnitude of 100 deg/s
+        // input is in units of rad/s
+        const float saturated_velocity = std::min(std::max(velocity, -sa::MAX_KOLLMORGEN_VELOCITY),
+                sa::MAX_KOLLMORGEN_VELOCITY);
+        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*2048 + 2048;
+        dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
         return aout;
     }
 
@@ -222,7 +223,7 @@ int main(void) {
     // and must be changed to use as analog output.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-    set_handlebar_torque(0.0f);
+    set_handlebar_velocity(0.0f);
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
@@ -297,8 +298,9 @@ int main(void) {
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const float feedback_torque = bicycle.handlebar_feedback_torque();
-        const dacsample_t handlebar_torque_dac = set_handlebar_torque(feedback_torque);
+        const float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
+                model_t::state_index_t::steer_rate);
+        const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
 
         // prepare message for transmission
@@ -313,14 +315,12 @@ int main(void) {
             message::set_kalman_gain(&msg.kalman, bicycle.observer());
             msg.has_kalman = true;
         }
-        message::set_simulation_actuators(&msg, handlebar_torque_dac);
+        message::set_simulation_actuators(&msg, handlebar_velocity_dac);
         message::set_simulation_sensors(&msg,
                 analog.get_adc12(), analog.get_adc13(),
                 encoder_steer.count(), encoder_rear_wheel.count());
         message::set_simulation_timing(&msg,
                 computation_time_measurement.last, transmission_time_measurement.last);
-        msg.feedback_torque = feedback_torque;
-        msg.has_feedback_torque = true;
         size_t bytes_written = write_message_to_encode_buffer(msg);
 
         // transmit message
