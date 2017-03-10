@@ -27,7 +27,6 @@ def parse_constants():
                     failed_matches.append(match.groups())
                     continue
                 else:
-                    print(ev)
                     if scalar_type == 'float':
                         v = float(ev)
                     else:
