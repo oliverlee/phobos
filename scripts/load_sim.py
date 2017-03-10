@@ -13,7 +13,7 @@ from phobos import pb
 def get_time_vector(records):
     """This function redefines the first timestamp to time = 0.
     """
-    CH_CFG_ST_FREQUENCY = 10000
+    CH_CFG_ST_FREQUENCY = 100000
     ts = records.timestamp - records.timestamp[0]
     if not np.all(ts[1:] > ts[:-1]):
         warnings.warn('numpy datatype overflow. Consider using fewer records',
