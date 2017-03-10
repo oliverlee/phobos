@@ -32,9 +32,9 @@ def handlebar_inertia_torque(records, A):
     return inertia_torque, steer_accel
 
 
-def plot_states(t, states, second_yaxis=False, convert_to_degrees=True):
+def plot_states(t, states, second_yaxis=False, to_degrees=True):
     # plot in degrees
-    if convert_to_degrees:
+    if to_degrees:
         states *= 180/np.pi
 
     fig, ax1 = plt.subplots()
@@ -115,8 +115,7 @@ if __name__ == '__main__':
 
     # plot in degrees
     states = records.state[:, 1:] * 180/np.pi
-    fig1, ax1 = plot_states(t, states, second_yaxis=False,
-                            convert_to_degrees=False)
+    fig1, ax1 = plot_states(t, states, second_yaxis=False, to_degrees=False)
 
     encoder_count = records.sensors.steer_encoder_count
     encoder_angle = encoder_count / 152000 * 360
