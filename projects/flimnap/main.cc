@@ -263,6 +263,7 @@ int main(void) {
     // dynamics in real-time (roughly).
     chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread),
             NORMALPRIO - 1, kinematics_thread, static_cast<void*>(&bicycle));
+    systime_t deadline = chVTGetSystemTime();
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
@@ -329,12 +330,6 @@ int main(void) {
             chTMStopMeasurementX(&transmission_time_measurement);
         }
 
-        const systime_t sleeptime = looptime + starttime - chVTGetSystemTime();
-        if (sleeptime >= looptime) {
-            //chDbgAssert(false, "deadline missed");
-            continue;
-        } else {
-            chThdSleep(sleeptime);
-        }
+        deadline = chThdSleepUntilWindowed(deadline, deadline + looptime);
     }
 }
