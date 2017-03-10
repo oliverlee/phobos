@@ -26,7 +26,7 @@ if __name__ == '__main__':
     # plot in degrees because understanding radians is harder
     states = records.state[:, 1:] * 180/np.pi
     fig1, ax1 = plot_states(t, states, second_yaxis=True,
-                            convert_to_degrees=False)
+                            to_degrees=False)
 
     m = messages[0]
     v = m.model.v
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     x = simulate(v, x0, dt, n)
     t = np.array(range(n + 1)) * dt
     fig2, ax2 = plot_states(t, np.hstack((x0, x)).T, second_yaxis=True,
-                            convert_to_degrees=True)
+                            to_degrees=True)
 
     # set the axes x limits to be the same
     ax1[0].set_xlim([0, 3])
