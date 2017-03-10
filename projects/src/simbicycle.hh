@@ -20,7 +20,8 @@ m_observer(m_model),
 m_inertia_upper_virtual(m_model, upper_assembly_inertia_virtual),
 m_inertia_lower_physical(m_model, lower_assembly_inertia_physical),
 m_state_full(full_state_t::Zero()),
-m_pose(BicyclePoseMessage_init_zero) {
+m_pose(BicyclePoseMessage_init_zero),
+m_input(input_t::Zero()) {
     // Note: User must initialize Kalman matrices in application.
     // TODO: Do this automatically with default values?
     chBSemObjectInit(&m_state_sem, false); // initialize to not taken
