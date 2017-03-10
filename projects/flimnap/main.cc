@@ -76,7 +76,7 @@ namespace {
     constexpr systime_t kinematics_loop_time = US2ST(8333); // update kinematics at 120 Hz
 
     // dynamics loop
-    constexpr model::real_t dynamics_period = 0.005; //5 ms -> 200 Hz
+    constexpr systime_t looptime = MS2ST(1); // 1 ms -> 1 kHz
     time_measurement_t computation_time_measurement;
     time_measurement_t transmission_time_measurement;
 
@@ -226,7 +226,7 @@ int main(void) {
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(fixed_velocity, dynamics_period);
+    bicycle_t bicycle(fixed_velocity, static_cast<model::real_t>(looptime)/CH_CFG_ST_FREQUENCY);
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
@@ -329,7 +329,6 @@ int main(void) {
             chTMStopMeasurementX(&transmission_time_measurement);
         }
 
-        const systime_t looptime = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
         const systime_t sleeptime = looptime + starttime - chVTGetSystemTime();
         if (sleeptime >= looptime) {
             //chDbgAssert(false, "deadline missed");
