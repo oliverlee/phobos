@@ -43,22 +43,26 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from plot_sim import plot_states
 
-    sim_time = 5 # time for our Whipple simulation [s]
+    sim_time = 1 # time for our Whipple simulation or upper limit [s]
 
     if len(sys.argv) > 1:
         from load_sim import (load_messages, get_records_from_messages,
                               get_time_vector)
         messages = load_messages(sys.argv[1])
         records = get_records_from_messages(messages)
-        t = get_time_vector(records)
+        t = get_time_vector(records[1:]) # skip first record
         t -= t[0] # redefine zero time for simulator data
-        m = messages[0]
-        states = records.state[:, 1:]
-        fig2, ax2 = plot_states(t, states)
 
+        m = messages[0]
         v = m.model.v
         dt = m.model.dt
+        if t[-1] < sim_time:
+            sim_time = t[-1]
         n = int(sim_time/dt)
+
+        states = records[1:].state[:, 1:]
+        fig2, ax2 = plot_states(t[:n], states[:n, :], to_degrees=True)
+        fig2.suptitle('Phobos simulator')
         x0 = np.array(messages[1].state.x[1:]).reshape((4, 1))
     else:
         v = 5
@@ -70,5 +74,7 @@ if __name__ == '__main__':
 
     x = simulate(v, x0, dt, n)
     t = np.array(range(n + 1)) * dt
-    fig, ax = plot_states(t, np.hstack((x0, x)).T)
+    fig, ax = plot_states(t, np.hstack((x0, x)).T, to_degrees=True)
+    fig.suptitle('Whipple simulation')
+
     plt.show()
