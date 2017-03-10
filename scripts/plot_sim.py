@@ -157,10 +157,10 @@ if __name__ == '__main__':
     ax3.plot(t, records.input[:, 1], label='steer torque', color=STATE_COLOR[3])
     ax3.plot(t, inertia_torque, label='handlebar inertia torque',
              color=STATE_COLOR[1])
-    ax3.plot(t, inertia_torque + bits_to_Nm(
-                        records.sensors.kistler_measured_torque, 50),
-            label='calculated virtual steer torque',
-            color=STATE_COLOR[7])
+    #ax3.plot(t, inertia_torque + bits_to_Nm(
+    #                    records.sensors.kistler_measured_torque, 50),
+    #        label='calculated virtual steer torque',
+    #        color=STATE_COLOR[7])
     ax3.set_ylabel('torque [N-m]')
     ax3.set_xlabel('time [s]')
     ax3.legend()
