@@ -76,7 +76,7 @@ namespace {
     constexpr systime_t kinematics_loop_time = US2ST(8333); // update kinematics at 120 Hz
 
     // dynamics loop
-    constexpr model::real_t dynamics_period = 0.005; //5 ms -> 200 Hz
+    constexpr systime_t looptime = MS2ST(1); // 1 ms -> 1 kHz
     time_measurement_t computation_time_measurement;
     time_measurement_t transmission_time_measurement;
 
@@ -207,7 +207,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder_steer.start();
     encoder_rear_wheel.start();
-    analog.start(1000); // trigger ADC conversion at 1 kHz
+    analog.start(10000); // trigger ADC conversion at 10 kHz
 
     //Set torque measurement enable line low.
     //The output of the Kistler torque sensor is not valid until after a falling edge
@@ -226,7 +226,7 @@ int main(void) {
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(fixed_velocity, dynamics_period);
+    bicycle_t bicycle(fixed_velocity, static_cast<model::real_t>(looptime)/CH_CFG_ST_FREQUENCY);
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
@@ -263,6 +263,7 @@ int main(void) {
     // dynamics in real-time (roughly).
     chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread),
             NORMALPRIO - 1, kinematics_thread, static_cast<void*>(&bicycle));
+    systime_t deadline = chVTGetSystemTime();
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
@@ -329,13 +330,6 @@ int main(void) {
             chTMStopMeasurementX(&transmission_time_measurement);
         }
 
-        const systime_t looptime = MS2ST(static_cast<systime_t>(1000*bicycle.dt()));
-        const systime_t sleeptime = looptime + starttime - chVTGetSystemTime();
-        if (sleeptime >= looptime) {
-            //chDbgAssert(false, "deadline missed");
-            continue;
-        } else {
-            chThdSleep(sleeptime);
-        }
+        deadline = chThdSleepUntilWindowed(deadline, deadline + looptime);
     }
 }

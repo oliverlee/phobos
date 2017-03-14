@@ -51,7 +51,7 @@ class Bicycle {
         static constexpr real_t v_quantization_resolution = 0.1; // m/s
         static constexpr real_t roll_rate_limit = 1e10; // rad
         static constexpr real_t steer_rate_limit = 1e10; // rad
-        static constexpr real_t observer_prime_period = 1.0; // seconds
+        static constexpr real_t observer_prime_period = 3.0; // seconds
 
         Bicycle(real_t v = default_v, real_t dt = default_dt, real_t steer_inertia = default_steer_inertia);
 
