@@ -21,7 +21,6 @@
 #include "encoder.h"
 
 #include "gitsha1.h"
-#include "angle.h"
 #include "blink.h"
 #include "usbconfig.h"
 #include "saconfig.h"

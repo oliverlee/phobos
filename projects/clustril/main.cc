@@ -22,9 +22,9 @@
 #include "encoderfoaw.h"
 
 #include "gitsha1.h"
-#include "angle.h"
 #include "filesystem.h"
 #include "saconfig.h"
+#include "utility.h"
 
 #include "packet/serialize.h"
 #include "packet/frame.h"
@@ -59,8 +59,7 @@ namespace {
     dacsample_t set_handlebar_velocity(float velocity) {
         // limit velocity to a maximum magnitude of 100 deg/s
         // input is in units of rad/s
-        const float saturated_velocity = std::min(std::max(velocity, -sa::MAX_KOLLMORGEN_VELOCITY),
-                sa::MAX_KOLLMORGEN_VELOCITY);
+        const float saturated_velocity = util::clamp(velocity, -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
         const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*2048 + 2048;
         dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
         return aout;
@@ -173,9 +172,9 @@ int main(void) {
         (void)motor_torque; /* this isn't currently used */
 
         /* get angle measurements */
-        const float yaw_angle = angle::wrap(bicycle.pose().yaw);
-        const float steer_angle = angle::encoder_count<float>(encoder_steer);
-        const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
+        const float yaw_angle = util::wrap(bicycle.pose().yaw);
+        const float steer_angle = util::encoder_count<float>(encoder_steer);
+        const float rear_wheel_angle = -util::encoder_count<float>(encoder_rear_wheel);
 
         /* observer time/measurement update (~80 us with real_t = float) */
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);

@@ -5,6 +5,9 @@
 /* sensor and actuator configuration constants */
 namespace sa {
 
+constexpr ADC_HALF_RANGE = (1 << 12)/2; // ADC is 12-bit
+constexpr DAC_HALF_RANGE = (1 << 12)/2; // DAC is 12-bit
+
 constexpr GPTDriver* RLS_ROLIN_ENC = &GPTD5;
 
 constexpr EncoderConfig RLS_ROLIN_ENC_CFG = {

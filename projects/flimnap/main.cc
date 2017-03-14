@@ -26,14 +26,13 @@
 #include "messageutil.h"
 #include "filter/movingaverage.h"
 
-#include "angle.h"
 #include "blink.h"
 #include "usbconfig.h"
 #include "saconfig.h"
+#include "utility.h"
 
 #include "parameters.h"
 
-#include <algorithm>
 #include <array>
 #include <type_traits>
 
@@ -83,8 +82,7 @@ namespace {
     dacsample_t set_handlebar_velocity(float velocity) {
         // limit velocity to a maximum magnitude of 100 deg/s
         // input is in units of rad/s
-        const float saturated_velocity = std::min(std::max(velocity, -sa::MAX_KOLLMORGEN_VELOCITY),
-                sa::MAX_KOLLMORGEN_VELOCITY);
+        const float saturated_velocity = util::clamp(velocity, -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
         const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*2048 + 2048;
         dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
         return aout;
@@ -135,7 +133,7 @@ namespace {
             // We start with steer angle equal to the measurement and all other state elements at zero.
             model_t::state_t x0 = model_t::state_t::Zero();
             model_t::set_state_element(x0, model_t::state_index_t::steer_angle,
-                    angle::encoder_count<float>(encoder_steer));
+                    util::encoder_count<float>(encoder_steer));
             observer.set_x(x0);
         }
         template <typename S = T>
@@ -275,14 +273,14 @@ int main(void) {
                 sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE);
         const float motor_torque = adc_to_nm(analog.get_adc13(),
                 sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
-        const float steer_angle = angle::encoder_count<float>(encoder_steer);
-        const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
+        const float steer_angle = util::encoder_count<float>(encoder_steer);
+        const float rear_wheel_angle = -util::encoder_count<float>(encoder_rear_wheel);
         const float v = velocity_filter.output(
-                -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
+                -sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_rear_wheel)));
         (void)motor_torque; // not currently used
 
         // yaw angle, just use previous state value
-        const float yaw_angle = angle::wrap(bicycle.pose().yaw);
+        const float yaw_angle = util::wrap(bicycle.pose().yaw);
 
         // calculate rider applied torque
 #if defined(FLIMNAP_ZERO_INPUT)
