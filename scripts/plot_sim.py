@@ -28,7 +28,7 @@ def handlebar_inertia_torque(records, A):
     A_delta_dd = A[4, :]
     state = records.state
     steer_accel = np.dot(A_delta_dd, state.T)
-    inertia_torque = sa.HANDLEBAR_INERTIA * steer_accel
+    inertia_torque = sa.UPPER_ASSEMBLY_INERTIA_VIRTUAL * steer_accel
     return inertia_torque, steer_accel
 
 

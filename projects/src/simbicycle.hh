@@ -112,7 +112,7 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
         m_observer.set_state(x);
     }
 
-    m_T_m = m_haptic.feedback_torque(m_observer.state(), input);
+    m_T_m = m_haptic.torque(m_observer.state(), input);
 
     // Merge observer and model states
     //
