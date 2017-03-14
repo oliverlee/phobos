@@ -83,6 +83,13 @@ Using screen to log serial data to file can occasionally result in missing
 bytes. In this case, `seriallog` in the tools directory can be used to log to
 file.
 
+On linux, [add yourself to the dialout group](http://askubuntu.com/questions/58119/changing-permissions-on-serial-port) so that you can access the serial
+device, usually `/dev/ttyACM0`.
+
+```bash
+sudo usermod --append --groups dialout $USER
+```
+
 Some projects output serial data just as bytes (not ASCII). Cutecom can be used
 to view the data as hex. You can download it
 [here](http://cutecom.sourceforge.net/). If you used homebrew to install Qt4,
