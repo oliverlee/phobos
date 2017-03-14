@@ -42,14 +42,21 @@ def plot_states(t, states, second_yaxis=False, to_degrees=True):
     if second_yaxis:
         ax2 = ax1.twinx()
     for i, label in enumerate(STATE_LABELS):
-        linestyle = 'solid'
+        linewidth = 0.9 * 2.5
+        color = STATE_COLOR[1 + 2*i]
+
         if second_yaxis and label.endswith('rate'):
             ax = ax2
-            linestyle = 'dashed'
+            linewidth = 0.6 * 2.5
         else:
             ax = ax1
-        l = ax.plot(t, states[:, i], label=label, color=STATE_COLOR[1 + 2*i],
-                    linestyle=linestyle)
+        if second_yaxis:
+            color_order = [3, 7, 2, 6]
+            color = STATE_COLOR[color_order[i]]
+            ax.yaxis.grid(False)
+
+        l = ax.plot(t, states[:, i], label=label, color=color,
+                    linewidth=linewidth)
         lines.extend(l)
 
     if second_yaxis:
