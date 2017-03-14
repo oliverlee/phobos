@@ -17,7 +17,8 @@ m_model(v, dt),
 m_observer(m_model),
 m_haptic(m_model, steer_inertia),
 m_state_full(full_state_t::Zero()),
-m_pose(BicyclePoseMessage_init_zero) {
+m_pose(BicyclePoseMessage_init_zero),
+m_input(input_t::Zero()) {
     // Note: User must initialize Kalman matrices in application.
     // TODO: Do this automatically with default values?
     chBSemObjectInit(&m_state_sem, false); // initialize to not taken
@@ -71,19 +72,19 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
     //  kinematic  update and solely from bicycle velocity.
     (void)rear_wheel_angle_measurement;
 
-    input_t input = input_t::Zero();
+    m_input = input_t::Zero();
     measurement_t measurement = measurement_t::Zero();
 
-    model_t::set_input_element(input, model_t::input_index_t::roll_torque, roll_torque_input);
-    model_t::set_input_element(input, model_t::input_index_t::steer_torque, steer_torque_input);
+    model_t::set_input_element(m_input, model_t::input_index_t::roll_torque, roll_torque_input);
+    model_t::set_input_element(m_input, model_t::input_index_t::steer_torque, steer_torque_input);
     model_t::set_output_element(measurement, model_t::output_index_t::yaw_angle, yaw_angle_measurement);
     model_t::set_output_element(measurement, model_t::output_index_t::steer_angle, steer_angle_measurement);
 
     // The auxiliary states _must_ also be integrated at the same time as the
     // dynamic state. After the observer update, we "merge" dynamic states together.
     full_state_t state_full = m_model.integrate_full_state(
-            m_state_full, input, m_model.dt(), measurement);
-    m_observer.update_state(input, measurement);
+            m_state_full, m_input, m_model.dt(), measurement);
+    m_observer.update_state(m_input, measurement);
 
     if (!m_observer.state().allFinite()) {
         chSysHalt("");
@@ -112,7 +113,7 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
         m_observer.set_state(x);
     }
 
-    m_T_m = m_haptic.torque(m_observer.state(), input);
+    m_T_m = m_haptic.torque(m_observer.state(), m_input);
 
     // Merge observer and model states
     //
@@ -181,6 +182,11 @@ const BicyclePoseMessage& Bicycle<Model, Observer, Haptic>::pose() const {
 template <typename Model, typename Observer, typename Haptic>
 model::real_t Bicycle<Model, Observer, Haptic>::handlebar_feedback_torque() const {
     return m_T_m;
+}
+
+template <typename Model, typename Observer, typename Haptic>
+const typename Bicycle<Model, Observer, Haptic>::input_t& Bicycle<Model, Observer, Haptic>::input() const {
+    return m_input;
 }
 
 template <typename Model, typename Observer, typename Haptic>
