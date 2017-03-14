@@ -9,6 +9,7 @@ namespace message {
     void set_bicycle_state(BicycleStateMessage* pb, const bicycle_t::state_t& x);
     void set_bicycle_auxiliary_state(BicycleAuxiliaryStateMessage* pb, const bicycle_t::auxiliary_state_t& x);
     void set_bicycle_input(BicycleInputMessage* pb, const bicycle_t::input_t& u);
+    void set_bicycle_measurement(BicycleOutputMessage* pb, const bicycle_t::output_t& y);
     void set_state_matrix(StateMatrixMessage* pb, const bicycle_t::state_matrix_t& m);
     void set_input_matrix(InputMatrixMessage* pb, const bicycle_t::input_matrix_t& m);
     void set_output_matrix(OutputMatrixMessage* pb, const bicycle_t::output_matrix_t& m);

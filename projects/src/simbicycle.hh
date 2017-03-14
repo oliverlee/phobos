@@ -60,6 +60,7 @@ template <typename Model, typename Observer, typename Haptic>
 void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input, real_t steer_torque_input,
     real_t yaw_angle_measurement,
     real_t steer_angle_measurement,
+    real_t steer_rate_measurement,
     real_t rear_wheel_angle_measurement) {
 
     //  While the rear wheel angle measurement can be used to determine velocity,
@@ -79,6 +80,7 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
     model_t::set_input_element(m_input, model_t::input_index_t::steer_torque, steer_torque_input);
     model_t::set_output_element(measurement, model_t::output_index_t::yaw_angle, yaw_angle_measurement);
     model_t::set_output_element(measurement, model_t::output_index_t::steer_angle, steer_angle_measurement);
+    model_t::set_output_element(measurement, model_t::output_index_t::steer_rate, steer_rate_measurement);
 
     // The auxiliary states _must_ also be integrated at the same time as the
     // dynamic state. After the observer update, we "merge" dynamic states together.

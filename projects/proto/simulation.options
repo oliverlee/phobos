@@ -3,6 +3,7 @@ FirmwareVersion.f                           max_size:7 type:FT_INLINE
 BicycleStateMessage.x                       max_count:5
 BicycleAuxiliaryStateMessage.x              max_count:4
 BicycleInputMessage.u                       max_count:2
+BicycleOutputMessage.y                      max_count:3
 
 SensorMessage.kistler_measured_torque       int_size:IS_16
 SensorMessage.kollmorgen_actual_torque      int_size:IS_16

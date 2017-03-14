@@ -58,7 +58,9 @@ namespace {
 
     // sensors
     Analog analog;
-    Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
+    EncoderFoaw<float, 32> encoder_steer(sa::RLS_ROLIN_ENC,
+                                         sa::RLS_ROLIN_ENC_INDEX_CFG,
+                                         MS2ST(1), 3.0f);
     EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC,
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1), 3.0f);
@@ -275,6 +277,7 @@ int main(void) {
         const float motor_torque = adc_to_nm(analog.get_adc13(),
                 sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
         const float steer_angle = angle::encoder_count<float>(encoder_steer);
+        const float steer_rate = angle::encoder_rate<float>(encoder_steer);
         const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
         const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
@@ -294,7 +297,7 @@ int main(void) {
 
         // simulate bicycle
         bicycle.set_v(fixed_velocity);
-        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, steer_rate, rear_wheel_angle);
 
         // generate handlebar torque output
         const float feedback_torque = bicycle.handlebar_feedback_torque();
@@ -307,6 +310,9 @@ int main(void) {
         message::set_bicycle_input(&msg.input,
                 (model_t::input_t() << roll_torque, steer_torque).finished());
         msg.has_input = true;
+        message::set_bicycle_measurement(&msg.measurement,
+                (model_t::output_t() << yaw_angle, steer_angle, steer_rate).finished());
+        msg.has_measurement = true;
         message::set_simulation_state(&msg, bicycle);
         message::set_simulation_auxiliary_state(&msg, bicycle);
         if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {

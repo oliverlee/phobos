@@ -62,6 +62,7 @@ class Bicycle {
                 real_t steer_torque_input,             // and handlebar feedback torque
                 real_t yaw_angle_measurement,
                 real_t steer_angle_measurement,
+                real_t steer_rate_measurement,
                 real_t rear_wheel_angle_measurement);
         void update_kinematics(); // update bicycle pose
         void prime_observer(); // perform observer specific initialization routine
