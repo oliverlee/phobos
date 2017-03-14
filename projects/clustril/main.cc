@@ -60,7 +60,7 @@ namespace {
         // limit velocity to a maximum magnitude of 100 deg/s
         // input is in units of rad/s
         const float saturated_velocity = util::clamp(velocity, -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
-        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*2048 + 2048;
+        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
         dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
         return aout;
     }
@@ -164,10 +164,11 @@ int main(void) {
         constexpr float roll_torque = 0;
 
         /* get torque measurements */
-        const float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
+        const float steer_torque = static_cast<float>(
+                analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/(sa::ADC_HALF_RANGE*2) -
                 sa::MAX_KISTLER_TORQUE);
         const float motor_torque = static_cast<float>(
-                analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
+                analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/(sa::ADC_HALF_RANGE*2) -
                 sa::MAX_KOLLMORGEN_TORQUE);
         (void)motor_torque; /* this isn't currently used */
 

@@ -83,7 +83,7 @@ namespace {
         // limit velocity to a maximum magnitude of 100 deg/s
         // input is in units of rad/s
         const float saturated_velocity = util::clamp(velocity, -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
-        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*2048 + 2048;
+        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
         dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
         return aout;
     }
@@ -94,7 +94,7 @@ namespace {
         // It's not clear when scaling should be applied as data was never saved after the scale
         // factors were determined.
         const int16_t shifted_value = static_cast<int16_t>(value) - static_cast<int16_t>(adc_zero);
-        return static_cast<float>(shifted_value)*magnitude/2048.0f;
+        return static_cast<float>(shifted_value)*magnitude/static_cast<float>(sa::ADC_HALF_RANGE);
     }
 
     void update_and_transmit_kinematics(bicycle_t& bicycle) {

@@ -5,8 +5,8 @@
 /* sensor and actuator configuration constants */
 namespace sa {
 
-constexpr ADC_HALF_RANGE = (1 << 12)/2; // ADC is 12-bit
-constexpr DAC_HALF_RANGE = (1 << 12)/2; // DAC is 12-bit
+constexpr adcsample_t ADC_HALF_RANGE = (1 << 12)/2; // ADC is 12-bit
+constexpr dacsample_t DAC_HALF_RANGE = (1 << 12)/2; // DAC is 12-bit
 
 constexpr GPTDriver* RLS_ROLIN_ENC = &GPTD5;
 
@@ -51,7 +51,7 @@ constexpr adcsample_t KOLLMORGEN_ADC_ZERO_OFFSET = 2026; // ADC value for zero t
 constexpr DACDriver* KOLLM_DAC = &DACD1;
 
 constexpr DACConfig dac1cfg1 = {
-     .init       = 2047U, // max value is 4095 (12-bit)
+     .init       = DAC_HALF_RANGE,
      .datamode   = DAC_DHRM_12BIT_RIGHT
 };
 constexpr const DACConfig* KOLLM_DAC_CFG = &dac1cfg1;
