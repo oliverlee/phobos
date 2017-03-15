@@ -26,14 +26,13 @@
 #include "messageutil.h"
 #include "filter/movingaverage.h"
 
-#include "angle.h"
 #include "blink.h"
 #include "usbconfig.h"
 #include "saconfig.h"
+#include "utility.h"
 
 #include "parameters.h"
 
-#include <algorithm>
 #include <array>
 #include <type_traits>
 
@@ -80,12 +79,12 @@ namespace {
     time_measurement_t computation_time_measurement;
     time_measurement_t transmission_time_measurement;
 
-    dacsample_t set_handlebar_torque(float handlebar_torque) {
-        int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) +
-            sa::KOLLMORGEN_DAC_ZERO_OFFSET;
-        saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
-        dacsample_t aout = static_cast<dacsample_t>(saturated_value);
-        dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+    dacsample_t set_handlebar_velocity(float velocity) {
+        // limit velocity to a maximum magnitude of 100 deg/s
+        // input is in units of rad/s
+        const float saturated_velocity = util::clamp(velocity, -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
+        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
+        dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
         return aout;
     }
 
@@ -95,7 +94,7 @@ namespace {
         // It's not clear when scaling should be applied as data was never saved after the scale
         // factors were determined.
         const int16_t shifted_value = static_cast<int16_t>(value) - static_cast<int16_t>(adc_zero);
-        return static_cast<float>(shifted_value)*magnitude/2048.0f;
+        return static_cast<float>(shifted_value)*magnitude/static_cast<float>(sa::ADC_HALF_RANGE);
     }
 
     void update_and_transmit_kinematics(bicycle_t& bicycle) {
@@ -134,7 +133,7 @@ namespace {
             // We start with steer angle equal to the measurement and all other state elements at zero.
             model_t::state_t x0 = model_t::state_t::Zero();
             model_t::set_state_element(x0, model_t::state_index_t::steer_angle,
-                    angle::encoder_count<float>(encoder_steer));
+                    util::encoder_count<float>(encoder_steer));
             observer.set_x(x0);
         }
         template <typename S = T>
@@ -222,7 +221,7 @@ int main(void) {
     // and must be changed to use as analog output.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-    set_handlebar_torque(0.0f);
+    set_handlebar_velocity(0.0f);
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
@@ -274,14 +273,14 @@ int main(void) {
                 sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE);
         const float motor_torque = adc_to_nm(analog.get_adc13(),
                 sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
-        const float steer_angle = angle::encoder_count<float>(encoder_steer);
-        const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
+        const float steer_angle = util::encoder_count<float>(encoder_steer);
+        const float rear_wheel_angle = -util::encoder_count<float>(encoder_rear_wheel);
         const float v = velocity_filter.output(
-                -sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_rear_wheel)));
+                -sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_rear_wheel)));
         (void)motor_torque; // not currently used
 
         // yaw angle, just use previous state value
-        const float yaw_angle = angle::wrap(bicycle.pose().yaw);
+        const float yaw_angle = util::wrap(bicycle.pose().yaw);
 
         // calculate rider applied torque
 #if defined(FLIMNAP_ZERO_INPUT)
@@ -297,8 +296,9 @@ int main(void) {
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const float feedback_torque = bicycle.handlebar_feedback_torque();
-        const dacsample_t handlebar_torque_dac = set_handlebar_torque(feedback_torque);
+        const float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
+                model_t::state_index_t::steer_rate);
+        const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
 
         // prepare message for transmission
@@ -313,14 +313,12 @@ int main(void) {
             message::set_kalman_gain(&msg.kalman, bicycle.observer());
             msg.has_kalman = true;
         }
-        message::set_simulation_actuators(&msg, handlebar_torque_dac);
+        message::set_simulation_actuators(&msg, handlebar_velocity_dac);
         message::set_simulation_sensors(&msg,
                 analog.get_adc12(), analog.get_adc13(),
                 encoder_steer.count(), encoder_rear_wheel.count());
         message::set_simulation_timing(&msg,
                 computation_time_measurement.last, transmission_time_measurement.last);
-        msg.feedback_torque = feedback_torque;
-        msg.has_feedback_torque = true;
         size_t bytes_written = write_message_to_encode_buffer(msg);
 
         // transmit message

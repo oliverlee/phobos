@@ -1,9 +1,11 @@
 #pragma once
+#include <algorithm>
 #include <boost/math/constants/constants.hpp>
+#include "debug.h"
 #include "encoder.h"
 #include "encoderfoaw.h"
 
-namespace angle {
+namespace util {
 template <typename T>
 T wrap(T angle) {
     angle = std::fmod(angle, boost::math::constants::two_pi<T>());
@@ -14,6 +16,13 @@ T wrap(T angle) {
         angle += boost::math::constants::two_pi<T>();
     }
     return angle;
+}
+
+template <typename T>
+constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
+    // TODO: Replace this with std::clamp once gcc-arm-none-eabi supports it.
+    debug_assert(hi > lo, "hi must be greater than lo");
+    return std::min(std::max(v, lo), hi);
 }
 
 /*
@@ -36,4 +45,4 @@ T encoder_rate(const EncoderFoaw<T, N>& encoder) {
     auto rev = static_cast<std::make_signed<enccnt_t>::type>(encoder.config().counts_per_rev);
     return static_cast<T>(encoder.velocity()) / rev * boost::math::constants::two_pi<T>();
 }
-} // namespace angle
+} // namespace util

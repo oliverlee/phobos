@@ -22,9 +22,9 @@
 #include "encoderfoaw.h"
 
 #include "gitsha1.h"
-#include "angle.h"
 #include "filesystem.h"
 #include "saconfig.h"
+#include "utility.h"
 
 #include "packet/serialize.h"
 #include "packet/frame.h"
@@ -41,9 +41,11 @@
 #include "simbicycle.h"
 
 namespace {
-    using bicycle_t = sim::Bicycle<model::BicycleWhipple,
-                                   observer::Kalman<model::BicycleWhipple>,
-                                   haptic::HandlebarStatic>;
+    using model_t = model::BicycleWhipple;
+    using observer_t = observer::Kalman<model_t>;
+    using haptic_t = haptic::HandlebarStatic;
+    using bicycle_t = sim::Bicycle<model_t, observer_t, haptic_t>;
+
     /* sensors */
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
@@ -54,11 +56,12 @@ namespace {
 
     std::array<uint8_t, SimulationMessage_size> encode_buffer;
 
-    dacsample_t set_handlebar_torque(float handlebar_torque) {
-        int32_t saturated_value = (handlebar_torque/sa::MAX_KOLLMORGEN_TORQUE * 2048) + 2048;
-        saturated_value = std::min<int32_t>(std::max<int32_t>(saturated_value, 0), 4096);
-        dacsample_t aout = static_cast<dacsample_t>(saturated_value);
-        dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+    dacsample_t set_handlebar_velocity(float velocity) {
+        // limit velocity to a maximum magnitude of 100 deg/s
+        // input is in units of rad/s
+        const float saturated_velocity = util::clamp(velocity, -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
+        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
+        dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
         return aout;
     }
 } // namespace
@@ -161,31 +164,33 @@ int main(void) {
         constexpr float roll_torque = 0;
 
         /* get torque measurements */
-        const float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
+        const float steer_torque = static_cast<float>(
+                analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/(sa::ADC_HALF_RANGE*2) -
                 sa::MAX_KISTLER_TORQUE);
         const float motor_torque = static_cast<float>(
-                analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
+                analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/(sa::ADC_HALF_RANGE*2) -
                 sa::MAX_KOLLMORGEN_TORQUE);
         (void)motor_torque; /* this isn't currently used */
 
         /* get angle measurements */
-        const float yaw_angle = angle::wrap(bicycle.pose().yaw);
-        const float steer_angle = angle::encoder_count<float>(encoder_steer);
-        const float rear_wheel_angle = -angle::encoder_count<float>(encoder_rear_wheel);
+        const float yaw_angle = util::wrap(bicycle.pose().yaw);
+        const float steer_angle = util::encoder_count<float>(encoder_steer);
+        const float rear_wheel_angle = -util::encoder_count<float>(encoder_rear_wheel);
 
         /* observer time/measurement update (~80 us with real_t = float) */
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
         bicycle.update_kinematics();
 
-        const float feedback_torque = bicycle.handlebar_feedback_torque();
-        const dacsample_t feedback_torque_dac = set_handlebar_torque(feedback_torque);
+        const float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
+                model_t::state_index_t::steer_rate);
+        const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
 
         sample = simulation_message_zero;
         sample.timestamp = chSysGetRealtimeCounterX();
         message::set_simulation_sensors(&sample,
                 analog.get_adc12(), analog.get_adc13(),
                 encoder_steer.count(), encoder_rear_wheel.count());
-        message::set_simulation_actuators(&sample, feedback_torque_dac);
+        message::set_simulation_actuators(&sample, handlebar_velocity_dac);
 
         // TODO: fix sleep amount
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.dt()));

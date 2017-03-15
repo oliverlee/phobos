@@ -51,7 +51,7 @@ message SensorMessage {
 }
 
 message ActuatorMessage {
-    required uint32 kollmorgen_command_torque = 1;
+    required uint32 kollmorgen_command_velocity = 1;
 }
 
 // symmetric 5x5 matrix

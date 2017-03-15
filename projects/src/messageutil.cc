@@ -109,8 +109,8 @@ void set_simulation_sensors(SimulationMessage* pb,
 }
 
 void set_simulation_actuators(SimulationMessage* pb,
-        uint32_t commanded_feedback_torque) {
-    pb->actuators.kollmorgen_command_torque = commanded_feedback_torque;
+        uint32_t commanded_feedback_velocity) {
+    pb->actuators.kollmorgen_command_velocity = commanded_feedback_velocity;
     pb->has_actuators = true;
 }
 

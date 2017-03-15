@@ -21,10 +21,10 @@
 #include "encoder.h"
 
 #include "gitsha1.h"
-#include "angle.h"
 #include "blink.h"
 #include "usbconfig.h"
 #include "saconfig.h"
+#include "utility.h"
 
 #include "parameters.h"
 
@@ -115,9 +115,9 @@ int main(void) {
         float motor_torque = static_cast<float>(
                 analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
                 sa::MAX_KOLLMORGEN_TORQUE);
-        float steer_angle = angle::encoder_count<float>(encoder_steer);
-        float roller_angle = angle::encoder_count<float>(encoder_roller);
-        float forward_velocity = sa::REAR_WHEEL_RADIUS*(angle::encoder_rate(encoder_roller))*sa::ROLLER_TO_REAR_WHEEL_RATIO;
+        float steer_angle = util::encoder_count<float>(encoder_steer);
+        float roller_angle = util::encoder_count<float>(encoder_roller);
+        float forward_velocity = sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_roller))*sa::ROLLER_TO_REAR_WHEEL_RATIO;
 
         /* generate an example torque output for testing */
         float feedback_torque = 10.0f * std::sin(

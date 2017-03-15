@@ -5,6 +5,9 @@
 /* sensor and actuator configuration constants */
 namespace sa {
 
+constexpr adcsample_t ADC_HALF_RANGE = (1 << 12)/2; // ADC is 12-bit
+constexpr dacsample_t DAC_HALF_RANGE = (1 << 12)/2; // DAC is 12-bit
+
 constexpr GPTDriver* RLS_ROLIN_ENC = &GPTD5;
 
 constexpr EncoderConfig RLS_ROLIN_ENC_CFG = {
@@ -18,7 +21,7 @@ constexpr EncoderConfig RLS_ROLIN_ENC_INDEX_CFG = {
     .z = PAL_LINE(GPIOA, GPIOA_PIN2),
     .counts_per_rev = 152000,
     .filter = EncoderConfig::filter_t::CAPTURE_64, // 64 / 42 MHz (TIM5 on APB1) = 1.52 us for valid edge
-    .z_count = 20926
+    .z_count = 18407
 };
 
 
@@ -34,21 +37,21 @@ constexpr EncoderConfig RLS_GTS35_ENC_CFG = {
     .z_count = 0
 };
 
-constexpr float MAX_KISTLER_TORQUE = 50.0f; // maximum measured steer torque, N-m
-constexpr adcsample_t KISTLER_ADC_ZERO_OFFSET = 2047; // ADC value for zero torque, found experimentally
-
 /*
  * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
  * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
  */
+constexpr float MAX_KISTLER_TORQUE = 50.0f; // maximum measured steer torque, N-m
+constexpr adcsample_t KISTLER_ADC_ZERO_OFFSET = 2047; // ADC value for zero torque, found experimentally
+
+constexpr float MAX_KOLLMORGEN_VELOCITY = 1.74533f; // max velocity of 100 deg/s in rad/s
 constexpr float MAX_KOLLMORGEN_TORQUE = 10.78f; // max torque at 1.00 Arms/V, N-m
-constexpr dacsample_t KOLLMORGEN_DAC_ZERO_OFFSET = 2048 - 155; // DAC value for zero torque, found experimentally
 constexpr adcsample_t KOLLMORGEN_ADC_ZERO_OFFSET = 2026; // ADC value for zero torque, found experimentally
 
 constexpr DACDriver* KOLLM_DAC = &DACD1;
 
 constexpr DACConfig dac1cfg1 = {
-     .init       = 2047U, // max value is 4095 (12-bit)
+     .init       = DAC_HALF_RANGE,
      .datamode   = DAC_DHRM_12BIT_RIGHT
 };
 constexpr const DACConfig* KOLLM_DAC_CFG = &dac1cfg1;

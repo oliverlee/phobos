@@ -17,11 +17,11 @@ SENSOR_LABELS = ['kistler measured torque', 'kollmorgen actual torque',
 STATE_COLOR = np.roll(sns.color_palette('Paired', 10), 2, axis=0)
 
 # adc/dac values are 12-bit
-def bits_to_Nm(data, max_torque, offset=None):
+def bits_to_si(data, max_si_unit, zero_offset=None):
     half_full_range = 2**11
-    if offset is None:
-        offset = half_full_range
-    return (data.astype(float) - offset)/half_full_range * max_torque
+    if zero_offset is None:
+        zero_offset = half_full_range
+    return (data.astype(float) - zero_offset)/half_full_range * max_si_unit
 
 
 def handlebar_inertia_torque(records, A):
@@ -42,14 +42,21 @@ def plot_states(t, states, second_yaxis=False, to_degrees=True):
     if second_yaxis:
         ax2 = ax1.twinx()
     for i, label in enumerate(STATE_LABELS):
-        linestyle = 'solid'
+        linewidth = 0.9 * 2.5
+        color = STATE_COLOR[1 + 2*i]
+
         if second_yaxis and label.endswith('rate'):
             ax = ax2
-            linestyle = 'dashed'
+            linewidth = 0.6 * 2.5
         else:
             ax = ax1
-        l = ax.plot(t, states[:, i], label=label, color=STATE_COLOR[1 + 2*i],
-                    linestyle=linestyle)
+        if second_yaxis:
+            color_order = [3, 7, 2, 6]
+            color = STATE_COLOR[color_order[i]]
+            ax.yaxis.grid(False)
+
+        l = ax.plot(t, states[:, i], label=label, color=color,
+                    linewidth=linewidth)
         lines.extend(l)
 
     if second_yaxis:
@@ -139,18 +146,18 @@ if __name__ == '__main__':
     ax2.plot(t, encoder_rate, label='encoder rate', color=STATE_COLOR[2*index])
     ax2.plot(t, steer_accel, label='estimated steer accel',
              color=STATE_COLOR[1])
+    ax2.plot(t, bits_to_si(records.actuators.kollmorgen_command_velocity,
+                           sa.MAX_KOLLMORGEN_VELOCITY)*180/np.pi,
+             label='kollmorgen command velocity', color=STATE_COLOR[9])
     ax2.set_ylabel('deg, deg/s')
     ax2.set_xlabel('time [s]')
     ax2.legend()
 
     fig3, ax3 = plt.subplots()
-    ax3.plot(t, bits_to_Nm(records.actuators.kollmorgen_command_torque,
-                           sa.MAX_KOLLMORGEN_TORQUE, sa.KOLLMORGEN_DAC_ZERO_OFFSET),
-             label='kollmorgen command torque', color=STATE_COLOR[9])
-    ax3.plot(t, bits_to_Nm(records.sensors.kollmorgen_actual_torque,
+    ax3.plot(t, bits_to_si(records.sensors.kollmorgen_actual_torque,
                            sa.MAX_KOLLMORGEN_TORQUE, sa.KOLLMORGEN_ADC_ZERO_OFFSET),
-             label=SENSOR_LABELS[1], color=STATE_COLOR[8])
-    ax3.plot(t, bits_to_Nm(records.sensors.kistler_measured_torque,
+             label=SENSOR_LABELS[1], color=STATE_COLOR[9])
+    ax3.plot(t, bits_to_si(records.sensors.kistler_measured_torque,
                            sa.MAX_KISTLER_TORQUE, sa.KISTLER_ADC_ZERO_OFFSET),
              label=SENSOR_LABELS[0], color=STATE_COLOR[5])
     ax3.plot(t, records.input[:, 1], label='steer torque', color=STATE_COLOR[3])

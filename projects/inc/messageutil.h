@@ -56,7 +56,7 @@ namespace message {
             uint32_t measured_steer_torque, uint32_t measured_motor_torque,
             uint32_t steer_encoder_count, uint32_t rear_wheel_encoder_count);
     void set_simulation_actuators(SimulationMessage* pb,
-            uint32_t commanded_feedback_torque);
+            uint32_t commanded_feedback_velocity);
     void set_simulation_timing(SimulationMessage* pb,
             uint32_t computation_time, uint32_t transmission_time);
 
