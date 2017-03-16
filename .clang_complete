@@ -1,2 +1,6 @@
+-std=c++14
 -Iinc
---std=c++14
+-Iexternal/ChibiOS/os/rt/include
+-Iexternal/ChibiOS/os/hal/include
+-Iexternal/asio/asio/include
+-Ibuild/tools
