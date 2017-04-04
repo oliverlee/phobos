@@ -62,14 +62,14 @@ namespace cobs {
         const Status status;
 
         /**
-        If the status is OK, the number of bytes that were written to dst_start.
-        Otherwise it is set to 0.
+        If the status is OK or UNEXPECTED_ZERO, the number of bytes that were
+        read from src_start. Otherwise it is set to 0.
         */
         const size_t consumed;
 
         /**
-        If the status is OK or UNEXPECTED_ZERO, the number of bytes that were
-        read from src_start. Otherwise it is set to 0.
+        If the status is OK, the number of bytes that were written to dst_start.
+        Otherwise it is set to 0.
         */
         const size_t produced;
     };
