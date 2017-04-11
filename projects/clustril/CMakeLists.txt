@@ -29,6 +29,5 @@ add_phobos_executable(clustril
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc
-    ${PHOBOS_SOURCE_DIR}/src/packet/frame.cc
     ${PROTOBUF_GENERATED_SOURCE}
     ${BICYCLE_SOURCE})

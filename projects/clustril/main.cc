@@ -27,7 +27,6 @@
 #include "utility.h"
 
 #include "packet/serialize.h"
-#include "packet/frame.h"
 #include "simulation.pb.h"
 #include "messageutil.h"
 
