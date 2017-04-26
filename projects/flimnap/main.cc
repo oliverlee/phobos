@@ -334,6 +334,7 @@ int main(void) {
                 encoder_steer.count(), encoder_rear_wheel.count());
         message::set_simulation_timing(&msg,
                 computation_time_measurement.last, transmission_time_measurement.last);
+        message::set_simulation_pose(&msg, bicycle);
         size_t bytes_written = write_message_to_encode_buffer(msg);
 
         // transmit message
