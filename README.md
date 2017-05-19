@@ -19,7 +19,7 @@ Ubuntu, this can be installed with the `gcc-multilib` package.
 
 ## Dependencies
 The only dependency required for building is protobuf. The protobuf libraries,
-compiler, and python bindings must be installed. On OSX this can be done with
+compiler, and python bindings must be installed. On macOS this can be done with
 brew (optionally with c++11 support)
 
     oliver@canopus:~$ brew install protobuf --c++11
@@ -56,8 +56,8 @@ the build tree has been created.
 The compiled ELF can be flashed to the microcontroller by enabling the
 `OPENOCD_FLASH_TARGET` or `OPENOCD_FLASH_AND_RUN_TARGET` CMake options.
 
-If you are running OSX and unable to flash successfully with CMake, OpenOCD may
-be requesting to receive incoming network connections. This can be done by
+If you are running macOS and unable to flash successfully with CMake, OpenOCD
+may be requesting to receive incoming network connections. This can be done by
 signing the application:
 
     oliver@canopus:~$ codesign --verify -vv /usr/local/Cellar/open-ocd/HEAD/bin/openocd
@@ -173,7 +173,7 @@ For general instructions refer to the ChibiOS/Eclipse guides [part
   Development' category of available software.
 - 'EmbSysRegView' can be found in 'Help->Eclipse Marketplace'.
 - Copy ChibiOS jar files found in eclipse/dropins to the Eclipse dropins
-  directory. For OSX, this is located at
+  directory. For macOS, this is located at
   `/Applications/Eclipse.app/Contents/Eclipse/dropins/`
 
 ## Demo and Project descriptions
