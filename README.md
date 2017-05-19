@@ -20,9 +20,20 @@ Ubuntu, this can be installed with the `gcc-multilib` package.
 ## Dependencies
 The only dependency required for building is protobuf. The protobuf libraries,
 compiler, and python bindings must be installed. On macOS this can be done with
-brew (optionally with c++11 support)
+brew.
 
-    oliver@canopus:~$ brew install protobuf --c++11
+    oliver@canopus:~$ brew install protobuf --with-test
+
+If you primarily use Python 3, a different compiler must be used to build
+the protobuf libraries, compiler, python bindings, the python binding
+compilation will fail with apple clang and the same compiler must be used to
+build all components. Assuming you want to use gcc-7, this can be done in brew
+with
+
+    oliver@canopus:~$ brew install --cc=gcc-7 protobuf --with-test --with-python3
+
+or by defining the environment variables `CC=gcc-7 CXX=g++-7` if building from
+source.
 
 On Ubuntu, this can be installed from the official repositories
 
