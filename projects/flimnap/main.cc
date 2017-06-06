@@ -288,7 +288,7 @@ int main(void) {
         const float roll_torque = ((bicycle.v() < assistive_velocity_limit) ||
                                    (std::abs(model_t::get_state_element(bicycle.observer().state(),
                                                                         model_t::state_index_t::roll_angle)) >
-                                             assistive_velocity_limit)) ?
+                                             assistive_roll_angle_limit)) ?
                                     model_t::get_input_element(controller.control_calculate(bicycle.observer().state()),
                                         model_t::input_index_t::roll_torque) :
                                     0.0f;
