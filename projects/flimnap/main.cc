@@ -285,13 +285,15 @@ int main(void) {
         // simulate bicycle
         bicycle.set_v(v);
         // calculate assistive torque
-        const float roll_torque = ((bicycle.v() < assistive_velocity_limit) ||
-                                   (std::abs(model_t::get_state_element(bicycle.observer().state(),
-                                                                        model_t::state_index_t::roll_angle)) >
-                                             assistive_roll_angle_limit)) ?
-                                    model_t::get_input_element(controller.control_calculate(bicycle.observer().state()),
-                                        model_t::input_index_t::roll_torque) :
-                                    0.0f;
+        float roll_torque = 0.0f;
+        if ( (bicycle.v() < assistive_velocity_limit) ||
+             (std::abs(model_t::get_state_element(bicycle.observer().state(),
+                                                  model_t::state_index_t::roll_angle)) >
+                                             assistive_roll_angle_limit) ) {
+            const model_t::input_t u = controller.control_calculate(bicycle.observer().state());
+            roll_torque = model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+            // TODO: logging here
+        }
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
