@@ -65,7 +65,7 @@ void Bicycle<Model, Observer>::update_dynamics(real_t roll_torque_input, real_t 
     //
     //  This could also be used to determine the wheel angles, as we assume
     //  no-slip conditions. However, we calculate the wheel angles during the
-    //  kinematic  update and solely from bicycle velocity.
+    //  kinematic update and solely from bicycle velocity.
     (void)rear_wheel_angle_measurement;
 
     m_input = input_t::Zero();
@@ -87,29 +87,6 @@ void Bicycle<Model, Observer>::update_dynamics(real_t roll_torque_input, real_t 
 
     if (!m_observer.state().allFinite()) {
         chSysHalt("");
-    }
-
-    { // limit allowed bicycle state
-        state_t x = m_observer.state();
-
-        auto limit_state_element = [&x](model::Bicycle::state_index_t index, real_t limit) {
-            const real_t value = model::Bicycle::get_state_element(x, index);
-            if (std::abs(value) > limit) {
-                model::Bicycle::set_state_element(x, index, std::copysign(limit, value));
-            }
-        };
-
-        real_t roll_angle = model_t::get_state_element(m_observer.state(),
-                model_t::state_index_t::roll_angle);
-        if (std::abs(roll_angle) > constants::pi) {
-            // state normalization limits angles to the range [-2*pi, 2*pi]
-            roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
-        }
-
-        limit_state_element(model_t::state_index_t::roll_rate, roll_rate_limit);
-        limit_state_element(model_t::state_index_t::steer_rate, steer_rate_limit);
-
-        m_observer.set_state(x);
     }
 
     // Merge observer and model states
