@@ -210,14 +210,14 @@ int main(void) {
     // namely at low speed and at "large" roll angles.
     lqr_t controller(bicycle.model(),
             (lqr_t::state_cost_t() <<
-             0,    0, 0,    0, 0,              // no yaw angle penalty
-             0, 1000, 0,    0, 0,              // large roll angle penalty
-             0,    0, 0,    0, 0,              // no steer angle penalty
-             0,    0, 0,   10, 0,              // smaller roll rate penalty
-             0,    0, 0,    0, 0).finished(),  // no steer rate penalty
+             0, 0, 0, 0, 0,                     // no yaw angle penalty
+             0, 100000, 0, 0, 0,                // large roll angle penalty
+             0, 0, 1000, 0, 0,                  // small steer angle penalty
+             0, 0, 0, 1000, 0,                  // small roll rate penalty
+             0, 0, 0, 0, 100).finished(),       // small steer rate penalty
             (lqr_t::input_cost_t() <<
-             1, 0,                          // enable roll torque cost
-             0, 0).finished(),              // disable steer control
+             1, 0,                              // enable roll torque cost
+             0, 10).finished(),                 // enable steer control
             model_t::state_t::Zero(),           // reference state
             1);                                 // horizon length in iterations
 
@@ -275,11 +275,11 @@ int main(void) {
 
         // calculate rider applied torque
 #if defined(FLIMNAP_ZERO_INPUT)
-        const float steer_torque = 0.0f;
+        float steer_torque = 0.0f;
         (void)kistler_torque;
 #else // defined(FLIMNAP_ZERO_INPUT)
         const float inertia_torque = -handlebar_model.torque(bicycle.observer().state());
-        const float steer_torque = kistler_torque - inertia_torque;
+        float steer_torque = kistler_torque - inertia_torque;
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
         // simulate bicycle
@@ -293,12 +293,15 @@ int main(void) {
                                              assistive_roll_angle_limit) ) {
             const model_t::input_t u = controller.control_calculate(bicycle.observer().state());
             roll_torque = model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+            if (bicycle.v() == 0.0f) {
+                steer_torque += model_t::get_input_element(u, model_t::input_index_t::steer_torque);
+            }
             assistive_torque = true;
         }
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
+        float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
                 model_t::state_index_t::steer_rate);
         const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
