@@ -95,6 +95,7 @@ message BicycleLqrMessage {
     optional SymmetricStateMatrixMessage state_cost =   3;
     optional SymmetricInputMatrixMessage input_cost =   4;
     optional LqrGainMatrixMessage lqr_gain =            5;
+    optional StateMatrixMessage horizon_cost =          6;
 }
 
 // 2x2 matrix
