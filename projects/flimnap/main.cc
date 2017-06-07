@@ -69,7 +69,7 @@ namespace {
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
 
     // dynamics loop
-    constexpr systime_t dynamics_loop_period = MS2ST(1); // 1 ms -> 1 kHz
+    constexpr systime_t dynamics_loop_period = MS2ST(2); // 2 ms -> 500 Hz
 
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
