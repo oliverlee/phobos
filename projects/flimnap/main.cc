@@ -321,8 +321,10 @@ int main(void) {
                     msg->has_kalman = true;
                 }
                 if (assistive_torque) {
+                    msg.lqr.horizon_iterations = controller.horizon_iterations();
                     message::set_controller_gain_matrix<lqr_t>(&msg.lqr.lqr_gain, controller.K());
                     message::set_state_matrix(&msg.lqr.horizon_cost, controller.P());
+                    msg.lqr.has_horizon_iterations = true;
                     msg.lqr.has_lqr_gain = true;
                     msg.lqr.has_horizon_cost = true;
                     msg.has_lqr = true;
