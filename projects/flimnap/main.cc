@@ -219,7 +219,7 @@ int main(void) {
              1, 0,                              // enable roll torque cost
              0, 0).finished(),                  // disable steer control
             model_t::state_t::Zero(),           // reference state
-            MS2ST(10)/looptime);                // horizon length in iterations
+            1);                                 // horizon length in iterations
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
