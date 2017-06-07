@@ -1,4 +1,5 @@
 #include <exception>
+#include <functional>
 #include <fstream>
 #include <iostream>
 #include <string>
