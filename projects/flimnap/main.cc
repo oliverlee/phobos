@@ -210,16 +210,16 @@ int main(void) {
     // namely at low speed and at "large" roll angles.
     lqr_t controller(bicycle.model(),
             (lqr_t::state_cost_t() <<
-             0, 0, 0,   0,   0,                                         // no yaw angle penalty
-             0, 1, 0,   0,   0,                                         // roll angle penalty
-             0, 0, 0,   0,   0,                                         // no steer angle penalty
-             0, 0, 0, 0.1,   0,                                         // small roll rate penalty
-             0, 0, 0,   0, 0.1).finished(),                             // small steer rate penalty
+             0, 0, 0,   0,   0,                 // no yaw angle penalty
+             0, 1, 0,   0,   0,                 // roll angle penalty
+             0, 0, 0,   0,   0,                 // no steer angle penalty
+             0, 0, 0, 0.1,   0,                 // small roll rate penalty
+             0, 0, 0,   0, 0.1).finished(),     // small steer rate penalty
             (lqr_t::input_cost_t() <<
-             1, 0,                                                      // enable roll torque cost
-             0, 0).finished(),                                          // disable steer control
-            model_t::state_t::Zero(),                                   // reference state
-            static_cast<model::real_t>(MS2ST(10))/CH_CFG_ST_FREQUENCY); // horizon length
+             1, 0,                              // enable roll torque cost
+             0, 0).finished(),                  // disable steer control
+            model_t::state_t::Zero(),           // reference state
+            MS2ST(10)/looptime);                // horizon length in iterations
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
