@@ -286,13 +286,14 @@ int main(void) {
         bicycle.set_v(v);
         // calculate assistive torque
         float roll_torque = 0.0f;
+        bool assistive_torque = false;
         if ( (bicycle.v() < assistive_velocity_limit) ||
              (std::abs(model_t::get_state_element(bicycle.observer().state(),
                                                   model_t::state_index_t::roll_angle)) >
                                              assistive_roll_angle_limit) ) {
             const model_t::input_t u = controller.control_calculate(bicycle.observer().state());
             roll_torque = model_t::get_input_element(u, model_t::input_index_t::roll_torque);
-            // TODO: logging here
+            assistive_torque = true;
         }
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
@@ -318,6 +319,12 @@ int main(void) {
                 if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
                     message::set_kalman_gain(&msg->kalman, bicycle.observer());
                     msg->has_kalman = true;
+                }
+                if (assistive_torque) {
+                    //lqr_t::lqr_gain_t K = controller.K();
+                    message::set_controller_gain_matrix<lqr_t>(&msg.lqr.lqr_gain, controller.K());
+                    msg.lqr.has_lqr_gain = true;
+                    msg.has_lqr = true;
                 }
                 message::set_simulation_actuators(msg, handlebar_velocity_dac);
                 message::set_simulation_sensors(msg,
