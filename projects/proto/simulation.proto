@@ -20,6 +20,8 @@ message SimulationMessage {
     optional TimingMessage timing = 11;
 
     optional float feedback_torque = 12;
+
+    optional BicycleLqrMessage lqr = 13;
 }
 
 message FirmwareVersion {
@@ -64,6 +66,11 @@ message SymmetricOutputMatrixMessage {
     repeated float m = 1;
 }
 
+// symmetric 2x2 matrix
+message SymmetricInputMatrixMessage {
+    repeated float m = 1;
+}
+
 // 5x2 matrix
 message KalmanGainMatrixMessage {
     repeated float m = 1;
@@ -75,6 +82,19 @@ message BicycleKalmanMessage {
     optional SymmetricStateMatrixMessage process_noise_covariance =        3;
     optional SymmetricOutputMatrixMessage measurement_noise_covariance =   4;
     optional KalmanGainMatrixMessage kalman_gain =                         5;
+}
+
+// 2x5 matrix
+message LqrGainMatrixMessage {
+    repeated float m = 1;
+}
+
+message BicycleLqrMessage {
+    optional BicycleStateMessage state_reference =      1;
+    optional uint32 horizon_iterations =                2;
+    optional SymmetricStateMatrixMessage state_cost =   3;
+    optional SymmetricInputMatrixMessage input_cost =   4;
+    optional LqrGainMatrixMessage lqr_gain =            5;
 }
 
 // 2x2 matrix
