@@ -210,14 +210,14 @@ int main(void) {
     // namely at low speed and at "large" roll angles.
     lqr_t controller(bicycle.model(),
             (lqr_t::state_cost_t() <<
-             0, 0, 0,   0,   0,                 // no yaw angle penalty
-             0, 1, 0,   0,   0,                 // roll angle penalty
-             0, 0, 0,   0,   0,                 // no steer angle penalty
-             0, 0, 0, 0.1,   0,                 // small roll rate penalty
-             0, 0, 0,   0, 0.1).finished(),     // small steer rate penalty
+             0,     0, 0,    0, 0,              // no yaw angle penalty
+             0, 10000, 0,    0, 0,              // large roll angle penalty
+             0,     0, 0,    0, 0,              // no steer angle penalty
+             0,     0, 0, 1000, 0,              // smaller roll rate penalty
+             0,     0, 0,    0, 0).finished(),  // no steer rate penalty
             (lqr_t::input_cost_t() <<
-             1, 0,                              // enable roll torque cost
-             0, 0).finished(),                  // disable steer control
+             0.001, 0,                          // enable roll torque cost
+                 0, 0).finished(),              // disable steer control
             model_t::state_t::Zero(),           // reference state
             1);                                 // horizon length in iterations
 
