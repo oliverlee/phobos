@@ -50,7 +50,7 @@ set(NANOPB_SRC_ROOT_FOLDER ${PROJECT_SOURCE_DIR}/external/nanopb)
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GITSHA1)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1z")
 
 ## Define macro for phobos project executable
 # This macro adds common sources for all targets in this project and
@@ -72,6 +72,8 @@ macro(add_phobos_executable target_name)
             if(USE_BICYCLE_EIGEN3_SUBMODULE)
                 set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated")
             endif()
+            # suppress ChibiOS usb serial warning
+            set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-maybe-uninitialized")
             math(EXPR source_file_properties_modified
                 "${source_file_properties_modified} + 1")
         endif()
