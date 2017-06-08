@@ -97,6 +97,7 @@ macro(add_phobos_executable target_name)
     if(USE_BICYCLE_BOOST_SUBMODULE)
         # suppress boost undef warnings
         set_property(SOURCE ${BICYCLE_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
+        set_property(SOURCE ${ARGN} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-misleading-indentation")
     endif()
     if(USE_BICYCLE_EIGEN3_SUBMODULE)
         # Any request from Eigen to allocate memory from heap results in an assertion failure
