@@ -19,8 +19,8 @@ set(CMAKE_C_FLAGS_DEBUG "-gdwarf-4 -fvar-tracking-assignments -Og")
 set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4 -fvar-tracking-assignments -Og")
 
 # Always use release flags for bicycle sources
-#set_property(SOURCE ${BICYCLE_SOURCE}
-#    APPEND_STRING PROPERTY COMPILE_FLAGS ${CMAKE_CXX_FLAGS_RELEASE})
+set_property(SOURCE ${BICYCLE_SOURCE}
+    APPEND_STRING PROPERTY COMPILE_FLAGS " ${CMAKE_CXX_FLAGS_RELEASE}")
 
 set(FLIMNAP_COMMON_SRC
     chconf.h
@@ -41,6 +41,8 @@ set(FLIMNAP_COMMON_SRC
 
 # suppress warnings that protobuf fields do not match original declarations when using LTO
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-lto-type-mismatch")
+# suppress warnings from ChibiOS serial USB
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-maybe-uninitialized")
 
 if(PHOBOS_BUILD_PROJECT_FLIMNAP_WHIPPLE)
 add_phobos_executable(flimnap_whipple ${FLIMNAP_COMMON_SRC})

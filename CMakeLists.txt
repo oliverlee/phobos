@@ -72,8 +72,6 @@ macro(add_phobos_executable target_name)
             if(USE_BICYCLE_EIGEN3_SUBMODULE)
                 set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated")
             endif()
-            # suppress ChibiOS usb serial warning
-            set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-maybe-uninitialized")
             math(EXPR source_file_properties_modified
                 "${source_file_properties_modified} + 1")
         endif()
@@ -91,9 +89,9 @@ macro(add_phobos_executable target_name)
             math(EXPR source_file_properties_modified
                 "${source_file_properties_modified} + 1")
         endif()
-        if(source_file_properties_modified GREATER 2)
-            break()
-        endif()
+        #if(source_file_properties_modified GREATER 2)
+        #    break()
+        #endif()
     endforeach()
 
     if(USE_BICYCLE_BOOST_SUBMODULE)
