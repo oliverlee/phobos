@@ -148,6 +148,11 @@ void Bicycle<Model, Observer, Haptic>::update_kinematics() {
     model_t::set_full_state_element(m_state_full, full_state_index_t::pitch_angle, pitch);
     chBSemSignal(&m_state_sem);
 
+    // mod rear wheel angle so it does not grow beyond all bounds
+    model_t::set_full_state_element(m_state_full, full_state_index_t::rear_wheel_angle,
+            std::fmod(model_t::get_full_state_element(x, full_state_index_t::rear_wheel_angle),
+                      constants::two_pi)),
+
     m_pose.timestamp = chVTGetSystemTime();
     m_pose.x = model_t::get_full_state_element(x, full_state_index_t::x);
     m_pose.y = model_t::get_full_state_element(x, full_state_index_t::y);

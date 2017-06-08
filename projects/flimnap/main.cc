@@ -289,7 +289,8 @@ int main(void) {
         const float motor_torque = adc_to_nm(analog.get_adc13(),
                 sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
         const float steer_angle = util::encoder_count<float>(encoder_steer);
-        const float rear_wheel_angle = -util::encoder_count<float>(encoder_rear_wheel);
+        const float rear_wheel_angle = std::fmod(-util::encoder_count<float>(encoder_rear_wheel),
+                                                 constants::two_pi);
         const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_rear_wheel)));
         (void)motor_torque; // not currently used
