@@ -18,6 +18,10 @@ set_property(SOURCE
 set(CMAKE_C_FLAGS_DEBUG "-gdwarf-4 -fvar-tracking-assignments -Og")
 set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4 -fvar-tracking-assignments -Og")
 
+# Always use release flags for bicycle sources
+set_property(SOURCE ${BICYCLE_SOURCE}
+    APPEND_STRING PROPERTY COMPILE_FLAGS ${CMAKE_CXX_FLAGS_RELEASE})
+
 set(FLIMNAP_COMMON_SRC
     chconf.h
     halconf.h
