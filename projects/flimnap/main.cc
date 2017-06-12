@@ -144,24 +144,6 @@ namespace {
         }
     };
 
-
-    THD_WORKING_AREA(wa_kinematics_thread, 2048);
-    THD_FUNCTION(kinematics_thread, arg) {
-        bicycle_t& bicycle = *static_cast<bicycle_t*>(arg);
-
-        chRegSetThreadName("kinematics");
-        while (true) {
-            systime_t starttime = chVTGetSystemTime();
-            update_and_transmit_kinematics(bicycle);
-            systime_t sleeptime = kinematics_loop_time + starttime - chVTGetSystemTime();
-            if (sleeptime >= kinematics_loop_time) {
-                continue;
-            } else {
-                chThdSleep(sleeptime);
-            }
-        }
-    }
-
     size_t write_message_to_encode_buffer(const SimulationMessage& m) {
         const size_t encode_buffer_len = packet::serialize::encode_delimited(
             m,
@@ -182,6 +164,34 @@ namespace {
         chDbgAssert(encode_result.status == cobs::EncodeResult::Status::OK, "Expected encoding to succeed.");
 
         return encode_result.produced;
+    }
+
+    THD_WORKING_AREA(wa_kinematics_thread, 2048);
+    THD_FUNCTION(kinematics_thread, arg) {
+        bicycle_t& bicycle = *static_cast<bicycle_t*>(arg);
+
+        chRegSetThreadName("kinematics");
+        while (true) {
+            systime_t starttime = chVTGetSystemTime();
+            update_and_transmit_kinematics(bicycle);
+            systime_t sleeptime = kinematics_loop_time + starttime - chVTGetSystemTime();
+            if (sleeptime >= kinematics_loop_time) {
+                continue;
+            } else {
+                chThdSleep(sleeptime);
+            }
+        }
+    }
+
+    THD_WORKING_AREA(wa_transmission_thread, 2048);
+    THD_FUNCTION(transmission_thread, arg) {
+        (void)arg;
+
+        chRegSetThreadName("transmission");
+        while (true) {
+            // sleep for 1 ms to allow processing of other threads
+            chThdSleep(MS2ST(1));
+        }
     }
 } // namespace
 
@@ -277,6 +287,8 @@ int main(void) {
     // dynamics in real-time (roughly).
     chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread),
             NORMALPRIO - 1, kinematics_thread, static_cast<void*>(&bicycle));
+    chThdCreateStatic(wa_transmission_thread, sizeof(wa_transmission_thread),
+            NORMALPRIO - 2, transmission_thread, nullptr);
     systime_t deadline = chVTGetSystemTime();
     while (true) {
         systime_t starttime = chVTGetSystemTime();
