@@ -97,26 +97,6 @@ namespace {
         return static_cast<float>(shifted_value)*magnitude/static_cast<float>(sa::ADC_HALF_RANGE);
     }
 
-    void update_and_transmit_pose(bicycle_t& bicycle) {
-        bicycle.update_kinematics();
-        //
-        //TODO: Pose message should be transmitted asynchronously.
-        //After starting transmission, the simulation should start to calculate pose for the next timestep.
-        //This is currently not necessary given the observed timings.
-        //
-        //size_t bytes_encoded = packet::serialize::encode_delimited(bicycle.pose(),
-        //        encode_buffer.data(), encode_buffer.size());
-        //TODO: clear message
-        //message::set_simulation_loop_values(&msg, bicycle);
-        //size_t bytes_encoded = packet::serialize::encode_delimited(
-        //        msg, encode_buffer.data(), encode_buffer.size());
-        //size_t bytes_written = packet::frame::stuff(
-        //        encode_buffer.data(), packet_buffer.data(), bytes_encoded);
-        //if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-        //    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-        //}
-    }
-
     template <typename T>
     struct observer_initializer{
         template <typename S = T>
@@ -166,14 +146,21 @@ namespace {
         return encode_result.produced;
     }
 
+    struct pose_thread_arg {
+        bicycle_t& bicycle;
+        mailbox_t& tx_mailbox;
+    };
     THD_WORKING_AREA(wa_pose_thread, 2048);
     THD_FUNCTION(pose_thread, arg) {
-        bicycle_t& bicycle = *static_cast<bicycle_t*>(arg);
+        pose_thread_arg* a = static_cast<pose_thread_arg*>(arg);
 
         chRegSetThreadName("pose");
         while (true) {
             systime_t starttime = chVTGetSystemTime();
-            update_and_transmit_pose(bicycle);
+            a->bicycle.update_kinematics();
+            //TODO encode pose message
+            chMBPost(&a->tx_mailbox, (msg_t)0, TIME_IMMEDIATE);
+
             systime_t sleeptime = pose_loop_time + starttime - chVTGetSystemTime();
             if (sleeptime >= pose_loop_time) {
                 continue;
@@ -183,14 +170,24 @@ namespace {
         }
     }
 
+    // Transmission thread definitions
+    constexpr std::size_t TX_MSG_BUFFER_SIZE = 4;
+    mailbox_t tx_mailbox;
+    std::array<msg_t, TX_MSG_BUFFER_SIZE> tx_msg_buffer;
+
     THD_WORKING_AREA(wa_transmission_thread, 2048);
     THD_FUNCTION(transmission_thread, arg) {
         (void)arg;
+        msg_t msg;
 
         chRegSetThreadName("transmission");
+        chMBObjectInit(&tx_mailbox, tx_msg_buffer.data(), tx_msg_buffer.size());
         while (true) {
-            // sleep for 1 ms to allow processing of other threads
-            chThdSleep(MS2ST(1));
+            chMBFetch(&tx_mailbox, &msg, TIME_INFINITE);
+            chSysLock();
+            uint32_t count = chMBGetUsedCountI(&tx_mailbox);
+            chSysUnlock();
+            printf("current MB used count is %u\r\n", count);
         }
     }
 } // namespace
@@ -277,18 +274,25 @@ int main(void) {
     }
 
     // transmit data
+    // TODO: change this to transmit config message
     if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-        chTMStartMeasurementX(&transmission_time_measurement);
-        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-        chTMStopMeasurementX(&transmission_time_measurement);
+        //chTMStartMeasurementX(&transmission_time_measurement); REMOVE ME
+        //usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+        //chTMStopMeasurementX(&transmission_time_measurement);
+        printf("starting flimnap bicycle simulation...\r\n");
     }
 
     // Normal main() thread activity, in this project it simulates the bicycle
     // dynamics in real-time (roughly).
-    chThdCreateStatic(wa_pose_thread, sizeof(wa_pose_thread),
-            NORMALPRIO - 1, pose_thread, static_cast<void*>(&bicycle));
+    // The transmission thread is started before the pose thread as the transmission
+    // message mailbox is initialized in the transmission thread.
     chThdCreateStatic(wa_transmission_thread, sizeof(wa_transmission_thread),
-            NORMALPRIO - 2, transmission_thread, nullptr);
+            NORMALPRIO + 1, transmission_thread, nullptr);
+
+    pose_thread_arg a{bicycle, tx_mailbox};
+    chThdCreateStatic(wa_pose_thread, sizeof(wa_pose_thread),
+            NORMALPRIO - 1, pose_thread, static_cast<void*>(&a));
+
     systime_t deadline = chVTGetSystemTime();
     while (true) {
         systime_t starttime = chVTGetSystemTime();
@@ -349,12 +353,12 @@ int main(void) {
         message::set_simulation_pose(&msg, bicycle);
         size_t bytes_written = write_message_to_encode_buffer(msg);
 
-        // transmit message
-        if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-            chTMStartMeasurementX(&transmission_time_measurement);
-            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-            chTMStopMeasurementX(&transmission_time_measurement);
-        }
+        //// transmit message REMOVE ME
+        //if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
+        //    chTMStartMeasurementX(&transmission_time_measurement);
+        //    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+        //    chTMStopMeasurementX(&transmission_time_measurement);
+        //}
 
         deadline = chThdSleepUntilWindowed(deadline, deadline + looptime);
     }
