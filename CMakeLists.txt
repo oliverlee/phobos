@@ -35,8 +35,8 @@ set(BICYCLE_SOURCE
     ${BICYCLE_SOURCE_DIR}/parameters.cc)
 set(BICYCLE_INCLUDE_DIR ${BICYCLE_SOURCE_DIR} ${BICYCLE_SOURCE_DIR}/../inc)
 add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=false")
-set_source_files_properties(${BICYCLE_SOURCE_DIR}/src/bicycle/bicycle_solve_constraint_pitch.cc
-    PROPERTIES COMPILE_FLAGS "-fassociative-math")
+set_property(SOURCE ${BICYCLE_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS
+    "-fno-math-errno -fassociative-math -freciprocal-math -fcx-limited-range")
 
 # use nested submodules in bicycle submodule
 set(EIGEN3_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/external/eigen)
