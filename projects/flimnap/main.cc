@@ -71,8 +71,8 @@ namespace {
     std::array<uint8_t, cobs::max_encoded_length(SimulationMessage_size + VARINT_MAX_SIZE)> packet_buffer;
     SimulationMessage msg;
 
-    // kinematics loop
-    constexpr systime_t kinematics_loop_time = US2ST(8333); // update kinematics at 120 Hz
+    // pose calculation loop
+    constexpr systime_t pose_loop_time = US2ST(8333); // update pose at 120 Hz
 
     // dynamics loop
     constexpr systime_t looptime = MS2ST(1); // 1 ms -> 1 kHz
@@ -97,7 +97,7 @@ namespace {
         return static_cast<float>(shifted_value)*magnitude/static_cast<float>(sa::ADC_HALF_RANGE);
     }
 
-    void update_and_transmit_kinematics(bicycle_t& bicycle) {
+    void update_and_transmit_pose(bicycle_t& bicycle) {
         bicycle.update_kinematics();
         //
         //TODO: Pose message should be transmitted asynchronously.
@@ -166,16 +166,16 @@ namespace {
         return encode_result.produced;
     }
 
-    THD_WORKING_AREA(wa_kinematics_thread, 2048);
-    THD_FUNCTION(kinematics_thread, arg) {
+    THD_WORKING_AREA(wa_pose_thread, 2048);
+    THD_FUNCTION(pose_thread, arg) {
         bicycle_t& bicycle = *static_cast<bicycle_t*>(arg);
 
-        chRegSetThreadName("kinematics");
+        chRegSetThreadName("pose");
         while (true) {
             systime_t starttime = chVTGetSystemTime();
-            update_and_transmit_kinematics(bicycle);
-            systime_t sleeptime = kinematics_loop_time + starttime - chVTGetSystemTime();
-            if (sleeptime >= kinematics_loop_time) {
+            update_and_transmit_pose(bicycle);
+            systime_t sleeptime = pose_loop_time + starttime - chVTGetSystemTime();
+            if (sleeptime >= pose_loop_time) {
                 continue;
             } else {
                 chThdSleep(sleeptime);
@@ -285,8 +285,8 @@ int main(void) {
 
     // Normal main() thread activity, in this project it simulates the bicycle
     // dynamics in real-time (roughly).
-    chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread),
-            NORMALPRIO - 1, kinematics_thread, static_cast<void*>(&bicycle));
+    chThdCreateStatic(wa_pose_thread, sizeof(wa_pose_thread),
+            NORMALPRIO - 1, pose_thread, static_cast<void*>(&bicycle));
     chThdCreateStatic(wa_transmission_thread, sizeof(wa_transmission_thread),
             NORMALPRIO - 2, transmission_thread, nullptr);
     systime_t deadline = chVTGetSystemTime();
