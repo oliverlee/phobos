@@ -155,11 +155,13 @@ namespace {
         pose_thread_arg* a = static_cast<pose_thread_arg*>(arg);
 
         chRegSetThreadName("pose");
+        uint8_t i = 0;
         while (true) {
             systime_t starttime = chVTGetSystemTime();
             a->bicycle.update_kinematics();
             //TODO encode pose message
-            chMBPost(&a->tx_mailbox, (msg_t)0, TIME_IMMEDIATE);
+            chMBPost(&a->tx_mailbox, static_cast<msg_t>(i), TIME_IMMEDIATE);
+            i = (i + 1) % 4;
 
             systime_t sleeptime = pose_loop_time + starttime - chVTGetSystemTime();
             if (sleeptime >= pose_loop_time) {
@@ -179,15 +181,16 @@ namespace {
     THD_FUNCTION(transmission_thread, arg) {
         (void)arg;
         msg_t msg;
+        uint32_t count;
 
         chRegSetThreadName("transmission");
         chMBObjectInit(&tx_mailbox, tx_msg_buffer.data(), tx_msg_buffer.size());
         while (true) {
             chMBFetch(&tx_mailbox, &msg, TIME_INFINITE);
             chSysLock();
-            uint32_t count = chMBGetUsedCountI(&tx_mailbox);
+            count = chMBGetUsedCountI(&tx_mailbox);
             chSysUnlock();
-            printf("current MB used count is %u\r\n", count);
+            printf("[tx] current MB used count is %d, last msg: %d\r\n", count, msg);
         }
     }
 } // namespace
@@ -279,7 +282,7 @@ int main(void) {
         //chTMStartMeasurementX(&transmission_time_measurement); REMOVE ME
         //usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
         //chTMStopMeasurementX(&transmission_time_measurement);
-        printf("starting flimnap bicycle simulation...\r\n");
+        printf("[main] starting flimnap bicycle simulation...\r\n");
     }
 
     // Normal main() thread activity, in this project it simulates the bicycle
@@ -287,7 +290,7 @@ int main(void) {
     // The transmission thread is started before the pose thread as the transmission
     // message mailbox is initialized in the transmission thread.
     chThdCreateStatic(wa_transmission_thread, sizeof(wa_transmission_thread),
-            NORMALPRIO + 1, transmission_thread, nullptr);
+            NORMALPRIO - 1, transmission_thread, nullptr);
 
     pose_thread_arg a{bicycle, tx_mailbox};
     chThdCreateStatic(wa_pose_thread, sizeof(wa_pose_thread),
