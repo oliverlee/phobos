@@ -43,6 +43,8 @@
 #include "haptic.h" // handlebar feedback
 #include "simbicycle.h"
 
+#include "chprintf.h"
+
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleKinematic;
@@ -160,7 +162,7 @@ namespace {
             systime_t starttime = chVTGetSystemTime();
             a->bicycle.update_kinematics();
             //TODO encode pose message
-            chMBPost(&a->tx_mailbox, static_cast<msg_t>(i), TIME_IMMEDIATE);
+            chMBPost(&a->tx_mailbox, static_cast<msg_t>(i + 1), TIME_IMMEDIATE);
             i = (i + 1) % 4;
 
             systime_t sleeptime = pose_loop_time + starttime - chVTGetSystemTime();
@@ -173,7 +175,7 @@ namespace {
     }
 
     // Transmission thread definitions
-    constexpr std::size_t TX_MSG_BUFFER_SIZE = 4;
+    constexpr std::size_t TX_MSG_BUFFER_SIZE = 16;
     mailbox_t tx_mailbox;
     std::array<msg_t, TX_MSG_BUFFER_SIZE> tx_msg_buffer;
 
@@ -181,7 +183,8 @@ namespace {
     THD_FUNCTION(transmission_thread, arg) {
         (void)arg;
         msg_t msg;
-        uint32_t count;
+        int32_t count;
+        static char serial_str[128];
 
         chRegSetThreadName("transmission");
         chMBObjectInit(&tx_mailbox, tx_msg_buffer.data(), tx_msg_buffer.size());
@@ -190,7 +193,12 @@ namespace {
             chSysLock();
             count = chMBGetUsedCountI(&tx_mailbox);
             chSysUnlock();
-            printf("[tx] current MB used count is %d, last msg: %d\r\n", count, msg);
+
+            int formatted_bytes;
+            static char serial_str[128];
+            formatted_bytes = chsnprintf(serial_str, sizeof(serial_str)/sizeof(serial_str[0]),
+                    "[tx] current MB used count is %d, last msg: %d\r\n", count, msg);
+            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, (const uint8_t*)serial_str, formatted_bytes);
         }
     }
 } // namespace
@@ -276,27 +284,27 @@ int main(void) {
         chThdSleepMilliseconds(10);
     }
 
-    // transmit data
-    // TODO: change this to transmit config message
-    if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-        //chTMStartMeasurementX(&transmission_time_measurement); REMOVE ME
-        //usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-        //chTMStopMeasurementX(&transmission_time_measurement);
-        printf("[main] starting flimnap bicycle simulation...\r\n");
-    }
-
     // Normal main() thread activity, in this project it simulates the bicycle
     // dynamics in real-time (roughly).
     // The transmission thread is started before the pose thread as the transmission
     // message mailbox is initialized in the transmission thread.
     chThdCreateStatic(wa_transmission_thread, sizeof(wa_transmission_thread),
-            NORMALPRIO - 1, transmission_thread, nullptr);
+            NORMALPRIO + 1, transmission_thread, nullptr);
+
+    // transmit data
+    // TODO: change this to transmit config message
+    // This blocks until USB data starts getting read
+    if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
+        static const char start_string[] = "[main] starting flimnap bicycle simulation...\r\n";
+        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, (const uint8_t*)start_string, sizeof(start_string));
+    }
 
     pose_thread_arg a{bicycle, tx_mailbox};
     chThdCreateStatic(wa_pose_thread, sizeof(wa_pose_thread),
             NORMALPRIO - 1, pose_thread, static_cast<void*>(&a));
 
     systime_t deadline = chVTGetSystemTime();
+    uint8_t i = 0; // mailbox message
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
@@ -362,6 +370,9 @@ int main(void) {
         //    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
         //    chTMStopMeasurementX(&transmission_time_measurement);
         //}
+
+        chMBPost(&tx_mailbox, static_cast<msg_t>((i + 1) * 10), TIME_IMMEDIATE);
+        i = (i + 1) % 9;
 
         deadline = chThdSleepUntilWindowed(deadline, deadline + looptime);
     }
