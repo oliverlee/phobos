@@ -220,6 +220,8 @@ int main(void) {
              0, 10).finished(),                 // enable steer control
             model_t::state_t::Zero(),           // reference state
             1);                                 // horizon length in iterations
+    // perform value iterations to reach controller steady state
+    controller.perform_value_iteration(2000);
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
