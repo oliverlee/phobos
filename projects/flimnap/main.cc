@@ -151,19 +151,20 @@ namespace {
     struct pose_thread_arg {
         bicycle_t& bicycle;
         mailbox_t& tx_mailbox;
+        memory_pool_t& pose_pool;
     };
     THD_WORKING_AREA(wa_pose_thread, 2048);
     THD_FUNCTION(pose_thread, arg) {
         pose_thread_arg* a = static_cast<pose_thread_arg*>(arg);
 
         chRegSetThreadName("pose");
-        uint8_t i = 0;
         while (true) {
             systime_t starttime = chVTGetSystemTime();
             a->bicycle.update_kinematics();
-            //TODO encode pose message
-            chMBPost(&a->tx_mailbox, static_cast<msg_t>(i + 1), TIME_IMMEDIATE);
-            i = (i + 1) % 4;
+            BicyclePoseMessage* pose = static_cast<BicyclePoseMessage*>(chPoolAlloc(&a->pose_pool));
+            chDbgAssert(pose != nullptr, "Increase pb pose pool size");
+            // TODO: if we fail to post, the obj needs to be freed
+            chMBPost(&a->tx_mailbox, reinterpret_cast<msg_t>(pose), TIME_IMMEDIATE);
 
             systime_t sleeptime = pose_loop_time + starttime - chVTGetSystemTime();
             if (sleeptime >= pose_loop_time) {
@@ -176,29 +177,40 @@ namespace {
 
     // Transmission thread definitions
     constexpr std::size_t TX_MSG_BUFFER_SIZE = 16;
+    constexpr std::size_t PB_POSE_POOL_SIZE = 4;
     mailbox_t tx_mailbox;
-    std::array<msg_t, TX_MSG_BUFFER_SIZE> tx_msg_buffer;
+    msg_t tx_msg_buffer[TX_MSG_BUFFER_SIZE];
+    BicyclePoseMessage pb_pose_buffer[PB_POSE_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
+    MEMORYPOOL_DECL(pb_pose_pool, sizeof(BicyclePoseMessage), nullptr);
 
     THD_WORKING_AREA(wa_transmission_thread, 2048);
     THD_FUNCTION(transmission_thread, arg) {
         (void)arg;
-        msg_t msg;
-        int32_t count;
-        static char serial_str[128];
 
         chRegSetThreadName("transmission");
-        chMBObjectInit(&tx_mailbox, tx_msg_buffer.data(), tx_msg_buffer.size());
+        chMBObjectInit(&tx_mailbox, tx_msg_buffer, TX_MSG_BUFFER_SIZE);
+        chPoolObjectInit(&pb_pose_pool, sizeof(BicyclePoseMessage), nullptr);
+        chPoolLoadArray(&pb_pose_pool, static_cast<void*>(pb_pose_buffer), PB_POSE_POOL_SIZE);
         while (true) {
-            chMBFetch(&tx_mailbox, &msg, TIME_INFINITE);
+            msg_t obj;
+            chMBFetch(&tx_mailbox, &obj, TIME_INFINITE);
             chSysLock();
-            count = chMBGetUsedCountI(&tx_mailbox);
+            int32_t count = chMBGetUsedCountI(&tx_mailbox);
             chSysUnlock();
 
             int formatted_bytes;
             static char serial_str[128];
             formatted_bytes = chsnprintf(serial_str, sizeof(serial_str)/sizeof(serial_str[0]),
-                    "[tx] current MB used count is %d, last msg: %d\r\n", count, msg);
-            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, (const uint8_t*)serial_str, formatted_bytes);
+                    "[tx] current MB used count is %d, last msg: 0x%x\r\n", count, obj);
+
+            // TODO: encode pose to buffer? or should we have a received an encoded pose already?
+            // TODO: How to determine which pool the object belongs to? Compare address of pool?
+            if ((reinterpret_cast<BicyclePoseMessage*>(obj) >= pb_pose_buffer) &&
+                (reinterpret_cast<BicyclePoseMessage*>(obj) <= &pb_pose_buffer[PB_POSE_POOL_SIZE]) &&
+                (obj % sizeof(stkalign_t) == 0)) {
+                chPoolFree(&pb_pose_pool, reinterpret_cast<void*>(obj));
+            }
+            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, reinterpret_cast<const uint8_t*>(serial_str), formatted_bytes);
         }
     }
 } // namespace
@@ -296,10 +308,10 @@ int main(void) {
     // This blocks until USB data starts getting read
     if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
         static const char start_string[] = "[main] starting flimnap bicycle simulation...\r\n";
-        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, (const uint8_t*)start_string, sizeof(start_string));
+        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, reinterpret_cast<const uint8_t*>(start_string), sizeof(start_string));
     }
 
-    pose_thread_arg a{bicycle, tx_mailbox};
+    pose_thread_arg a{bicycle, tx_mailbox, pb_pose_pool};
     chThdCreateStatic(wa_pose_thread, sizeof(wa_pose_thread),
             NORMALPRIO - 1, pose_thread, static_cast<void*>(&a));
 
@@ -371,8 +383,8 @@ int main(void) {
         //    chTMStopMeasurementX(&transmission_time_measurement);
         //}
 
-        chMBPost(&tx_mailbox, static_cast<msg_t>((i + 1) * 10), TIME_IMMEDIATE);
-        i = (i + 1) % 9;
+        chMBPost(&tx_mailbox, static_cast<msg_t>(i + 1), TIME_IMMEDIATE);
+        i = (i + 1) % 15;
 
         deadline = chThdSleepUntilWindowed(deadline, deadline + looptime);
     }
