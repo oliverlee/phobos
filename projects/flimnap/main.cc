@@ -152,11 +152,16 @@ namespace {
 
     // Transmission thread definitions
     constexpr size_t TX_MSG_BUFFER_SIZE = 16;
-    constexpr size_t PB_POSE_POOL_SIZE = 4;
     mailbox_t tx_mailbox;
     msg_t tx_msg_buffer[TX_MSG_BUFFER_SIZE];
+
+    constexpr size_t PB_POSE_POOL_SIZE = 4;
     BicyclePoseMessage pb_pose_buffer[PB_POSE_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
     MEMORYPOOL_DECL(pb_pose_pool, sizeof(BicyclePoseMessage), nullptr);
+
+    constexpr size_t PB_SIM_POOL_SIZE = 16;
+    SimulationMessage pb_sim_buffer[PB_SIM_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
+    MEMORYPOOL_DECL(pb_sim_pool, sizeof(SimulationMessage), nullptr);
 
     constexpr size_t VARINT_MAX_SIZE = 10;
     std::array<uint8_t, SimulationMessage_size + VARINT_MAX_SIZE> encode_buffer;
@@ -193,26 +198,35 @@ namespace {
         chMBObjectInit(&tx_mailbox, tx_msg_buffer, TX_MSG_BUFFER_SIZE);
         chPoolObjectInit(&pb_pose_pool, sizeof(BicyclePoseMessage), nullptr);
         chPoolLoadArray(&pb_pose_pool, static_cast<void*>(pb_pose_buffer), PB_POSE_POOL_SIZE);
+        chPoolObjectInit(&pb_sim_pool, sizeof(SimulationMessage), nullptr);
+        chPoolLoadArray(&pb_sim_pool, static_cast<void*>(pb_sim_buffer), PB_SIM_POOL_SIZE);
         while (true) {
             msg_t obj;
             chMBFetch(&tx_mailbox, &obj, TIME_INFINITE);
 
+            size_t bytes_written;
             // For now, we send a simulation message but this needs to be fixed later on.
-            SimulationMessage msg = SimulationMessage_init_zero;
-
             // TODO: How to determine which pool the object belongs to? Compare address of pool?
-            if ((reinterpret_cast<BicyclePoseMessage*>(obj) >= pb_pose_buffer) &&
-                (reinterpret_cast<BicyclePoseMessage*>(obj) <= &pb_pose_buffer[PB_POSE_POOL_SIZE]) &&
-                (obj % sizeof(stkalign_t) == 0)) {
-                msg.timestamp = 0;
-                msg.pose = *reinterpret_cast<BicyclePoseMessage*>(obj);
-                msg.has_pose = true;
-                chPoolFree(&pb_pose_pool, reinterpret_cast<void*>(obj));
+            if ((obj % sizeof(stkalign_t)) == 0) {
+                if ((reinterpret_cast<BicyclePoseMessage*>(obj) >= pb_pose_buffer) &&
+                    (reinterpret_cast<BicyclePoseMessage*>(obj) <= &pb_pose_buffer[PB_POSE_POOL_SIZE])) {
+                    SimulationMessage msg = SimulationMessage_init_zero;
+                    msg.timestamp = 0;
+                    msg.pose = *reinterpret_cast<BicyclePoseMessage*>(obj);
+                    msg.has_pose = true;
+                    chPoolFree(&pb_pose_pool, reinterpret_cast<void*>(obj));
+                    bytes_written = write_to_packet_buffer(msg);
+                } else if (
+                        (reinterpret_cast<SimulationMessage*>(obj) >= pb_sim_buffer) &&
+                        (reinterpret_cast<SimulationMessage*>(obj) <= &pb_sim_buffer[PB_SIM_POOL_SIZE])) {
+                    bytes_written = write_to_packet_buffer(*reinterpret_cast<SimulationMessage*>(obj));
+                } else {
+                    chDbgAssert(false, "obj pointer does not originate from a valid memory pool");
+                }
             } else {
-                msg.timestamp = obj;
+                chDbgAssert(false, "obj pointer is not stack aligned");
             }
             // TODO: Presend protobuf tag. See https://github.com/oliverlee/phobos/issues/181#issuecomment-301825244
-            size_t bytes_written = write_to_packet_buffer(msg);
             usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
         }
     }
@@ -356,35 +370,29 @@ int main(void) {
         const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
 
-        // prepare message for transmission
-        msg = SimulationMessage_init_zero;
-        msg.timestamp = starttime;
-        message::set_bicycle_input(&msg.input,
-                (model_t::input_t() << roll_torque, steer_torque).finished());
-        msg.has_input = true;
-        message::set_simulation_state(&msg, bicycle);
-        message::set_simulation_auxiliary_state(&msg, bicycle);
-        if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
-            message::set_kalman_gain(&msg.kalman, bicycle.observer());
-            msg.has_kalman = true;
+        { // prepare message for transmission
+            SimulationMessage* msg = static_cast<SimulationMessage*>(chPoolAlloc(&pb_sim_pool));
+            // TODO: drop sim messages if pool is full?
+            chDbgAssert(msg != nullptr, "Increase pb pose pool size");
+            *msg = SimulationMessage_init_zero;
+            msg->timestamp = starttime;
+            message::set_bicycle_input(&msg->input,
+                    (model_t::input_t() << roll_torque, steer_torque).finished());
+            msg->has_input = true;
+            message::set_simulation_state(msg, bicycle);
+            message::set_simulation_auxiliary_state(msg, bicycle);
+            if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
+                message::set_kalman_gain(&msg->kalman, bicycle.observer());
+                msg->has_kalman = true;
+            }
+            message::set_simulation_actuators(msg, handlebar_velocity_dac);
+            message::set_simulation_sensors(msg,
+                    analog.get_adc12(), analog.get_adc13(),
+                    encoder_steer.count(), encoder_rear_wheel.count());
+            message::set_simulation_timing(msg,
+                    computation_time_measurement.last, transmission_time_measurement.last);
+            chMBPost(&tx_mailbox, reinterpret_cast<msg_t>(msg), TIME_IMMEDIATE);
         }
-        message::set_simulation_actuators(&msg, handlebar_velocity_dac);
-        message::set_simulation_sensors(&msg,
-                analog.get_adc12(), analog.get_adc13(),
-                encoder_steer.count(), encoder_rear_wheel.count());
-        message::set_simulation_timing(&msg,
-                computation_time_measurement.last, transmission_time_measurement.last);
-        //size_t bytes_written = write_to_packet_buffer(msg);
-
-        //// transmit message REMOVE ME
-        //if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-        //    chTMStartMeasurementX(&transmission_time_measurement);
-        //    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-        //    chTMStopMeasurementX(&transmission_time_measurement);
-        //}
-
-        chMBPost(&tx_mailbox, static_cast<msg_t>(i + 1), TIME_IMMEDIATE);
-        i = (i + 1) % 15;
 
         deadline = chThdSleepUntilWindowed(deadline, deadline + looptime);
     }
