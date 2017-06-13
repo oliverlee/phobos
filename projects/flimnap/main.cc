@@ -136,7 +136,7 @@ namespace {
             a->bicycle.update_kinematics();
             BicyclePoseMessage* pose = static_cast<BicyclePoseMessage*>(chPoolAlloc(&a->pose_pool));
             // TODO: drop pose messages if pool is full?
-            chDbgAssert(pose != nullptr, "Increase pb pose pool size");
+            chDbgAssert(pose != nullptr, "Increase PB_POSE_POOL_SIZE");
             *pose = a->bicycle.pose();
             // TODO: if we fail to post, the obj needs to be freed
             chMBPost(&a->tx_mailbox, reinterpret_cast<msg_t>(pose), TIME_IMMEDIATE);
@@ -151,17 +151,17 @@ namespace {
     }
 
     // Transmission thread definitions
-    constexpr size_t TX_MSG_BUFFER_SIZE = 16;
-    mailbox_t tx_mailbox;
-    msg_t tx_msg_buffer[TX_MSG_BUFFER_SIZE];
-
-    constexpr size_t PB_POSE_POOL_SIZE = 4;
+    constexpr size_t PB_POSE_POOL_SIZE = 8;
     BicyclePoseMessage pb_pose_buffer[PB_POSE_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
     MEMORYPOOL_DECL(pb_pose_pool, sizeof(BicyclePoseMessage), nullptr);
 
-    constexpr size_t PB_SIM_POOL_SIZE = 16;
+    constexpr size_t PB_SIM_POOL_SIZE = 64;
     SimulationMessage pb_sim_buffer[PB_SIM_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
     MEMORYPOOL_DECL(pb_sim_pool, sizeof(SimulationMessage), nullptr);
+
+    constexpr size_t TX_MSG_BUFFER_SIZE = PB_POSE_POOL_SIZE + PB_SIM_POOL_SIZE;
+    mailbox_t tx_mailbox;
+    msg_t tx_msg_buffer[TX_MSG_BUFFER_SIZE];
 
     constexpr size_t VARINT_MAX_SIZE = 10;
     std::array<uint8_t, SimulationMessage_size + VARINT_MAX_SIZE> encode_buffer;
@@ -200,13 +200,15 @@ namespace {
         chPoolLoadArray(&pb_pose_pool, static_cast<void*>(pb_pose_buffer), PB_POSE_POOL_SIZE);
         chPoolObjectInit(&pb_sim_pool, sizeof(SimulationMessage), nullptr);
         chPoolLoadArray(&pb_sim_pool, static_cast<void*>(pb_sim_buffer), PB_SIM_POOL_SIZE);
+
         while (true) {
-            msg_t obj;
+            msg_t obj = reinterpret_cast<msg_t>(nullptr);
             chMBFetch(&tx_mailbox, &obj, TIME_INFINITE);
 
-            size_t bytes_written;
             // For now, we send a simulation message but this needs to be fixed later on.
             // TODO: How to determine which pool the object belongs to? Compare address of pool?
+            // TODO: Presend protobuf tag. See https://github.com/oliverlee/phobos/issues/181#issuecomment-301825244
+            size_t bytes_written = 0;
             if ((obj % sizeof(stkalign_t)) == 0) {
                 if ((reinterpret_cast<BicyclePoseMessage*>(obj) >= pb_pose_buffer) &&
                     (reinterpret_cast<BicyclePoseMessage*>(obj) <= &pb_pose_buffer[PB_POSE_POOL_SIZE])) {
@@ -220,14 +222,15 @@ namespace {
                         (reinterpret_cast<SimulationMessage*>(obj) >= pb_sim_buffer) &&
                         (reinterpret_cast<SimulationMessage*>(obj) <= &pb_sim_buffer[PB_SIM_POOL_SIZE])) {
                     bytes_written = write_to_packet_buffer(*reinterpret_cast<SimulationMessage*>(obj));
+                    chPoolFree(&pb_sim_pool, reinterpret_cast<void*>(obj));
                 } else {
                     chDbgAssert(false, "obj pointer does not originate from a valid memory pool");
                 }
             } else {
                 chDbgAssert(false, "obj pointer is not stack aligned");
             }
-            // TODO: Presend protobuf tag. See https://github.com/oliverlee/phobos/issues/181#issuecomment-301825244
             usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
+            // TODO: Handle USB disconnect
         }
     }
 } // namespace
@@ -322,7 +325,7 @@ int main(void) {
     // This blocks until USB data starts getting read
     if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
         // TODO: change this to transmit config message
-        size_t bytes_written = write_to_packet_buffer(msg);
+        const size_t bytes_written = write_to_packet_buffer(msg);
         usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
     }
 
@@ -331,7 +334,6 @@ int main(void) {
             NORMALPRIO - 1, pose_thread, static_cast<void*>(&a));
 
     systime_t deadline = chVTGetSystemTime();
-    uint8_t i = 0; // mailbox message
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
@@ -373,7 +375,7 @@ int main(void) {
         { // prepare message for transmission
             SimulationMessage* msg = static_cast<SimulationMessage*>(chPoolAlloc(&pb_sim_pool));
             // TODO: drop sim messages if pool is full?
-            chDbgAssert(msg != nullptr, "Increase pb pose pool size");
+            chDbgAssert(msg != nullptr, "Increase PB_SIM_POOL_SIZE");
             *msg = SimulationMessage_init_zero;
             msg->timestamp = starttime;
             message::set_bicycle_input(&msg->input,
