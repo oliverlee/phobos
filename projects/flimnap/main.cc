@@ -135,7 +135,9 @@ namespace {
             systime_t starttime = chVTGetSystemTime();
             a->bicycle.update_kinematics();
             BicyclePoseMessage* pose = static_cast<BicyclePoseMessage*>(chPoolAlloc(&a->pose_pool));
+            // TODO: drop pose messages if pool is full?
             chDbgAssert(pose != nullptr, "Increase pb pose pool size");
+            *pose = a->bicycle.pose();
             // TODO: if we fail to post, the obj needs to be freed
             chMBPost(&a->tx_mailbox, reinterpret_cast<msg_t>(pose), TIME_IMMEDIATE);
 
