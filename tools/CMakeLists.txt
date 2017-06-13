@@ -4,6 +4,9 @@ project(PHOBOS-TOOLS CXX C)
 if ($ENV{TRAVIS})
     # Use protobuf install directory on Travis
     set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} $ENV{HOME}/protobuf)
+endif()
+if (CMAKE_COMPILER_IS_GNUCXX)
+    # ignore protobuf unused parameters
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
 endif()
 find_package(Protobuf REQUIRED)
@@ -14,7 +17,7 @@ include_directories(../inc)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra")
 
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS
     ../projects/proto/pose.proto
@@ -22,6 +25,9 @@ protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS
 
 add_executable(seriallog seriallog.cc)
 add_executable(pbprint pbprint.cc ../src/cobs.cc ${PROTO_SRCS} ${PROTO_HDRS})
+# enable warnings for unused parameters for source files
+set_property(SOURCE seriallog.cc pbprint.cc ../src/cobs.cc
+    APPEND_STRING PROPERTY COMPILE_FLAGS " -Wunused-parameter")
 target_link_libraries(pbprint ${PROTOBUF_LIBRARIES})
 if (NOT APPLE)
     find_package(Threads)
