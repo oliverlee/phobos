@@ -43,8 +43,6 @@
 #include "haptic.h" // handlebar feedback
 #include "simbicycle.h"
 
-#include "chprintf.h"
-
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleKinematic;
@@ -68,9 +66,6 @@ namespace {
     constexpr float fixed_velocity = 5.0f;
 
     // transmission
-    constexpr std::size_t VARINT_MAX_SIZE = 10;
-    std::array<uint8_t, SimulationMessage_size + VARINT_MAX_SIZE> encode_buffer;
-    std::array<uint8_t, cobs::max_encoded_length(SimulationMessage_size + VARINT_MAX_SIZE)> packet_buffer;
     SimulationMessage msg;
 
     // pose calculation loop
@@ -126,28 +121,6 @@ namespace {
         }
     };
 
-    size_t write_message_to_encode_buffer(const SimulationMessage& m) {
-        const size_t encode_buffer_len = packet::serialize::encode_delimited(
-            m,
-            encode_buffer.data(),
-            encode_buffer.size()
-        );
-
-        const cobs::EncodeResult encode_result = cobs::encode(
-            encode_buffer.data(),
-            encode_buffer_len,
-            packet_buffer.data(),
-            packet_buffer.size()
-        );
-
-        // Encoding only fails when the destination buffer is too small, this
-        // should not happen as long as we only encode SimulationMessage objects
-        // because we allocated packet_buffer based on its size.
-        chDbgAssert(encode_result.status == cobs::EncodeResult::Status::OK, "Expected encoding to succeed.");
-
-        return encode_result.produced;
-    }
-
     struct pose_thread_arg {
         bicycle_t& bicycle;
         mailbox_t& tx_mailbox;
@@ -176,13 +149,40 @@ namespace {
     }
 
     // Transmission thread definitions
-    constexpr std::size_t TX_MSG_BUFFER_SIZE = 16;
-    constexpr std::size_t PB_POSE_POOL_SIZE = 4;
+    constexpr size_t TX_MSG_BUFFER_SIZE = 16;
+    constexpr size_t PB_POSE_POOL_SIZE = 4;
     mailbox_t tx_mailbox;
     msg_t tx_msg_buffer[TX_MSG_BUFFER_SIZE];
     BicyclePoseMessage pb_pose_buffer[PB_POSE_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
     MEMORYPOOL_DECL(pb_pose_pool, sizeof(BicyclePoseMessage), nullptr);
 
+    constexpr size_t VARINT_MAX_SIZE = 10;
+    std::array<uint8_t, SimulationMessage_size + VARINT_MAX_SIZE> encode_buffer;
+    std::array<uint8_t, cobs::max_encoded_length(SimulationMessage_size + VARINT_MAX_SIZE)> packet_buffer;
+
+    size_t write_to_packet_buffer(const SimulationMessage& m) {
+        const size_t encode_buffer_len = packet::serialize::encode_delimited(
+            m,
+            encode_buffer.data(),
+            encode_buffer.size()
+        );
+
+        const cobs::EncodeResult encode_result = cobs::encode(
+            encode_buffer.data(),
+            encode_buffer_len,
+            packet_buffer.data(),
+            packet_buffer.size()
+        );
+
+        // Encoding only fails when the destination buffer is too small, this
+        // should not happen as long as we only encode SimulationMessage objects
+        // because we allocated packet_buffer based on its size.
+        chDbgAssert(encode_result.status == cobs::EncodeResult::Status::OK, "Expected encoding to succeed.");
+
+        return encode_result.produced;
+    }
+
+    // TODO: define the transmission thread as a class
     THD_WORKING_AREA(wa_transmission_thread, 2048);
     THD_FUNCTION(transmission_thread, arg) {
         (void)arg;
@@ -194,23 +194,24 @@ namespace {
         while (true) {
             msg_t obj;
             chMBFetch(&tx_mailbox, &obj, TIME_INFINITE);
-            chSysLock();
-            int32_t count = chMBGetUsedCountI(&tx_mailbox);
-            chSysUnlock();
 
-            int formatted_bytes;
-            static char serial_str[128];
-            formatted_bytes = chsnprintf(serial_str, sizeof(serial_str)/sizeof(serial_str[0]),
-                    "[tx] current MB used count is %d, last msg: 0x%x\r\n", count, obj);
+            // For now, we send a simulation message but this needs to be fixed later on.
+            SimulationMessage msg = SimulationMessage_init_zero;
 
-            // TODO: encode pose to buffer? or should we have a received an encoded pose already?
             // TODO: How to determine which pool the object belongs to? Compare address of pool?
             if ((reinterpret_cast<BicyclePoseMessage*>(obj) >= pb_pose_buffer) &&
                 (reinterpret_cast<BicyclePoseMessage*>(obj) <= &pb_pose_buffer[PB_POSE_POOL_SIZE]) &&
                 (obj % sizeof(stkalign_t) == 0)) {
+                msg.timestamp = 0;
+                msg.pose = *reinterpret_cast<BicyclePoseMessage*>(obj);
+                msg.has_pose = true;
                 chPoolFree(&pb_pose_pool, reinterpret_cast<void*>(obj));
+            } else {
+                msg.timestamp = obj;
             }
-            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, reinterpret_cast<const uint8_t*>(serial_str), formatted_bytes);
+            // TODO: Presend protobuf tag. See https://github.com/oliverlee/phobos/issues/181#issuecomment-301825244
+            size_t bytes_written = write_to_packet_buffer(msg);
+            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
         }
     }
 } // namespace
@@ -289,7 +290,6 @@ int main(void) {
     msg = SimulationMessage_init_zero;
     msg.timestamp = chVTGetSystemTime();
     message::set_simulation_full_model_observer(&msg, bicycle);
-    size_t bytes_written = write_message_to_encode_buffer(msg);
 
     // block until ready
     while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
@@ -303,12 +303,11 @@ int main(void) {
     chThdCreateStatic(wa_transmission_thread, sizeof(wa_transmission_thread),
             NORMALPRIO + 1, transmission_thread, nullptr);
 
-    // transmit data
-    // TODO: change this to transmit config message
     // This blocks until USB data starts getting read
     if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-        static const char start_string[] = "[main] starting flimnap bicycle simulation...\r\n";
-        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, reinterpret_cast<const uint8_t*>(start_string), sizeof(start_string));
+        // TODO: change this to transmit config message
+        size_t bytes_written = write_to_packet_buffer(msg);
+        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
     }
 
     pose_thread_arg a{bicycle, tx_mailbox, pb_pose_pool};
@@ -373,8 +372,7 @@ int main(void) {
                 encoder_steer.count(), encoder_rear_wheel.count());
         message::set_simulation_timing(&msg,
                 computation_time_measurement.last, transmission_time_measurement.last);
-        message::set_simulation_pose(&msg, bicycle);
-        size_t bytes_written = write_message_to_encode_buffer(msg);
+        //size_t bytes_written = write_to_packet_buffer(msg);
 
         //// transmit message REMOVE ME
         //if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
