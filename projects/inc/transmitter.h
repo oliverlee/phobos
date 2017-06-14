@@ -37,7 +37,7 @@ class Transmitter {
         static constexpr size_t VARINT_MAX_SIZE = 10;
         std::array<uint8_t, sizeof(SimulationMessage) + VARINT_MAX_SIZE> m_serialize_buffer;
         std::array<uint8_t, cobs::max_encoded_length(sizeof(SimulationMessage) + VARINT_MAX_SIZE)> m_packet_buffer;
-        THD_WORKING_AREA(m_wa_transmitter_thread, 2048);
+        THD_WORKING_AREA(m_wa_transmitter_thread, 1280);
         thread_t* m_thread;
         size_t m_bytes_written;
 

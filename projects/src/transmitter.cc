@@ -3,6 +3,9 @@
 #include "packet/serialize.h"
 #include "usbconfig.h"
 
+// This define can be useful when sizing message mailbox and memory pools
+#define ASSERT_MESSAGE_MEMORY_LIMIT FALSE
+
 namespace message {
 Transmitter::Transmitter() :
 m_thread(nullptr),
@@ -34,7 +37,11 @@ void Transmitter::start(tprio_t priority) {
 }
 
 BicyclePoseMessage* Transmitter::alloc_pose_message() {
-    return static_cast<BicyclePoseMessage*>(chPoolAlloc(&m_pose_message_pool));
+    void* msg = chPoolAlloc(&m_pose_message_pool);
+#if ASSERT_MESSAGE_MEMORY_LIMIT
+    chDbgAssert(msg != nullptr, "Increase transmitter POSE_MESSAGE_POOL_SIZE");
+#endif
+    return static_cast<BicyclePoseMessage*>(msg);
 }
 
 void Transmitter::free_pose_message(BicyclePoseMessage* msg) {
@@ -42,11 +49,19 @@ void Transmitter::free_pose_message(BicyclePoseMessage* msg) {
 }
 
 msg_t Transmitter::transmit_async(BicyclePoseMessage* msg) {
-    return chMBPost(&m_message_mailbox, reinterpret_cast<msg_t>(msg), TIME_IMMEDIATE);
+    msg_t status = chMBPost(&m_message_mailbox, reinterpret_cast<msg_t>(msg), TIME_IMMEDIATE);
+#if ASSERT_MESSAGE_MEMORY_LIMIT
+    chDbgAssert(status == MSG_OK, "Increase transmitter MAILBOX_SIZE");
+#endif
+    return status;
 }
 
 SimulationMessage* Transmitter::alloc_simulation_message() {
-    return static_cast<SimulationMessage*>(chPoolAlloc(&m_simulation_message_pool));
+    void* msg = chPoolAlloc(&m_simulation_message_pool);
+#if ASSERT_MESSAGE_MEMORY_LIMIT
+    chDbgAssert(msg != nullptr, "Increase transmitter SIMULATION_MESSAGE_POOL_SIZE");
+#endif
+    return static_cast<SimulationMessage*>(msg);
 }
 
 void Transmitter::free_simulation_message(SimulationMessage* msg) {
@@ -54,7 +69,11 @@ void Transmitter::free_simulation_message(SimulationMessage* msg) {
 }
 
 msg_t Transmitter::transmit_async(SimulationMessage* msg) {
-    return chMBPost(&m_message_mailbox, reinterpret_cast<msg_t>(msg), TIME_IMMEDIATE);
+    msg_t status = chMBPost(&m_message_mailbox, reinterpret_cast<msg_t>(msg), TIME_IMMEDIATE);
+#if ASSERT_MESSAGE_MEMORY_LIMIT
+    chDbgAssert(status == MSG_OK, "Increase transmitter MAILBOX_SIZE");
+#endif
+    return status;
 }
 
 void Transmitter::transmit(SimulationMessage* msg) {
@@ -99,7 +118,6 @@ void Transmitter::encode_message(msg_t msg) {
     } else {
         chDbgAssert(false, "msg pointer is not stack aligned");
     }
-    // TODO: Handle USB disconnect
 }
 
 void Transmitter::transmit_packet() const {

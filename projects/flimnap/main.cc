@@ -128,11 +128,9 @@ namespace {
             systime_t starttime = chVTGetSystemTime();
             a->bicycle.update_kinematics();
             BicyclePoseMessage* msg = a->transmitter.alloc_pose_message();
-            chDbgAssert(msg != nullptr, "Increase transmitter POSE_MESSAGE_POOL_SIZE");
             if (msg != nullptr) {
                 *msg = a->bicycle.pose();
                 if (a->transmitter.transmit_async(msg) != MSG_OK) {
-                    chDbgAssert(false, "Increase transmitter MAILBOX_SIZE");
                     a->transmitter.free_pose_message(msg);
                 }
             }
@@ -262,7 +260,6 @@ int main(void) {
 
         {   // prepare message for transmission
             SimulationMessage* msg = transmitter.alloc_simulation_message();
-            chDbgAssert(msg != nullptr, "Increase transmitter SIMULATION_MESSAGE_POOL_SIZE");
             if (msg != nullptr) {
                 *msg = SimulationMessage_init_zero;
                 msg->timestamp = starttime;
@@ -282,7 +279,6 @@ int main(void) {
                 message::set_simulation_timing(msg,
                         computation_time_measurement.last, transmission_time_measurement.last);
                 if (transmitter.transmit_async(msg) != MSG_OK) {
-                    chDbgAssert(false, "Increase transmitter MAILBOX_SIZE");
                     transmitter.free_simulation_message(msg);
                 }
             }
