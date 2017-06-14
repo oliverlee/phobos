@@ -151,11 +151,11 @@ namespace {
     }
 
     // Transmission thread definitions
-    constexpr size_t PB_POSE_POOL_SIZE = 8;
+    constexpr size_t PB_POSE_POOL_SIZE = 2;
     BicyclePoseMessage pb_pose_buffer[PB_POSE_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
     MEMORYPOOL_DECL(pb_pose_pool, sizeof(BicyclePoseMessage), nullptr);
 
-    constexpr size_t PB_SIM_POOL_SIZE = 64;
+    constexpr size_t PB_SIM_POOL_SIZE = 2;
     SimulationMessage pb_sim_buffer[PB_SIM_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
     MEMORYPOOL_DECL(pb_sim_pool, sizeof(SimulationMessage), nullptr);
 
@@ -229,6 +229,8 @@ namespace {
             } else {
                 chDbgAssert(false, "obj pointer is not stack aligned");
             }
+            // TODO: Change usbTransmit to usbStartTransmitI and encode during USB transmission?
+            //       This may result in a single USB transmission buffer containing more than one packet.
             usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
             // TODO: Handle USB disconnect
         }
