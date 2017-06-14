@@ -20,14 +20,11 @@
 #include "analog.h"
 #include "encoder.h"
 #include "encoderfoaw.h"
-#include "cobs.h"
-#include "packet/serialize.h"
 #include "simulation.pb.h"
 #include "messageutil.h"
 #include "filter/movingaverage.h"
 
 #include "blink.h"
-#include "usbconfig.h"
 #include "saconfig.h"
 #include "utility.h"
 
@@ -41,7 +38,9 @@
 #include "oracle.h" // oracle observer
 #include "kalman.h" // kalman filter observer
 #include "haptic.h" // handlebar feedback
+
 #include "simbicycle.h"
+#include "transmitter.h"
 
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
@@ -65,16 +64,11 @@ namespace {
 
     constexpr float fixed_velocity = 5.0f;
 
-    // transmission
-    SimulationMessage msg;
-
     // pose calculation loop
     constexpr systime_t pose_loop_time = US2ST(8333); // update pose at 120 Hz
 
     // dynamics loop
     constexpr systime_t looptime = MS2ST(1); // 1 ms -> 1 kHz
-    time_measurement_t computation_time_measurement;
-    time_measurement_t transmission_time_measurement;
 
     dacsample_t set_handlebar_velocity(float velocity) {
         // limit velocity to a maximum magnitude of 100 deg/s
@@ -123,8 +117,7 @@ namespace {
 
     struct pose_thread_arg {
         bicycle_t& bicycle;
-        mailbox_t& tx_mailbox;
-        memory_pool_t& pose_pool;
+        message::Transmitter& transmitter;
     };
     THD_WORKING_AREA(wa_pose_thread, 2048);
     THD_FUNCTION(pose_thread, arg) {
@@ -134,135 +127,37 @@ namespace {
         while (true) {
             systime_t starttime = chVTGetSystemTime();
             a->bicycle.update_kinematics();
-            BicyclePoseMessage* pose = static_cast<BicyclePoseMessage*>(chPoolAlloc(&a->pose_pool));
-            // TODO: drop pose messages if pool is full?
-            chDbgAssert(pose != nullptr, "Increase PB_POSE_POOL_SIZE");
-            *pose = a->bicycle.pose();
-            // TODO: if we fail to post, the obj needs to be freed
-            chMBPost(&a->tx_mailbox, reinterpret_cast<msg_t>(pose), TIME_IMMEDIATE);
+            BicyclePoseMessage* msg = a->transmitter.alloc_pose_message();
+            chDbgAssert(msg != nullptr, "Increase transmitter POSE_MESSAGE_POOL_SIZE");
+            if (msg != nullptr) {
+                *msg = a->bicycle.pose();
+                if (a->transmitter.transmit_async(msg) != MSG_OK) {
+                    chDbgAssert(false, "Increase transmitter MAILBOX_SIZE");
+                    a->transmitter.free_pose_message(msg);
+                }
+            }
 
             systime_t sleeptime = pose_loop_time + starttime - chVTGetSystemTime();
             if (sleeptime >= pose_loop_time) {
-                continue;
+                chThdYield();
             } else {
                 chThdSleep(sleeptime);
             }
         }
     }
-
-    // Transmission thread definitions
-    constexpr size_t PB_POSE_POOL_SIZE = 2;
-    BicyclePoseMessage pb_pose_buffer[PB_POSE_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
-    MEMORYPOOL_DECL(pb_pose_pool, sizeof(BicyclePoseMessage), nullptr);
-
-    constexpr size_t PB_SIM_POOL_SIZE = 2;
-    SimulationMessage pb_sim_buffer[PB_SIM_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
-    MEMORYPOOL_DECL(pb_sim_pool, sizeof(SimulationMessage), nullptr);
-
-    constexpr size_t TX_MSG_BUFFER_SIZE = PB_POSE_POOL_SIZE + PB_SIM_POOL_SIZE;
-    mailbox_t tx_mailbox;
-    msg_t tx_msg_buffer[TX_MSG_BUFFER_SIZE];
-
-    constexpr size_t VARINT_MAX_SIZE = 10;
-    std::array<uint8_t, SimulationMessage_size + VARINT_MAX_SIZE> encode_buffer;
-    std::array<uint8_t, cobs::max_encoded_length(SimulationMessage_size + VARINT_MAX_SIZE)> packet_buffer;
-
-    size_t write_to_packet_buffer(const SimulationMessage& m) {
-        const size_t encode_buffer_len = packet::serialize::encode_delimited(
-            m,
-            encode_buffer.data(),
-            encode_buffer.size()
-        );
-
-        const cobs::EncodeResult encode_result = cobs::encode(
-            encode_buffer.data(),
-            encode_buffer_len,
-            packet_buffer.data(),
-            packet_buffer.size()
-        );
-
-        // Encoding only fails when the destination buffer is too small, this
-        // should not happen as long as we only encode SimulationMessage objects
-        // because we allocated packet_buffer based on its size.
-        chDbgAssert(encode_result.status == cobs::EncodeResult::Status::OK, "Expected encoding to succeed.");
-
-        return encode_result.produced;
-    }
-
-    // TODO: define the transmission thread as a class
-    THD_WORKING_AREA(wa_transmission_thread, 2048);
-    THD_FUNCTION(transmission_thread, arg) {
-        (void)arg;
-
-        chRegSetThreadName("transmission");
-        chMBObjectInit(&tx_mailbox, tx_msg_buffer, TX_MSG_BUFFER_SIZE);
-        chPoolObjectInit(&pb_pose_pool, sizeof(BicyclePoseMessage), nullptr);
-        chPoolLoadArray(&pb_pose_pool, static_cast<void*>(pb_pose_buffer), PB_POSE_POOL_SIZE);
-        chPoolObjectInit(&pb_sim_pool, sizeof(SimulationMessage), nullptr);
-        chPoolLoadArray(&pb_sim_pool, static_cast<void*>(pb_sim_buffer), PB_SIM_POOL_SIZE);
-
-        while (true) {
-            msg_t obj = reinterpret_cast<msg_t>(nullptr);
-            chMBFetch(&tx_mailbox, &obj, TIME_INFINITE);
-
-            // For now, we send a simulation message but this needs to be fixed later on.
-            // TODO: How to determine which pool the object belongs to? Compare address of pool?
-            // TODO: Presend protobuf tag. See https://github.com/oliverlee/phobos/issues/181#issuecomment-301825244
-            size_t bytes_written = 0;
-            if ((obj % sizeof(stkalign_t)) == 0) {
-                if ((reinterpret_cast<BicyclePoseMessage*>(obj) >= pb_pose_buffer) &&
-                    (reinterpret_cast<BicyclePoseMessage*>(obj) <= &pb_pose_buffer[PB_POSE_POOL_SIZE])) {
-                    SimulationMessage msg = SimulationMessage_init_zero;
-                    msg.timestamp = 0;
-                    msg.pose = *reinterpret_cast<BicyclePoseMessage*>(obj);
-                    msg.has_pose = true;
-                    chPoolFree(&pb_pose_pool, reinterpret_cast<void*>(obj));
-                    bytes_written = write_to_packet_buffer(msg);
-                } else if (
-                        (reinterpret_cast<SimulationMessage*>(obj) >= pb_sim_buffer) &&
-                        (reinterpret_cast<SimulationMessage*>(obj) <= &pb_sim_buffer[PB_SIM_POOL_SIZE])) {
-                    bytes_written = write_to_packet_buffer(*reinterpret_cast<SimulationMessage*>(obj));
-                    chPoolFree(&pb_sim_pool, reinterpret_cast<void*>(obj));
-                } else {
-                    chDbgAssert(false, "obj pointer does not originate from a valid memory pool");
-                }
-            } else {
-                chDbgAssert(false, "obj pointer is not stack aligned");
-            }
-            // TODO: Change usbTransmit to usbStartTransmitI and encode during USB transmission?
-            //       This may result in a single USB transmission buffer containing more than one packet.
-            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-            // TODO: Handle USB disconnect
-        }
-    }
 } // namespace
 
-/*
- * Application entry point.
- */
-int main(void) {
 
-    //System initializations.
-    //- HAL initialization, this also initializes the configured device drivers
-    //  and performs the board-specific initializations.
-    //- Kernel initialization, the main() function becomes a thread and the
-    //  RTOS is active.
+int main(void) {
+    // System initializations.
+    // - HAL initialization, this also initializes the configured device drivers
+    //   and performs the board-specific initializations.
+    // - Kernel initialization, the main() function becomes a thread and the
+    //   RTOS is active.
     halInit();
     chSysInit();
 
-    // Initialize a serial-over-USB CDC driver.
-    sduObjectInit(&SDU1);
-    sduStart(&SDU1, &serusbcfg);
-
-    //Activate the USB driver and then the USB bus pull-up on D+.
-    //Note, a delay is inserted in order to not have to disconnect the cable
-    //after a reset.
-    board_usb_lld_disconnect_bus();   //usbDisconnectBus(serusbcfg.usbp);
-    chThdSleepMilliseconds(1500);
-    usbStart(serusbcfg.usbp, &usbcfg);
-    board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
-
-    // create the blink thread and print state monitor
+    // Create LED blink thread
     chBlinkThreadCreateStatic();
 
     // Start sensors.
@@ -284,7 +179,7 @@ int main(void) {
     palSetLine(LINE_TORQUE_MEAS_EN);
 
     // Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
-    // The default line configuration is OUTPUT_OPENDRAIN_PULLUP  for SPI1_ENC1_NSS
+    // The default line configuration is OUTPUT_OPENDRAIN_PULLUP for SPI1_ENC1_NSS
     // and must be changed to use as analog output.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
@@ -303,38 +198,29 @@ int main(void) {
     observer_initializer<observer_t> oi;
     oi.initialize(bicycle);
 
+    // Initialize time measurements
+    time_measurement_t computation_time_measurement;
+    time_measurement_t transmission_time_measurement;
     chTMObjectInit(&computation_time_measurement);
     chTMObjectInit(&transmission_time_measurement);
 
-    // Transmit initial message containing gitsha1, model, and observer data.
-    // This initial transmission is blocking.
-    msg = SimulationMessage_init_zero;
-    msg.timestamp = chVTGetSystemTime();
-    message::set_simulation_full_model_observer(&msg, bicycle);
-
-    // block until ready
-    while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
-        chThdSleepMilliseconds(10);
+    // Initialize USB data transmission
+    message::Transmitter transmitter;
+    {   // Transmit initial message containing gitsha1, model, and observer data.
+        SimulationMessage* msg = transmitter.alloc_simulation_message();
+        *msg = SimulationMessage_init_zero;
+        msg->timestamp = chVTGetSystemTime();
+        message::set_simulation_full_model_observer(msg, bicycle);
+        transmitter.transmit(msg); // This blocks until USB data starts getting read
     }
+    transmitter.start(); // start transmission thread
 
-    // Normal main() thread activity, in this project it simulates the bicycle
-    // dynamics in real-time (roughly).
-    // The transmission thread is started before the pose thread as the transmission
-    // message mailbox is initialized in the transmission thread.
-    chThdCreateStatic(wa_transmission_thread, sizeof(wa_transmission_thread),
-            NORMALPRIO + 1, transmission_thread, nullptr);
-
-    // This blocks until USB data starts getting read
-    if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-        // TODO: change this to transmit config message
-        const size_t bytes_written = write_to_packet_buffer(msg);
-        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-    }
-
-    pose_thread_arg a{bicycle, tx_mailbox, pb_pose_pool};
+    // Start running pose calculation thread
+    pose_thread_arg a{bicycle, transmitter};
     chThdCreateStatic(wa_pose_thread, sizeof(wa_pose_thread),
             NORMALPRIO - 1, pose_thread, static_cast<void*>(&a));
 
+    // Normal main() thread activity. This is the dynamics simulation loop.
     systime_t deadline = chVTGetSystemTime();
     while (true) {
         systime_t starttime = chVTGetSystemTime();
@@ -374,30 +260,33 @@ int main(void) {
         const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
 
-        { // prepare message for transmission
-            SimulationMessage* msg = static_cast<SimulationMessage*>(chPoolAlloc(&pb_sim_pool));
-            // TODO: drop sim messages if pool is full?
-            chDbgAssert(msg != nullptr, "Increase PB_SIM_POOL_SIZE");
-            *msg = SimulationMessage_init_zero;
-            msg->timestamp = starttime;
-            message::set_bicycle_input(&msg->input,
-                    (model_t::input_t() << roll_torque, steer_torque).finished());
-            msg->has_input = true;
-            message::set_simulation_state(msg, bicycle);
-            message::set_simulation_auxiliary_state(msg, bicycle);
-            if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
-                message::set_kalman_gain(&msg->kalman, bicycle.observer());
-                msg->has_kalman = true;
+        {   // prepare message for transmission
+            SimulationMessage* msg = transmitter.alloc_simulation_message();
+            chDbgAssert(msg != nullptr, "Increase transmitter SIMULATION_MESSAGE_POOL_SIZE");
+            if (msg != nullptr) {
+                *msg = SimulationMessage_init_zero;
+                msg->timestamp = starttime;
+                message::set_bicycle_input(&msg->input,
+                        (model_t::input_t() << roll_torque, steer_torque).finished());
+                msg->has_input = true;
+                message::set_simulation_state(msg, bicycle);
+                message::set_simulation_auxiliary_state(msg, bicycle);
+                if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
+                    message::set_kalman_gain(&msg->kalman, bicycle.observer());
+                    msg->has_kalman = true;
+                }
+                message::set_simulation_actuators(msg, handlebar_velocity_dac);
+                message::set_simulation_sensors(msg,
+                        analog.get_adc12(), analog.get_adc13(),
+                        encoder_steer.count(), encoder_rear_wheel.count());
+                message::set_simulation_timing(msg,
+                        computation_time_measurement.last, transmission_time_measurement.last);
+                if (transmitter.transmit_async(msg) != MSG_OK) {
+                    chDbgAssert(false, "Increase transmitter MAILBOX_SIZE");
+                    transmitter.free_simulation_message(msg);
+                }
             }
-            message::set_simulation_actuators(msg, handlebar_velocity_dac);
-            message::set_simulation_sensors(msg,
-                    analog.get_adc12(), analog.get_adc13(),
-                    encoder_steer.count(), encoder_rear_wheel.count());
-            message::set_simulation_timing(msg,
-                    computation_time_measurement.last, transmission_time_measurement.last);
-            chMBPost(&tx_mailbox, reinterpret_cast<msg_t>(msg), TIME_IMMEDIATE);
         }
-
         deadline = chThdSleepUntilWindowed(deadline, deadline + looptime);
     }
 }
