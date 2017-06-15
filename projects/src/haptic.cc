@@ -5,7 +5,7 @@
 
 namespace haptic {
 
-Handlebar0::Handlebar0(model::Bicycle& bicycle) :
+Handlebar0::Handlebar0(model_t& bicycle) :
     m_bicycle(bicycle) { }
 
 /*
@@ -28,16 +28,16 @@ Handlebar0::Handlebar0(model::Bicycle& bicycle) :
  * In this case, delta_dd is set to zero as well to simplify calculations resulting in:
  *      T_m = -T_delta
  */
-model::real_t Handlebar0::torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
+real_t Handlebar0::torque(const model_t::state_t& x, const model_t::input_t& u) const {
     (void)u;
-    const model::real_t v = m_bicycle.v();
-    const model::Bicycle::second_order_matrix_t K = constants::g*m_bicycle.K0() + v*v*m_bicycle.K2();
+    const real_t v = m_bicycle.v();
+    const model_t::second_order_matrix_t K = constants::g*m_bicycle.K0() + v*v*m_bicycle.K2();
 
     return -(K(1, 1) - K(0, 1)*K(1, 0)/K(0, 0))*
-        model::Bicycle::get_state_element(x, model::Bicycle::state_index_t::steer_angle);
+        model_t::get_state_element(x, model_t::state_index_t::steer_angle);
 }
 
-Handlebar2::Handlebar2(model::Bicycle& bicycle, model::real_t moment_of_inertia) :
+Handlebar2::Handlebar2(model_t& bicycle, real_t moment_of_inertia) :
     m_bicycle(bicycle),
     m_I_delta(moment_of_inertia) { }
 
@@ -71,16 +71,16 @@ Handlebar2::Handlebar2(model::Bicycle& bicycle, model::real_t moment_of_inertia)
  * state or noise in the input. For use with equipment, it is suggested to
  * filter the returned value.
  */
-model::real_t Handlebar2::torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
+real_t Handlebar2::torque(const model_t::state_t& x, const model_t::input_t& u) const {
     static constexpr auto steer_rate_index =
-        static_cast<typename std::underlying_type<model::Bicycle::state_index_t>::type>(
-                model::Bicycle::state_index_t::steer_rate);
+        static_cast<typename std::underlying_type<model_t::state_index_t>::type>(
+                model_t::state_index_t::steer_rate);
 
-    model::real_t steer_acceleration = (m_bicycle.A().row(steer_rate_index)*x + m_bicycle.B().row(steer_rate_index)*u).value();
-    return steer_acceleration*m_I_delta - model::Bicycle::get_input_element(u, model::Bicycle::input_index_t::steer_torque);
+    real_t steer_acceleration = (m_bicycle.A().row(steer_rate_index)*x + m_bicycle.B().row(steer_rate_index)*u).value();
+    return steer_acceleration*m_I_delta - model_t::get_input_element(u, model_t::input_index_t::steer_torque);
 }
 
-model::real_t Handlebar2::moment_of_inertia() const {
+real_t Handlebar2::moment_of_inertia() const {
     return m_I_delta;
 }
 } //namespace haptic

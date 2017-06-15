@@ -10,10 +10,13 @@
  */
 namespace haptic {
 
+using real_t = model::real_t;
+using model_t = model::Bicycle;
+
 class HandlebarBase {
     public:
-        virtual model::real_t torque(
-                const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const = 0;
+        virtual real_t torque(
+                const model_t::state_t& x, const model_t::input_t& u) const = 0;
 
     protected:
         ~HandlebarBase() { }
@@ -29,13 +32,13 @@ class HandlebarBase {
  */
 class Handlebar0 final : public HandlebarBase {
     public:
-        Handlebar0(model::Bicycle& bicycle);
-        virtual model::real_t torque(
-                const model::Bicycle::state_t& x,
-                const model::Bicycle::input_t& u = model::Bicycle::input_t::Zero()) const override;
+        Handlebar0(model_t& bicycle);
+        virtual real_t torque(
+                const model_t::state_t& x,
+                const model_t::input_t& u = model_t::input_t::Zero()) const override;
 
     private:
-        model::Bicycle& m_bicycle;
+        model_t& m_bicycle;
 };
 
 /*
@@ -44,15 +47,15 @@ class Handlebar0 final : public HandlebarBase {
  */
 class Handlebar2 final : public HandlebarBase {
     public:
-        Handlebar2(model::Bicycle& bicycle, model::real_t moment_of_inertia);
-        virtual model::real_t torque(
-                const model::Bicycle::state_t& x,
-                const model::Bicycle::input_t& u = model::Bicycle::input_t::Zero()) const override;
-        model::real_t moment_of_inertia() const;
+        Handlebar2(model_t& bicycle, real_t moment_of_inertia);
+        virtual real_t torque(
+                const model_t::state_t& x,
+                const model_t::input_t& u = model_t::input_t::Zero()) const override;
+        real_t moment_of_inertia() const;
 
     private:
-        model::Bicycle& m_bicycle;
-        model::real_t m_I_delta;
+        model_t& m_bicycle;
+        real_t m_I_delta;
 };
 
 } // namespace  // namespace haptic
