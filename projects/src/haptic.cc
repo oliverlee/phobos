@@ -5,27 +5,8 @@
 
 namespace haptic {
 
-null_t::null_t(model::Bicycle& bicycle) {
-    (void)bicycle;
-}
-
-null_t::null_t(model::Bicycle& bicycle, model::real_t moment_of_inertia) {
-    (void)bicycle;
-    (void)moment_of_inertia;
-}
-
-model::real_t null_t::torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
-    (void)x;
-    (void)u;
-    return 0;
-}
-
 Handlebar0::Handlebar0(model::Bicycle& bicycle) :
     m_bicycle(bicycle) { }
-
-Handlebar0::Handlebar0(model::Bicycle& bicycle, model::real_t moment_of_inertia) : Handlebar0(bicycle) {
-    (void)moment_of_inertia;
-}
 
 /*
  * Simplified equations of motion are used to simulate the bicycle dynamics.
