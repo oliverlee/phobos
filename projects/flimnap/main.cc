@@ -151,6 +151,9 @@ namespace {
             if (msg != nullptr) {
                 *msg = a->bicycle.pose();
                 if (a->transmitter.transmit_async(msg) != MSG_OK) {
+                    // Discard pose message if transmission fails. As the
+                    // receiver requires the most recent pose, we should not
+                    // wait to queue a pose message.
                     a->transmitter.free_pose_message(msg);
                 }
             }
@@ -294,6 +297,7 @@ int main(void) {
                 message::set_simulation_timing(msg,
                         computation_time_measurement.last, transmission_time_measurement.last);
                 if (transmitter.transmit_async(msg) != MSG_OK) {
+                    // Discard simulation message if it cannot be processed quickly enough.
                     transmitter.free_simulation_message(msg);
                 }
             }
