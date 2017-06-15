@@ -10,7 +10,11 @@ namespace message {
 Transmitter::Transmitter() :
 m_thread(nullptr),
 m_bytes_written(0) {
-    initialize();
+    chMBObjectInit(&m_message_mailbox, m_message_mailbox_buffer, MAILBOX_SIZE);
+    chPoolObjectInit(&m_pose_message_pool, sizeof(BicyclePoseMessage), nullptr);
+    chPoolLoadArray(&m_pose_message_pool, static_cast<void*>(m_pose_message_buffer), POSE_MESSAGE_POOL_SIZE);
+    chPoolObjectInit(&m_simulation_message_pool, sizeof(SimulationMessage), nullptr);
+    chPoolLoadArray(&m_simulation_message_pool, static_cast<void*>(m_simulation_message_buffer), SIMULATION_MESSAGE_POOL_SIZE);
 
     // Initialize a serial-over-USB CDC driver.
     sduObjectInit(&SDU1);
@@ -25,7 +29,7 @@ m_bytes_written(0) {
     board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
     // Block USB device until ready
-    while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
+    while (!((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY))) {
         chThdSleepMilliseconds(10);
     }
 }
@@ -45,7 +49,7 @@ BicyclePoseMessage* Transmitter::alloc_pose_message() {
 }
 
 void Transmitter::free_pose_message(BicyclePoseMessage* msg) {
-    chPoolFree(&m_pose_message_pool, reinterpret_cast<void*>(msg));
+    chPoolFree(&m_pose_message_pool, static_cast<void*>(msg));
 }
 
 msg_t Transmitter::transmit_async(BicyclePoseMessage* msg) {
@@ -65,7 +69,7 @@ SimulationMessage* Transmitter::alloc_simulation_message() {
 }
 
 void Transmitter::free_simulation_message(SimulationMessage* msg) {
-    chPoolFree(&m_simulation_message_pool, reinterpret_cast<void*>(msg));
+    chPoolFree(&m_simulation_message_pool, static_cast<void*>(msg));
 }
 
 msg_t Transmitter::transmit_async(SimulationMessage* msg) {
@@ -84,14 +88,6 @@ void Transmitter::transmit(SimulationMessage* msg) {
     encode_message(reinterpret_cast<msg_t>(msg));
     transmit_packet();
     free_simulation_message(msg);
-}
-
-void Transmitter::initialize() {
-    chMBObjectInit(&m_message_mailbox, m_message_mailbox_buffer, MAILBOX_SIZE);
-    chPoolObjectInit(&m_pose_message_pool, sizeof(BicyclePoseMessage), nullptr);
-    chPoolLoadArray(&m_pose_message_pool, static_cast<void*>(m_pose_message_buffer), POSE_MESSAGE_POOL_SIZE);
-    chPoolObjectInit(&m_simulation_message_pool, sizeof(SimulationMessage), nullptr);
-    chPoolLoadArray(&m_simulation_message_pool, static_cast<void*>(m_simulation_message_buffer), SIMULATION_MESSAGE_POOL_SIZE);
 }
 
 void Transmitter::encode_message(msg_t msg) {
@@ -116,6 +112,7 @@ void Transmitter::encode_message(msg_t msg) {
             chDbgAssert(false, "msg pointer does not originate from a valid memory pool");
         }
     } else {
+        // memory pool objects are always stack aligned
         chDbgAssert(false, "msg pointer is not stack aligned");
     }
 }
@@ -145,8 +142,6 @@ void Transmitter::transmitter_thread_function(void* p) {
     auto self = static_cast<Transmitter*>(p);
 
     chRegSetThreadName("transmitter");
-    self->initialize();
-
     while (!chThdShouldTerminateX()) {
         msg_t msg = reinterpret_cast<msg_t>(nullptr);
         chMBFetch(&self->m_message_mailbox, &msg, TIME_INFINITE);

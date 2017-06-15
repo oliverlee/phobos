@@ -41,7 +41,6 @@ class Transmitter {
         thread_t* m_thread;
         size_t m_bytes_written;
 
-        void initialize();
         void encode_message(msg_t msg);
         void transmit_packet() const;
         size_t encode_packet(const SimulationMessage& m);
