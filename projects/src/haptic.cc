@@ -20,10 +20,10 @@ model::real_t null_t::torque(const model::Bicycle::state_t& x, const model::Bicy
     return 0;
 }
 
-HandlebarStatic::HandlebarStatic(model::Bicycle& bicycle) :
+Handlebar0::Handlebar0(model::Bicycle& bicycle) :
     m_bicycle(bicycle) { }
 
-HandlebarStatic::HandlebarStatic(model::Bicycle& bicycle, model::real_t moment_of_inertia) : HandlebarStatic(bicycle) {
+Handlebar0::Handlebar0(model::Bicycle& bicycle, model::real_t moment_of_inertia) : Handlebar0(bicycle) {
     (void)moment_of_inertia;
 }
 
@@ -47,7 +47,7 @@ HandlebarStatic::HandlebarStatic(model::Bicycle& bicycle, model::real_t moment_o
  * In this case, delta_dd is set to zero as well to simplify calculations resulting in:
  *      T_m = -T_delta
  */
-model::real_t HandlebarStatic::torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
+model::real_t Handlebar0::torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
     (void)u;
     const model::real_t v = m_bicycle.v();
     const model::Bicycle::second_order_matrix_t K = constants::g*m_bicycle.K0() + v*v*m_bicycle.K2();
@@ -56,7 +56,7 @@ model::real_t HandlebarStatic::torque(const model::Bicycle::state_t& x, const mo
         model::Bicycle::get_state_element(x, model::Bicycle::state_index_t::steer_angle);
 }
 
-HandlebarDynamic::HandlebarDynamic(model::Bicycle& bicycle, model::real_t moment_of_inertia) :
+Handlebar2::Handlebar2(model::Bicycle& bicycle, model::real_t moment_of_inertia) :
     m_bicycle(bicycle),
     m_I_delta(moment_of_inertia) { }
 
@@ -90,7 +90,7 @@ HandlebarDynamic::HandlebarDynamic(model::Bicycle& bicycle, model::real_t moment
  * state or noise in the input. For use with equipment, it is suggested to
  * filter the returned value.
  */
-model::real_t HandlebarDynamic::torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
+model::real_t Handlebar2::torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
     static constexpr auto steer_rate_index =
         static_cast<typename std::underlying_type<model::Bicycle::state_index_t>::type>(
                 model::Bicycle::state_index_t::steer_rate);
@@ -99,7 +99,7 @@ model::real_t HandlebarDynamic::torque(const model::Bicycle::state_t& x, const m
     return steer_acceleration*m_I_delta - model::Bicycle::get_input_element(u, model::Bicycle::input_index_t::steer_torque);
 }
 
-model::real_t HandlebarDynamic::moment_of_inertia() const {
+model::real_t Handlebar2::moment_of_inertia() const {
     return m_I_delta;
 }
 } //namespace haptic

@@ -32,11 +32,14 @@ class null_t final : public HandlebarBase {
  * This class calculates handlebar feedback torque using a simplified static
  * equation of motion for the physical handlebars and ignoring the torque sensor
  * measurement.
+ *
+ * The class feedback torque calculation ignores input torque,
+ * roll acceleration, steer acceleration, roll rate, steer rate.
  */
-class HandlebarStatic final : public HandlebarBase {
+class Handlebar0 final : public HandlebarBase {
     public:
-        HandlebarStatic(model::Bicycle& bicycle);
-        HandlebarStatic(model::Bicycle& bicycle, model::real_t moment_of_inertia);
+        Handlebar0(model::Bicycle& bicycle);
+        Handlebar0(model::Bicycle& bicycle, model::real_t moment_of_inertia);
         virtual model::real_t torque(
                 const model::Bicycle::state_t& x,
                 const model::Bicycle::input_t& u = model::Bicycle::input_t::Zero()) const override;
@@ -49,9 +52,9 @@ class HandlebarStatic final : public HandlebarBase {
  * This class calculates handlebar feedback torque using the bicycle state
  * transition equation and physical moment of inertia of the steering assembly.
  */
-class HandlebarDynamic final : public HandlebarBase {
+class Handlebar2 final : public HandlebarBase {
     public:
-        HandlebarDynamic(model::Bicycle& bicycle, model::real_t moment_of_inertia);
+        Handlebar2(model::Bicycle& bicycle, model::real_t moment_of_inertia);
         virtual model::real_t torque(
                 const model::Bicycle::state_t& x,
                 const model::Bicycle::input_t& u = model::Bicycle::input_t::Zero()) const override;
