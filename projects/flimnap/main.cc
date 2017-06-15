@@ -226,7 +226,7 @@ int main(void) {
         message::set_simulation_full_model_observer(msg, bicycle);
         transmitter.transmit(msg); // This blocks until USB data starts getting read
     }
-    transmitter.start(); // start transmission thread
+    transmitter.start(NORMALPRIO + 1); // start transmission thread
 
     // Start running pose calculation thread
     pose_thread_arg a{bicycle, transmitter};

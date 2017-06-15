@@ -35,6 +35,23 @@ m_bytes_written(0) {
 }
 
 void Transmitter::start(tprio_t priority) {
+    chDbgAssert(priority < HIGHPRIO, "Transmitter thread priority too high");
+
+    // Set priority of USB data pump thread. In general, it should be higher
+    // than the writer (this thread).
+    // Note: we don't do any explicit rescheduling but scheduling should resolve next
+    // time the usb_lld_pump thread runs.
+    tprio_t newprio = priority + 1;
+    thread_t* usbtr = SDU1.config->usbp->tr;
+#if CH_CFG_USE_MUTEXES == TRUE
+    if ((usbtr->p_prio == usbtr->p_realprio) || (newprio > usbtr->p_prio)) {
+        usbtr->p_prio = newprio;
+    }
+    usbtr->p_realprio = newprio;
+#else
+    usbtr->p_prio = newprio;
+#endif
+
     m_thread = chThdCreateStatic(m_wa_transmitter_thread,
             sizeof(m_wa_transmitter_thread), priority,
             transmitter_thread_function, this);

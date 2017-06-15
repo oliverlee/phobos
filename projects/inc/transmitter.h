@@ -8,7 +8,7 @@ namespace message {
 class Transmitter {
     public:
         Transmitter();
-        void start(tprio_t priority = (NORMALPRIO + 1));
+        void start(tprio_t priority);
 
         BicyclePoseMessage* alloc_pose_message();
         void free_pose_message(BicyclePoseMessage* msg);
