@@ -76,6 +76,19 @@ void Bicycle<Model, Observer>::update_dynamics(real_t roll_torque_input, real_t 
     model_t::set_output_element(measurement, model_t::output_index_t::yaw_angle, yaw_angle_measurement);
     model_t::set_output_element(measurement, model_t::output_index_t::steer_angle, steer_angle_measurement);
 
+    // If we are below the critical speed, roll angle and roll rate are set to zero before _and_ after integration
+    observer_t& obs = m_observer;
+    auto zero_roll_states = [&obs = obs]() {
+        state_t x = obs.state();
+        model_t::set_state_element(x, model_t::state_index_t::roll_angle, static_cast<real_t>(0.0));
+        model_t::set_state_element(x, model_t::state_index_t::roll_rate, static_cast<real_t>(0.0));
+        obs.set_state(x);
+    };
+    if (m_model.v() < v_critical) {
+        zero_roll_states();
+    }
+
+
     // The auxiliary states _must_ also be integrated at the same time as the
     // dynamic state. After the observer update, we "merge" dynamic states together.
     chBSemWait(&m_state_sem);
@@ -84,6 +97,10 @@ void Bicycle<Model, Observer>::update_dynamics(real_t roll_torque_input, real_t 
     full_state_t full_state_next = m_model.integrate_full_state(
             full_state_copy, m_input, m_model.dt(), measurement);
     m_observer.update_state(m_input, measurement);
+
+    if (m_model.v() < v_critical) {
+        zero_roll_states();
+    }
 
     if (!m_observer.state().allFinite()) {
         chSysHalt("");

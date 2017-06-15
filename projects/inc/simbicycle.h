@@ -45,6 +45,7 @@ class Bicycle {
         static constexpr real_t default_v = 5.0; // forward speed, m/s
         static constexpr real_t v_quantization_resolution = 0.1; // m/s
         static constexpr real_t observer_prime_period = 3.0; // seconds
+        static constexpr real_t v_critical = 1.0; // m/s, minimal speed to simulate full bicycle dynamics
 
         Bicycle(real_t v = default_v, real_t dt = default_dt);
 
