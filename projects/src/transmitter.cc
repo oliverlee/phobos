@@ -36,6 +36,7 @@ m_bytes_written(0) {
 
 void Transmitter::start(tprio_t priority) {
     chDbgAssert(priority < HIGHPRIO, "Transmitter thread priority too high");
+    chDbgAssert(m_thread == nullptr, "Transmitter cannot be started if already running");
 
     // Set priority of USB data pump thread. In general, it should be higher
     // than the writer (this thread).
