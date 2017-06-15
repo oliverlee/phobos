@@ -37,8 +37,6 @@
 #include "bicycle/whipple.h" // whipple bicycle model
 #include "oracle.h" // oracle observer
 #include "kalman.h" // kalman filter observer
-#include "haptic.h" // handlebar feedback
-
 #include "simbicycle.h"
 #include "transmitter.h"
 
@@ -46,13 +44,11 @@ namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleKinematic;
     using observer_t = observer::Oracle<model_t>;
-    using haptic_t = haptic::HandlebarStatic;
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
-    using haptic_t = haptic::HandlebarDynamic;
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
-    using bicycle_t = sim::Bicycle<model_t, observer_t, haptic_t>;
+    using bicycle_t = sim::Bicycle<model_t, observer_t>;
 
     // sensors
     Analog analog;
