@@ -65,10 +65,30 @@ namespace {
     constexpr float fixed_velocity = 5.0f;
 
     // pose calculation loop
-    constexpr systime_t pose_loop_time = US2ST(8333); // update pose at 120 Hz
+    constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
 
     // dynamics loop
-    constexpr systime_t looptime = MS2ST(1); // 1 ms -> 1 kHz
+    constexpr systime_t dynamics_loop_period = MS2ST(1); // 1 ms -> 1 kHz
+
+    // Suspends the invoking thread until the system time arrives to the
+    // specified value.
+    // The system time is assumed to be between prev and time else the call is
+    // assumed to have been called outside the allowed time interval, in this
+    // case the thread yields the time slot and no sleep is performed.
+    systime_t chThdSleepUntilWindowedOrYield(systime_t prev, systime_t next) {
+        systime_t time;
+
+        chSysLock();
+        time = chVTGetSystemTimeX();
+        if (chVTIsTimeWithinX(time, prev, next)) {
+            chThdSleepS(next - time);
+        } else {
+            chSchDoYieldS();
+        }
+        chSysUnlock();
+
+        return next;
+    }
 
     dacsample_t set_handlebar_velocity(float velocity) {
         // limit velocity to a maximum magnitude of 100 deg/s
@@ -124,8 +144,8 @@ namespace {
         pose_thread_arg* a = static_cast<pose_thread_arg*>(arg);
 
         chRegSetThreadName("pose");
+        systime_t deadline = chVTGetSystemTime();
         while (true) {
-            systime_t starttime = chVTGetSystemTime();
             a->bicycle.update_kinematics();
             BicyclePoseMessage* msg = a->transmitter.alloc_pose_message();
             if (msg != nullptr) {
@@ -135,12 +155,7 @@ namespace {
                 }
             }
 
-            systime_t sleeptime = pose_loop_time + starttime - chVTGetSystemTime();
-            if (sleeptime >= pose_loop_time) {
-                chThdYield();
-            } else {
-                chThdSleep(sleeptime);
-            }
+            deadline = chThdSleepUntilWindowedOrYield(deadline, deadline + pose_loop_period);
         }
     }
 } // namespace
@@ -185,7 +200,7 @@ int main(void) {
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(fixed_velocity, static_cast<model::real_t>(looptime)/CH_CFG_ST_FREQUENCY);
+    bicycle_t bicycle(fixed_velocity, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
@@ -283,6 +298,6 @@ int main(void) {
                 }
             }
         }
-        deadline = chThdSleepUntilWindowed(deadline, deadline + looptime);
+        deadline = chThdSleepUntilWindowedOrYield(deadline, deadline + dynamics_loop_period);
     }
 }
