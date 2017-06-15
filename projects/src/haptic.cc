@@ -9,7 +9,7 @@ Handlebar0::Handlebar0(model_t& bicycle) :
     m_bicycle(bicycle) { }
 
 /*
- * Simplified equations of motion are used to simulate the bicycle dynamics.
+ * Simplified equations of motion are used to calculate the handlebar feedback torque.
  * Roll/steer rate and acceleration terms are ignored resulting in:
  *      (g*K0 + v^2*K2) [phi  ] = [T_phi  ]
  *                      [delta] = [T_delta]
@@ -35,6 +35,41 @@ real_t Handlebar0::torque(const model_t::state_t& x, const model_t::input_t& u) 
 
     return -(K(1, 1) - K(0, 1)*K(1, 0)/K(0, 0))*
         model_t::get_state_element(x, model_t::state_index_t::steer_angle);
+}
+
+Handlebar1::Handlebar1(model_t& bicycle) :
+    m_bicycle(bicycle) { }
+
+/*
+ * Simplified equations of motion are used to calculate the handlebar feedback torque.
+ * Roll/steer acceleration terms are ignored resulting in:
+ *      v*C1 [phi_dot  ] + (g*K0 + v^2*K2) [phi  ] = [T_phi  ]
+ *           [delta_dot]                   [delta] = [T_delta]
+ *
+ * As T_phi is zero, roll (phi) is dependent on steer (delta). Steer torque can
+ * be determined solely from steer angle.
+ *
+ * The equation of motion governing the *physical* steering assembly is:
+ *      I_delta * delta_dd = T_delta + T_m
+ *
+ * where I_delta is the moment of inertia of the physical steering assembly about the steer axis
+ *       delta_dd is the steer angular acceleration determined from the bicycle model
+ *       T_delta is the steer torque
+ *       T_m is the feedback torque
+ *
+ * In this case, delta_dd is set to zero as well to simplify calculations resulting in:
+ *      T_m = -T_delta
+ */
+real_t Handlebar1::torque(const model_t::state_t& x, const model_t::input_t& u) const {
+    (void)u;
+    const real_t v = m_bicycle.v();
+    const model_t::second_order_matrix_t K = constants::g*m_bicycle.K0() + v*v*m_bicycle.K2();
+    const model_t::second_order_matrix_t C = v*m_bicycle.C1();
+
+    return -(C(1, 0)*model_t::get_state_element(x, model_t::state_index_t::roll_rate) +
+             C(1, 1)*model_t::get_state_element(x, model_t::state_index_t::steer_rate) +
+             K(1, 0)*model_t::get_state_element(x, model_t::state_index_t::roll_angle) +
+             K(1, 1)*model_t::get_state_element(x, model_t::state_index_t::steer_angle));
 }
 
 Handlebar2::Handlebar2(model_t& bicycle, real_t moment_of_inertia) :

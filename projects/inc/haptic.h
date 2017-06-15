@@ -42,6 +42,25 @@ class Handlebar0 final : public HandlebarBase {
 };
 
 /*
+ * This class calculates handlebar feedback torque using a simplified
+ * equation of motion for the physical handlebars and ignoring the torque sensor
+ * measurement.
+ *
+ * The class feedback torque calculation ignores input torque,
+ * roll acceleration, steer acceleration.
+ */
+class Handlebar1 final : public HandlebarBase {
+    public:
+        Handlebar1(model_t& bicycle);
+        virtual real_t torque(
+                const model_t::state_t& x,
+                const model_t::input_t& u = model_t::input_t::Zero()) const override;
+
+    private:
+        model_t& m_bicycle;
+};
+
+/*
  * This class calculates handlebar feedback torque using the bicycle state
  * transition equation and physical moment of inertia of the steering assembly.
  */
