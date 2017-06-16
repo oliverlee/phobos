@@ -45,5 +45,8 @@ class Transmitter {
         void transmit_packet() const;
         size_t encode_packet(const SimulationMessage& m);
         static void transmitter_thread_function(void* p);
+
+        bool is_within_pose_message_memory(msg_t msg);
+        bool is_within_simulation_message_memory(msg_t msg);
 };
 } // namespace message

@@ -71,7 +71,15 @@ void Transmitter::free_pose_message(BicyclePoseMessage* msg) {
 }
 
 msg_t Transmitter::transmit_async(BicyclePoseMessage* msg) {
-    msg_t status = chMBPost(&m_message_mailbox, reinterpret_cast<msg_t>(msg), TIME_IMMEDIATE);
+    msg_t m = reinterpret_cast<msg_t>(msg);
+
+    // Memory pool objects must be stack aligned and the allocated buffer is contiguous
+    chDbgAssert((m % sizeof(stkalign_t)) == 0,
+            "msg pointer does not originate from Transmitter managed memory");
+    chDbgAssert(is_within_pose_message_memory(m),
+            "msg pointer does not originate from Transmitter managed memory");
+
+    msg_t status = chMBPost(&m_message_mailbox, m, TIME_IMMEDIATE);
 #if ASSERT_MESSAGE_MEMORY_LIMIT
     chDbgAssert(status == MSG_OK, "Increase transmitter MAILBOX_SIZE");
 #endif
@@ -91,7 +99,15 @@ void Transmitter::free_simulation_message(SimulationMessage* msg) {
 }
 
 msg_t Transmitter::transmit_async(SimulationMessage* msg) {
-    msg_t status = chMBPost(&m_message_mailbox, reinterpret_cast<msg_t>(msg), TIME_IMMEDIATE);
+    msg_t m = reinterpret_cast<msg_t>(msg);
+
+    // Memory pool objects must be stack aligned and the allocated buffer is contiguous
+    chDbgAssert((m % sizeof(stkalign_t)) == 0,
+            "msg pointer does not originate from Transmitter managed memory");
+    chDbgAssert(is_within_simulation_message_memory(m),
+            "msg pointer does not originate from Transmitter managed memory");
+
+    msg_t status = chMBPost(&m_message_mailbox, m, TIME_IMMEDIATE);
 #if ASSERT_MESSAGE_MEMORY_LIMIT
     chDbgAssert(status == MSG_OK, "Increase transmitter MAILBOX_SIZE");
 #endif
@@ -112,26 +128,20 @@ void Transmitter::encode_message(msg_t msg) {
     // For now, we send a simulation message but this needs to be fixed later on.
     // TODO: Presend protobuf tag. See https://github.com/oliverlee/phobos/issues/181#issuecomment-301825244
     m_bytes_written = 0;
-    if ((msg % sizeof(stkalign_t)) == 0) {
-        if ((reinterpret_cast<BicyclePoseMessage*>(msg) >= m_pose_message_buffer) &&
-            (reinterpret_cast<BicyclePoseMessage*>(msg) <= &m_pose_message_buffer[POSE_MESSAGE_POOL_SIZE])) {
-            SimulationMessage sim_msg = SimulationMessage_init_zero;
-            sim_msg.timestamp = 0;
-            sim_msg.pose = *reinterpret_cast<BicyclePoseMessage*>(msg);
-            sim_msg.has_pose = true;
-            free_pose_message(reinterpret_cast<BicyclePoseMessage*>(msg));
-            m_bytes_written = encode_packet(sim_msg);
-        } else if (
-                (reinterpret_cast<SimulationMessage*>(msg) >= m_simulation_message_buffer) &&
-                (reinterpret_cast<SimulationMessage*>(msg) <= &m_simulation_message_buffer[SIMULATION_MESSAGE_POOL_SIZE])) {
-            m_bytes_written = encode_packet(*reinterpret_cast<SimulationMessage*>(msg));
-            free_simulation_message(reinterpret_cast<SimulationMessage*>(msg));
-        } else {
-            chDbgAssert(false, "msg pointer does not originate from a valid memory pool");
-        }
+    if (is_within_pose_message_memory(msg)) {
+        BicyclePoseMessage* p = reinterpret_cast<BicyclePoseMessage*>(msg);
+        SimulationMessage sim_msg = SimulationMessage_init_zero;
+        sim_msg.timestamp = 0; // required field
+        sim_msg.pose = *p;
+        sim_msg.has_pose = true;
+        free_pose_message(p);
+        m_bytes_written = encode_packet(sim_msg);
+    } else if (is_within_simulation_message_memory(msg)) {
+        SimulationMessage* p = reinterpret_cast<SimulationMessage*>(msg);
+        m_bytes_written = encode_packet(*p);
+        free_simulation_message(p);
     } else {
-        // memory pool objects are always stack aligned
-        chDbgAssert(false, "msg pointer is not stack aligned");
+        chDbgAssert(false, "msg pointer does not originate from Transmitter managed memory");
     }
 }
 
@@ -166,5 +176,15 @@ void Transmitter::transmitter_thread_function(void* p) {
         self->encode_message(msg);
         self->transmit_packet();
     }
+}
+
+bool Transmitter::is_within_pose_message_memory(msg_t msg) {
+    auto p = reinterpret_cast<BicyclePoseMessage*>(msg);
+    return (p >= m_pose_message_buffer) && (p <= &m_pose_message_buffer[POSE_MESSAGE_POOL_SIZE]);
+}
+
+bool Transmitter::is_within_simulation_message_memory(msg_t msg) {
+    auto p = reinterpret_cast<SimulationMessage*>(msg);
+    return (p >= m_simulation_message_buffer) && (p <= &m_simulation_message_buffer[SIMULATION_MESSAGE_POOL_SIZE]);
 }
 } // namespace message
