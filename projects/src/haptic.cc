@@ -42,12 +42,15 @@ Handlebar1::Handlebar1(model_t& bicycle) :
 
 /*
  * Simplified equations of motion are used to calculate the handlebar feedback torque.
- * Roll/steer acceleration terms are ignored resulting in:
- *      v*C1 [phi_dot  ] + (g*K0 + v^2*K2) [phi  ] = [T_phi  ]
- *           [delta_dot]                   [delta] = [T_delta]
+ * Roll/steer acceleration terms.
  *
- * As T_phi is zero, roll (phi) is dependent on steer (delta). Steer torque can
- * be determined solely from steer angle.
+ * The equations of motion from the Whipple model are:
+ *      [M_00 M_01] [phi_ddot  ] + v*C1 [phi_dot  ] + (g*K0 + v^2*K2) [phi  ] = [T_phi  ]
+ *      [M_10 M_11] [delta_ddot]        [delta_dot]                   [delta] = [T_delta]
+ *
+ * We assume T_phi is zero, and set M_01 = M_10 to zero.
+ *      [M_00    0] [phi_ddot  ] + v*C1 [phi_dot  ] + (g*K0 + v^2*K2) [phi  ] = [      0]
+ *      [   0 M_11] [delta_ddot]        [delta_dot]                   [delta] = [T_delta]
  *
  * The equation of motion governing the *physical* steering assembly is:
  *      I_delta * delta_dd = T_delta + T_m
@@ -56,9 +59,16 @@ Handlebar1::Handlebar1(model_t& bicycle) :
  *       delta_dd is the steer angular acceleration determined from the bicycle model
  *       T_delta is the steer torque
  *       T_m is the feedback torque
+ * and I_delta = M_11
  *
- * In this case, delta_dd is set to zero as well to simplify calculations resulting in:
- *      T_m = -T_delta
+ * Taking the bicycle steer equation and physical steering assembly equations to be equal and
+ * setting the motor torque to encompass the remaining terms
+ *      -T_m = M_10*phi_ddot + C_10*phi_dot + C_11*delta_dot + K_10*phi + K_11*delta
+ *
+ * and with simplifying zeros
+ *      -T_m = C_10*phi_dot + C_11*delta_dot + K_10*phi + K_11*delta
+ *
+ * For more information, refer to: https://github.com/oliverlee/phobos/issues/161
  */
 real_t Handlebar1::torque(const model_t::state_t& x, const model_t::input_t& u) const {
     (void)u;
