@@ -20,14 +20,11 @@
 #include "analog.h"
 #include "encoder.h"
 #include "encoderfoaw.h"
-#include "cobs.h"
-#include "packet/serialize.h"
 #include "simulation.pb.h"
 #include "messageutil.h"
 #include "filter/movingaverage.h"
 
 #include "blink.h"
-#include "usbconfig.h"
 #include "saconfig.h"
 #include "utility.h"
 
@@ -41,7 +38,9 @@
 #include "oracle.h" // oracle observer
 #include "kalman.h" // kalman filter observer
 #include "haptic.h" // handlebar feedback
+
 #include "simbicycle.h"
+#include "transmitter.h"
 
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
@@ -65,19 +64,31 @@ namespace {
 
     constexpr float fixed_velocity = 5.0f;
 
-    // transmission
-    constexpr std::size_t VARINT_MAX_SIZE = 10;
-    std::array<uint8_t, SimulationMessage_size + VARINT_MAX_SIZE> encode_buffer;
-    std::array<uint8_t, cobs::max_encoded_length(SimulationMessage_size + VARINT_MAX_SIZE)> packet_buffer;
-    SimulationMessage msg;
-
-    // kinematics loop
-    constexpr systime_t kinematics_loop_time = US2ST(8333); // update kinematics at 120 Hz
+    // pose calculation loop
+    constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
 
     // dynamics loop
-    constexpr systime_t looptime = MS2ST(1); // 1 ms -> 1 kHz
-    time_measurement_t computation_time_measurement;
-    time_measurement_t transmission_time_measurement;
+    constexpr systime_t dynamics_loop_period = MS2ST(1); // 1 ms -> 1 kHz
+
+    // Suspends the invoking thread until the system time arrives to the
+    // specified value.
+    // The system time is assumed to be between prev and time else the call is
+    // assumed to have been called outside the allowed time interval, in this
+    // case the thread yields the time slot and no sleep is performed.
+    systime_t chThdSleepUntilWindowedOrYield(systime_t prev, systime_t next) {
+        systime_t time;
+
+        chSysLock();
+        time = chVTGetSystemTimeX();
+        if (chVTIsTimeWithinX(time, prev, next)) {
+            chThdSleepS(next - time);
+        } else {
+            chSchDoYieldS();
+        }
+        chSysUnlock();
+
+        return next;
+    }
 
     dacsample_t set_handlebar_velocity(float velocity) {
         // limit velocity to a maximum magnitude of 100 deg/s
@@ -95,26 +106,6 @@ namespace {
         // factors were determined.
         const int16_t shifted_value = static_cast<int16_t>(value) - static_cast<int16_t>(adc_zero);
         return static_cast<float>(shifted_value)*magnitude/static_cast<float>(sa::ADC_HALF_RANGE);
-    }
-
-    void update_and_transmit_kinematics(bicycle_t& bicycle) {
-        bicycle.update_kinematics();
-        //
-        //TODO: Pose message should be transmitted asynchronously.
-        //After starting transmission, the simulation should start to calculate pose for the next timestep.
-        //This is currently not necessary given the observed timings.
-        //
-        //size_t bytes_encoded = packet::serialize::encode_delimited(bicycle.pose(),
-        //        encode_buffer.data(), encode_buffer.size());
-        //TODO: clear message
-        //message::set_simulation_loop_values(&msg, bicycle);
-        //size_t bytes_encoded = packet::serialize::encode_delimited(
-        //        msg, encode_buffer.data(), encode_buffer.size());
-        //size_t bytes_written = packet::frame::stuff(
-        //        encode_buffer.data(), packet_buffer.data(), bytes_encoded);
-        //if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-        //    usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-        //}
     }
 
     template <typename T>
@@ -144,73 +135,45 @@ namespace {
         }
     };
 
+    struct pose_thread_arg {
+        bicycle_t& bicycle;
+        message::Transmitter& transmitter;
+    };
+    THD_WORKING_AREA(wa_pose_thread, 2048);
+    THD_FUNCTION(pose_thread, arg) {
+        pose_thread_arg* a = static_cast<pose_thread_arg*>(arg);
 
-    THD_WORKING_AREA(wa_kinematics_thread, 2048);
-    THD_FUNCTION(kinematics_thread, arg) {
-        bicycle_t& bicycle = *static_cast<bicycle_t*>(arg);
-
-        chRegSetThreadName("kinematics");
+        chRegSetThreadName("pose");
+        systime_t deadline = chVTGetSystemTime();
         while (true) {
-            systime_t starttime = chVTGetSystemTime();
-            update_and_transmit_kinematics(bicycle);
-            systime_t sleeptime = kinematics_loop_time + starttime - chVTGetSystemTime();
-            if (sleeptime >= kinematics_loop_time) {
-                continue;
-            } else {
-                chThdSleep(sleeptime);
+            a->bicycle.update_kinematics();
+            BicyclePoseMessage* msg = a->transmitter.alloc_pose_message();
+            if (msg != nullptr) {
+                *msg = a->bicycle.pose();
+                if (a->transmitter.transmit_async(msg) != MSG_OK) {
+                    // Discard pose message if transmission fails. As the
+                    // receiver requires the most recent pose, we should not
+                    // wait to queue a pose message.
+                    a->transmitter.free_pose_message(msg);
+                }
             }
+
+            deadline = chThdSleepUntilWindowedOrYield(deadline, deadline + pose_loop_period);
         }
-    }
-
-    size_t write_message_to_encode_buffer(const SimulationMessage& m) {
-        const size_t encode_buffer_len = packet::serialize::encode_delimited(
-            m,
-            encode_buffer.data(),
-            encode_buffer.size()
-        );
-
-        const cobs::EncodeResult encode_result = cobs::encode(
-            encode_buffer.data(),
-            encode_buffer_len,
-            packet_buffer.data(),
-            packet_buffer.size()
-        );
-
-        // Encoding only fails when the destination buffer is too small, this
-        // should not happen as long as we only encode SimulationMessage objects
-        // because we allocated packet_buffer based on its size.
-        chDbgAssert(encode_result.status == cobs::EncodeResult::Status::OK, "Expected encoding to succeed.");
-
-        return encode_result.produced;
     }
 } // namespace
 
-/*
- * Application entry point.
- */
-int main(void) {
 
-    //System initializations.
-    //- HAL initialization, this also initializes the configured device drivers
-    //  and performs the board-specific initializations.
-    //- Kernel initialization, the main() function becomes a thread and the
-    //  RTOS is active.
+int main(void) {
+    // System initializations.
+    // - HAL initialization, this also initializes the configured device drivers
+    //   and performs the board-specific initializations.
+    // - Kernel initialization, the main() function becomes a thread and the
+    //   RTOS is active.
     halInit();
     chSysInit();
 
-    // Initialize a serial-over-USB CDC driver.
-    sduObjectInit(&SDU1);
-    sduStart(&SDU1, &serusbcfg);
-
-    //Activate the USB driver and then the USB bus pull-up on D+.
-    //Note, a delay is inserted in order to not have to disconnect the cable
-    //after a reset.
-    board_usb_lld_disconnect_bus();   //usbDisconnectBus(serusbcfg.usbp);
-    chThdSleepMilliseconds(1500);
-    usbStart(serusbcfg.usbp, &usbcfg);
-    board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
-
-    // create the blink thread and print state monitor
+    // Create LED blink thread
     chBlinkThreadCreateStatic();
 
     // Start sensors.
@@ -232,7 +195,7 @@ int main(void) {
     palSetLine(LINE_TORQUE_MEAS_EN);
 
     // Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
-    // The default line configuration is OUTPUT_OPENDRAIN_PULLUP  for SPI1_ENC1_NSS
+    // The default line configuration is OUTPUT_OPENDRAIN_PULLUP for SPI1_ENC1_NSS
     // and must be changed to use as analog output.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
@@ -240,7 +203,7 @@ int main(void) {
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(fixed_velocity, static_cast<model::real_t>(looptime)/CH_CFG_ST_FREQUENCY);
+    bicycle_t bicycle(fixed_velocity, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
@@ -251,32 +214,29 @@ int main(void) {
     observer_initializer<observer_t> oi;
     oi.initialize(bicycle);
 
+    // Initialize time measurements
+    time_measurement_t computation_time_measurement;
+    time_measurement_t transmission_time_measurement;
     chTMObjectInit(&computation_time_measurement);
     chTMObjectInit(&transmission_time_measurement);
 
-    // Transmit initial message containing gitsha1, model, and observer data.
-    // This initial transmission is blocking.
-    msg = SimulationMessage_init_zero;
-    msg.timestamp = chVTGetSystemTime();
-    message::set_simulation_full_model_observer(&msg, bicycle);
-    size_t bytes_written = write_message_to_encode_buffer(msg);
-
-    // block until ready
-    while ((SDU1.config->usbp->state != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
-        chThdSleepMilliseconds(10);
+    // Initialize USB data transmission
+    message::Transmitter transmitter;
+    {   // Transmit initial message containing gitsha1, model, and observer data.
+        SimulationMessage* msg = transmitter.alloc_simulation_message();
+        *msg = SimulationMessage_init_zero;
+        msg->timestamp = chVTGetSystemTime();
+        message::set_simulation_full_model_observer(msg, bicycle);
+        transmitter.transmit(msg); // This blocks until USB data starts getting read
     }
+    transmitter.start(NORMALPRIO + 1); // start transmission thread
 
-    // transmit data
-    if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-        chTMStartMeasurementX(&transmission_time_measurement);
-        usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-        chTMStopMeasurementX(&transmission_time_measurement);
-    }
+    // Start running pose calculation thread
+    pose_thread_arg a{bicycle, transmitter};
+    chThdCreateStatic(wa_pose_thread, sizeof(wa_pose_thread),
+            NORMALPRIO - 1, pose_thread, static_cast<void*>(&a));
 
-    // Normal main() thread activity, in this project it simulates the bicycle
-    // dynamics in real-time (roughly).
-    chThdCreateStatic(wa_kinematics_thread, sizeof(wa_kinematics_thread),
-            NORMALPRIO - 1, kinematics_thread, static_cast<void*>(&bicycle));
+    // Normal main() thread activity. This is the dynamics simulation loop.
     systime_t deadline = chVTGetSystemTime();
     while (true) {
         systime_t starttime = chVTGetSystemTime();
@@ -317,34 +277,32 @@ int main(void) {
         const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
 
-        // prepare message for transmission
-        msg = SimulationMessage_init_zero;
-        msg.timestamp = starttime;
-        message::set_bicycle_input(&msg.input,
-                (model_t::input_t() << roll_torque, steer_torque).finished());
-        msg.has_input = true;
-        message::set_simulation_state(&msg, bicycle);
-        message::set_simulation_auxiliary_state(&msg, bicycle);
-        if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
-            message::set_kalman_gain(&msg.kalman, bicycle.observer());
-            msg.has_kalman = true;
+        {   // prepare message for transmission
+            SimulationMessage* msg = transmitter.alloc_simulation_message();
+            if (msg != nullptr) {
+                *msg = SimulationMessage_init_zero;
+                msg->timestamp = starttime;
+                message::set_bicycle_input(&msg->input,
+                        (model_t::input_t() << roll_torque, steer_torque).finished());
+                msg->has_input = true;
+                message::set_simulation_state(msg, bicycle);
+                message::set_simulation_auxiliary_state(msg, bicycle);
+                if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
+                    message::set_kalman_gain(&msg->kalman, bicycle.observer());
+                    msg->has_kalman = true;
+                }
+                message::set_simulation_actuators(msg, handlebar_velocity_dac);
+                message::set_simulation_sensors(msg,
+                        analog.get_adc12(), analog.get_adc13(),
+                        encoder_steer.count(), encoder_rear_wheel.count());
+                message::set_simulation_timing(msg,
+                        computation_time_measurement.last, transmission_time_measurement.last);
+                if (transmitter.transmit_async(msg) != MSG_OK) {
+                    // Discard simulation message if it cannot be processed quickly enough.
+                    transmitter.free_simulation_message(msg);
+                }
+            }
         }
-        message::set_simulation_actuators(&msg, handlebar_velocity_dac);
-        message::set_simulation_sensors(&msg,
-                analog.get_adc12(), analog.get_adc13(),
-                encoder_steer.count(), encoder_rear_wheel.count());
-        message::set_simulation_timing(&msg,
-                computation_time_measurement.last, transmission_time_measurement.last);
-        message::set_simulation_pose(&msg, bicycle);
-        size_t bytes_written = write_message_to_encode_buffer(msg);
-
-        // transmit message
-        if ((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY)) {
-            chTMStartMeasurementX(&transmission_time_measurement);
-            usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, packet_buffer.data(), bytes_written);
-            chTMStopMeasurementX(&transmission_time_measurement);
-        }
-
-        deadline = chThdSleepUntilWindowed(deadline, deadline + looptime);
+        deadline = chThdSleepUntilWindowedOrYield(deadline, deadline + dynamics_loop_period);
     }
 }

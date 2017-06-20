@@ -14,6 +14,10 @@ set_property(SOURCE
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
     APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef -Wno-deprecated")
 
+# change optimization level to reduce used flash size
+set(CMAKE_C_FLAGS_DEBUG "-gdwarf-4 -fvar-tracking-assignments -Og")
+set(CMAKE_CXX_FLAGS_DEBUG "-gdwarf-4 -fvar-tracking-assignments -Og")
+
 set(FLIMNAP_COMMON_SRC
     chconf.h
     halconf.h
@@ -23,6 +27,7 @@ set(FLIMNAP_COMMON_SRC
     usbconfig.c # add USB config file without input/output buffer queues
     ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
+    ${PHOBOS_PROJECT_SOURCE_DIR}/transmitter.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc
