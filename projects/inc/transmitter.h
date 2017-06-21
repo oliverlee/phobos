@@ -31,8 +31,8 @@ class Transmitter {
         MEMORYPOOL_DECL(m_simulation_message_pool, sizeof(SimulationMessage), nullptr);
 
         msg_t m_message_mailbox_buffer[MAILBOX_SIZE];
-        BicyclePoseMessage m_pose_message_buffer[POSE_MESSAGE_POOL_SIZE]; __attribute__((aligned(sizeof(stkalign_t))))
-        SimulationMessage m_simulation_message_buffer[SIMULATION_MESSAGE_POOL_SIZE]; __attribute__((aligned(sizeof(stkalign_t))))
+        BicyclePoseMessage m_pose_message_buffer[POSE_MESSAGE_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
+        SimulationMessage m_simulation_message_buffer[SIMULATION_MESSAGE_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
 
         static constexpr size_t VARINT_MAX_SIZE = 10;
         std::array<uint8_t, sizeof(SimulationMessage) + VARINT_MAX_SIZE> m_serialize_buffer;
