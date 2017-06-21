@@ -11,10 +11,18 @@ Transmitter::Transmitter() :
 m_thread(nullptr),
 m_bytes_written(0) {
     chMBObjectInit(&m_message_mailbox, m_message_mailbox_buffer, MAILBOX_SIZE);
-    chPoolObjectInit(&m_pose_message_pool, sizeof(BicyclePoseMessage), nullptr);
-    chPoolLoadArray(&m_pose_message_pool, static_cast<void*>(m_pose_message_buffer), POSE_MESSAGE_POOL_SIZE);
-    chPoolObjectInit(&m_simulation_message_pool, sizeof(SimulationMessage), nullptr);
-    chPoolLoadArray(&m_simulation_message_pool, static_cast<void*>(m_simulation_message_buffer), SIMULATION_MESSAGE_POOL_SIZE);
+    chPoolObjectInit(&m_pose_message_pool,
+            sizeof(m_pose_message_buffer[0]),
+            nullptr);
+    chPoolLoadArray(&m_pose_message_pool,
+            static_cast<void*>(m_pose_message_buffer),
+            POSE_MESSAGE_POOL_SIZE);
+    chPoolObjectInit(&m_simulation_message_pool,
+            sizeof(m_simulation_message_buffer[0]),
+            nullptr);
+    chPoolLoadArray(&m_simulation_message_pool,
+            static_cast<void*>(m_simulation_message_buffer),
+            SIMULATION_MESSAGE_POOL_SIZE);
 
     // Initialize a serial-over-USB CDC driver.
     sduObjectInit(&SDU1);
