@@ -11,11 +11,11 @@ class Transmitter {
         void start(tprio_t priority);
 
         BicyclePoseMessage* alloc_pose_message();
-        void free_pose_message(BicyclePoseMessage* msg);
+        void free_message(BicyclePoseMessage* msg);
         msg_t transmit_async(BicyclePoseMessage* msg); // frees msg on MSG_OK
 
         SimulationMessage* alloc_simulation_message();
-        void free_simulation_message(SimulationMessage* msg);
+        void free_message(SimulationMessage* msg);
         msg_t transmit_async(SimulationMessage* msg); // frees msg on MSG_OK
 
         // TODO: REMOVE after config message is defined
@@ -41,7 +41,8 @@ class Transmitter {
         thread_t* m_thread;
         size_t m_bytes_written;
 
-        void encode_message(msg_t msg);
+        void encode_message(const BicyclePoseMessage* const msg);
+        void encode_message(const SimulationMessage* const msg);
         void transmit_packet() const;
         size_t encode_packet(const SimulationMessage& m);
         static void transmitter_thread_function(void* p);

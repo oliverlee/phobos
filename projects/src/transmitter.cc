@@ -60,7 +60,12 @@ BicyclePoseMessage* Transmitter::alloc_pose_message() {
     return static_cast<BicyclePoseMessage*>(msg);
 }
 
-void Transmitter::free_pose_message(BicyclePoseMessage* msg) {
+void Transmitter::free_message(BicyclePoseMessage* msg) {
+    // Memory pool objects must be stack aligned and the allocated buffer is contiguous
+    chDbgAssert((reinterpret_cast<msg_t>(msg) % sizeof(stkalign_t)) == 0,
+            "msg pointer does not originate from Transmitter managed memory");
+    chDbgAssert(is_within_pose_message_memory(reinterpret_cast<msg_t>(msg)),
+            "msg pointer does not originate from Transmitter managed memory");
     chPoolFree(&m_pose_message_pool, static_cast<void*>(msg));
 }
 
@@ -88,7 +93,12 @@ SimulationMessage* Transmitter::alloc_simulation_message() {
     return static_cast<SimulationMessage*>(msg);
 }
 
-void Transmitter::free_simulation_message(SimulationMessage* msg) {
+void Transmitter::free_message(SimulationMessage* msg) {
+    // Memory pool objects must be stack aligned and the allocated buffer is contiguous
+    chDbgAssert((reinterpret_cast<msg_t>(msg) % sizeof(stkalign_t)) == 0,
+            "msg pointer does not originate from Transmitter managed memory");
+    chDbgAssert(is_within_simulation_message_memory(reinterpret_cast<msg_t>(msg)),
+            "msg pointer does not originate from Transmitter managed memory");
     chPoolFree(&m_simulation_message_pool, static_cast<void*>(msg));
 }
 
@@ -113,30 +123,25 @@ void Transmitter::transmit(SimulationMessage* msg) {
         chSysHalt("Synchronization is not implemented and this function is not thread safe");
     }
 
-    encode_message(reinterpret_cast<msg_t>(msg));
+    encode_message(msg);
+    free_message(msg);
     transmit_packet();
-    free_simulation_message(msg);
 }
 
-void Transmitter::encode_message(msg_t msg) {
+void Transmitter::encode_message(const BicyclePoseMessage* const msg) {
     // For now, we send a simulation message but this needs to be fixed later on.
     // TODO: Presend protobuf tag. See https://github.com/oliverlee/phobos/issues/181#issuecomment-301825244
     m_bytes_written = 0;
-    if (is_within_pose_message_memory(msg)) {
-        BicyclePoseMessage* p = reinterpret_cast<BicyclePoseMessage*>(msg);
-        SimulationMessage sim_msg = SimulationMessage_init_zero;
-        sim_msg.timestamp = 0; // required field
-        sim_msg.pose = *p;
-        sim_msg.has_pose = true;
-        free_pose_message(p);
-        m_bytes_written = encode_packet(sim_msg);
-    } else if (is_within_simulation_message_memory(msg)) {
-        SimulationMessage* p = reinterpret_cast<SimulationMessage*>(msg);
-        m_bytes_written = encode_packet(*p);
-        free_simulation_message(p);
-    } else {
-        chDbgAssert(false, "msg pointer does not originate from Transmitter managed memory");
-    }
+    SimulationMessage sim_msg = SimulationMessage_init_zero;
+    sim_msg.timestamp = 0; // required field
+    sim_msg.pose = *msg;
+    sim_msg.has_pose = true;
+    m_bytes_written = encode_packet(sim_msg);
+}
+
+void Transmitter::encode_message(const SimulationMessage* const msg) {
+    m_bytes_written = 0;
+    m_bytes_written = encode_packet(*msg);
 }
 
 void Transmitter::transmit_packet() const {
@@ -167,7 +172,17 @@ void Transmitter::transmitter_thread_function(void* p) {
     while (!chThdShouldTerminateX()) {
         msg_t msg = reinterpret_cast<msg_t>(nullptr);
         chMBFetch(&self->m_message_mailbox, &msg, TIME_INFINITE);
-        self->encode_message(msg);
+        if (self->is_within_pose_message_memory(msg)) {
+            BicyclePoseMessage* m = reinterpret_cast<BicyclePoseMessage*>(msg);
+            self->encode_message(m);
+            self->free_message(m);
+        } else if (self->is_within_simulation_message_memory(msg)) {
+            SimulationMessage* m = reinterpret_cast<SimulationMessage*>(msg);
+            self->encode_message(m);
+            self->free_message(m);
+        } else {
+            chDbgAssert(false, "msg pointer does not originate from Transmitter managed memory");
+        }
         self->transmit_packet();
     }
 }
