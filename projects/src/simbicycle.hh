@@ -11,11 +11,10 @@
 
 namespace sim {
 
-template <typename Model, typename Observer, typename Haptic>
-Bicycle<Model, Observer, Haptic>::Bicycle(real_t v, real_t dt, real_t steer_inertia) :
+template <typename Model, typename Observer>
+Bicycle<Model, Observer>::Bicycle(real_t v, real_t dt) :
 m_model(v, dt),
 m_observer(m_model),
-m_haptic(m_model, steer_inertia),
 m_state_full(full_state_t::Zero()),
 m_pose(BicyclePoseMessage_init_zero),
 m_input(input_t::Zero()) {
@@ -24,15 +23,12 @@ m_input(input_t::Zero()) {
     chBSemObjectInit(&m_state_sem, false); // initialize to not taken
 
 static_assert((!std::is_same<Model, model::BicycleKinematic>::value) ||
-              std::is_same<Haptic, haptic::HandlebarStatic>::value,
-              "Only HandlebarStatic haptic type can be used with BicycleKinematic model type.");
-static_assert((!std::is_same<Model, model::BicycleKinematic>::value) ||
               std::is_same<Observer, observer::Oracle<model::BicycleKinematic>>::value,
               "Only Oracle observer type can be used with BicycleKinematic model type.");
 }
 
-template <typename Model, typename Observer, typename Haptic>
-void Bicycle<Model, Observer, Haptic>::set_v(real_t v)  {
+template <typename Model, typename Observer>
+void Bicycle<Model, Observer>::set_v(real_t v)  {
     using namespace boost::math::policies;
     using quantize_policy = policy<rounding_error<ignore_error>>;
     static constexpr quantize_policy policy;
@@ -44,20 +40,20 @@ void Bicycle<Model, Observer, Haptic>::set_v(real_t v)  {
     }
 }
 
-template <typename Model, typename Observer, typename Haptic>
-void Bicycle<Model, Observer, Haptic>::set_dt(real_t dt)  {
+template <typename Model, typename Observer>
+void Bicycle<Model, Observer>::set_dt(real_t dt)  {
     if (dt != this->dt()) {
         m_model.set_v_dt(m_model.v(), dt);
     }
 }
 
-template <typename Model, typename Observer, typename Haptic>
-void Bicycle<Model, Observer, Haptic>::reset() {
+template <typename Model, typename Observer>
+void Bicycle<Model, Observer>::reset() {
     m_observer.reset();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input, real_t steer_torque_input,
+template <typename Model, typename Observer>
+void Bicycle<Model, Observer>::update_dynamics(real_t roll_torque_input, real_t steer_torque_input,
     real_t yaw_angle_measurement,
     real_t steer_angle_measurement,
     real_t rear_wheel_angle_measurement) {
@@ -113,8 +109,6 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
         m_observer.set_state(x);
     }
 
-    m_T_m = m_haptic.torque(m_observer.state(), m_input);
-
     // Merge observer and model states
     //
     // We simply copy the observer state estimate to the full state vector
@@ -131,8 +125,8 @@ void Bicycle<Model, Observer, Haptic>::update_dynamics(real_t roll_torque_input,
     chBSemSignal(&m_state_sem);
 }
 
-template <typename Model, typename Observer, typename Haptic>
-void Bicycle<Model, Observer, Haptic>::update_kinematics() {
+template <typename Model, typename Observer>
+void Bicycle<Model, Observer>::update_kinematics() {
     chBSemWait(&m_state_sem);
     full_state_t x = m_state_full;
     chBSemSignal(&m_state_sem);
@@ -163,8 +157,8 @@ void Bicycle<Model, Observer, Haptic>::update_kinematics() {
     m_pose.steer = steer;
 }
 
-template <typename Model, typename Observer, typename Haptic>
-void Bicycle<Model, Observer, Haptic>::prime_observer() {
+template <typename Model, typename Observer>
+void Bicycle<Model, Observer>::prime_observer() {
     if (std::is_same<Observer, typename observer::Kalman<Model>>::value) {
         // define a non-zero initial state, this is selected arbitrarily for now
         state_t x = state_t::Zero();
@@ -179,98 +173,93 @@ void Bicycle<Model, Observer, Haptic>::prime_observer() {
     }
 }
 
-template <typename Model, typename Observer, typename Haptic>
-const BicyclePoseMessage& Bicycle<Model, Observer, Haptic>::pose() const {
+template <typename Model, typename Observer>
+const BicyclePoseMessage& Bicycle<Model, Observer>::pose() const {
     return m_pose;
 }
 
-template <typename Model, typename Observer, typename Haptic>
-model::real_t Bicycle<Model, Observer, Haptic>::handlebar_feedback_torque() const {
-    return m_T_m;
-}
-
-template <typename Model, typename Observer, typename Haptic>
-const typename Bicycle<Model, Observer, Haptic>::input_t& Bicycle<Model, Observer, Haptic>::input() const {
+template <typename Model, typename Observer>
+const typename Bicycle<Model, Observer>::input_t& Bicycle<Model, Observer>::input() const {
     return m_input;
 }
 
-template <typename Model, typename Observer, typename Haptic>
-typename Bicycle<Model, Observer, Haptic>::model_t& Bicycle<Model, Observer, Haptic>::model() {
+template <typename Model, typename Observer>
+typename Bicycle<Model, Observer>::model_t& Bicycle<Model, Observer>::model() {
     return m_model;
 };
 
-template <typename Model, typename Observer, typename Haptic>
-const typename Bicycle<Model, Observer, Haptic>::model_t& Bicycle<Model, Observer, Haptic>::model() const {
+template <typename Model, typename Observer>
+const typename Bicycle<Model, Observer>::model_t& Bicycle<Model, Observer>::model() const {
     return m_model;
 };
 
-template <typename Model, typename Observer, typename Haptic>
-typename Bicycle<Model, Observer, Haptic>::observer_t& Bicycle<Model, Observer, Haptic>::observer() {
+template <typename Model, typename Observer>
+typename Bicycle<Model, Observer>::observer_t& Bicycle<Model, Observer>::observer() {
     return m_observer;
 };
 
-template <typename Model, typename Observer, typename Haptic>
-const typename Bicycle<Model, Observer, Haptic>::observer_t& Bicycle<Model, Observer, Haptic>::observer() const {
+template <typename Model, typename Observer>
+const typename Bicycle<Model, Observer>::observer_t& Bicycle<Model, Observer>::observer() const {
     return m_observer;
 };
 
-template <typename Model, typename Observer, typename Haptic>
-const typename Bicycle<Model, Observer, Haptic>::second_order_matrix_t& Bicycle<Model, Observer, Haptic>::M() const {
+template <typename Model, typename Observer>
+const typename Bicycle<Model, Observer>::second_order_matrix_t& Bicycle<Model, Observer>::M() const {
     return m_model.M();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-const typename Bicycle<Model, Observer, Haptic>::second_order_matrix_t& Bicycle<Model, Observer, Haptic>::C1() const {
+template <typename Model, typename Observer>
+const typename Bicycle<Model, Observer>::second_order_matrix_t& Bicycle<Model, Observer>::C1() const {
     return m_model.C1();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-const typename Bicycle<Model, Observer, Haptic>::second_order_matrix_t& Bicycle<Model, Observer, Haptic>::K0() const {
+template <typename Model, typename Observer>
+const typename Bicycle<Model, Observer>::second_order_matrix_t& Bicycle<Model, Observer>::K0() const {
     return m_model.K0();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-const typename Bicycle<Model, Observer, Haptic>::second_order_matrix_t& Bicycle<Model, Observer, Haptic>::K2() const {
+template <typename Model, typename Observer>
+const typename Bicycle<Model, Observer>::second_order_matrix_t& Bicycle<Model, Observer>::K2() const {
     return m_model.K2();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-model::real_t Bicycle<Model, Observer, Haptic>::wheelbase() const {
+template <typename Model, typename Observer>
+model::real_t Bicycle<Model, Observer>::wheelbase() const {
     return m_model.wheelbase();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-model::real_t Bicycle<Model, Observer, Haptic>::trail() const {
+template <typename Model, typename Observer>
+model::real_t Bicycle<Model, Observer>::trail() const {
     return m_model.trail();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-model::real_t Bicycle<Model, Observer, Haptic>::steer_axis_tilt() const {
+template <typename Model, typename Observer>
+model::real_t Bicycle<Model, Observer>::steer_axis_tilt() const {
     return m_model.steer_axis_tilt();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-model::real_t Bicycle<Model, Observer, Haptic>::rear_wheel_radius() const {
+template <typename Model, typename Observer>
+model::real_t Bicycle<Model, Observer>::rear_wheel_radius() const {
     return m_model.rear_wheel_radius();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-model::real_t Bicycle<Model, Observer, Haptic>::front_wheel_radius() const {
+template <typename Model, typename Observer>
+model::real_t Bicycle<Model, Observer>::front_wheel_radius() const {
     return m_model.front_wheel_radius();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-model::real_t Bicycle<Model, Observer, Haptic>::v() const {
+template <typename Model, typename Observer>
+model::real_t Bicycle<Model, Observer>::v() const {
     return m_model.v();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-model::real_t Bicycle<Model, Observer, Haptic>::dt() const {
+template <typename Model, typename Observer>
+model::real_t Bicycle<Model, Observer>::dt() const {
     return m_model.dt();
 }
 
-template <typename Model, typename Observer, typename Haptic>
-const typename Bicycle<Model, Observer, Haptic>::full_state_t& Bicycle<Model, Observer, Haptic>::full_state() const {
+template <typename Model, typename Observer>
+const typename Bicycle<Model, Observer>::full_state_t& Bicycle<Model, Observer>::full_state() const {
     return m_state_full;
 }
 

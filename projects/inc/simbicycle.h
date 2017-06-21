@@ -15,25 +15,21 @@ namespace sim {
 
 /*
  * This template class simulates a bicycle model (template argument Model)
- * with an observer type (template argument Observer) and a handlebar feedback type Haptic
+ * with an observer type (template argument Observer).
  *  - incorporates fields necessary for visualization, such as wheel angle
  *  - provides a single interface for using different bicycle models
  *  - allows simulation of dynamics and kinematics separately
  */
-template <typename Model, typename Observer, typename Haptic = haptic::null_t>
+template <typename Model, typename Observer>
 class Bicycle {
     static_assert(std::is_base_of<model::Bicycle, Model>::value,
             "Invalid template parameter type for sim::Bicycle");
     static_assert(std::is_base_of<observer::ObserverBase, Observer>::value,
             "Invalid template parameter type for sim::Bicycle");
-    static_assert(std::is_base_of<haptic::HandlebarBase, Haptic>::value,
-            "Invalid template parameter type for sim::Bicycle");
 
     public:
         using model_t = Model;
         using observer_t = Observer;
-        using haptic_t = Haptic; // right now we only have handlebar feedback
-                                 // with pedaling feedback to be implemented
         using real_t = model::real_t;
         using second_order_matrix_t = typename model_t::second_order_matrix_t;
         using state_t = typename model_t::state_t;
@@ -47,13 +43,12 @@ class Bicycle {
         static constexpr real_t default_fs = 200.0; // sample rate, Hz
         static constexpr real_t default_dt = 1.0/default_fs; // sample period, s
         static constexpr real_t default_v = 5.0; // forward speed, m/s
-        static constexpr real_t default_steer_inertia = sa::FULL_ASSEMBLY_INERTIA; // kg-m^2
         static constexpr real_t v_quantization_resolution = 0.1; // m/s
         static constexpr real_t roll_rate_limit = 1e10; // rad
         static constexpr real_t steer_rate_limit = 1e10; // rad
         static constexpr real_t observer_prime_period = 3.0; // seconds
 
-        Bicycle(real_t v = default_v, real_t dt = default_dt, real_t steer_inertia = default_steer_inertia);
+        Bicycle(real_t v = default_v, real_t dt = default_dt);
 
         void set_v(real_t v);
         void set_dt(real_t dt);
@@ -91,12 +86,10 @@ class Bicycle {
     private:
         model_t m_model; // bicycle model object
         observer_t m_observer; // observer object
-        haptic_t m_haptic; // handlebar feedback calculation object
         full_state_t m_state_full; // auxiliary + dynamic state
         BicyclePoseMessage m_pose; // Unity visualization message
         input_t m_input; // bicycle model input vector
         binary_semaphore_t m_state_sem; // bsem for synchronizing kinematics update
-        real_t m_T_m; // handlebar feedback torque
 };
 
 } // namespace sim

@@ -36,14 +36,12 @@
 
 #include "bicycle/whipple.h" /* whipple bicycle model */
 #include "kalman.h" /* kalman observer */
-#include "haptic.h" /* handlebar feedback */
 #include "simbicycle.h"
 
 namespace {
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
-    using haptic_t = haptic::HandlebarStatic;
-    using bicycle_t = sim::Bicycle<model_t, observer_t, haptic_t>;
+    using bicycle_t = sim::Bicycle<model_t, observer_t>;
 
     /* sensors */
     Analog analog;
