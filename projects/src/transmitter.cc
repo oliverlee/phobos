@@ -11,10 +11,18 @@ Transmitter::Transmitter() :
 m_thread(nullptr),
 m_bytes_written(0) {
     chMBObjectInit(&m_message_mailbox, m_message_mailbox_buffer, MAILBOX_SIZE);
-    chPoolObjectInit(&m_pose_message_pool, sizeof(BicyclePoseMessage), nullptr);
-    chPoolLoadArray(&m_pose_message_pool, static_cast<void*>(m_pose_message_buffer), POSE_MESSAGE_POOL_SIZE);
-    chPoolObjectInit(&m_simulation_message_pool, sizeof(SimulationMessage), nullptr);
-    chPoolLoadArray(&m_simulation_message_pool, static_cast<void*>(m_simulation_message_buffer), SIMULATION_MESSAGE_POOL_SIZE);
+    chPoolObjectInit(&m_pose_message_pool,
+            sizeof(m_pose_message_buffer[0]),
+            nullptr);
+    chPoolLoadArray(&m_pose_message_pool,
+            static_cast<void*>(m_pose_message_buffer),
+            POSE_MESSAGE_POOL_SIZE);
+    chPoolObjectInit(&m_simulation_message_pool,
+            sizeof(m_simulation_message_buffer[0]),
+            nullptr);
+    chPoolLoadArray(&m_simulation_message_pool,
+            static_cast<void*>(m_simulation_message_buffer),
+            SIMULATION_MESSAGE_POOL_SIZE);
 
     // Initialize a serial-over-USB CDC driver.
     sduObjectInit(&SDU1);
@@ -35,23 +43,9 @@ m_bytes_written(0) {
 }
 
 void Transmitter::start(tprio_t priority) {
-    chDbgAssert(priority < HIGHPRIO, "Transmitter thread priority too high");
+    chDbgAssert(priority < STM32_USB_OTG_THREAD_PRIO,
+            "Transmitter thread priority must be lower than STM32_USB_OTG_THREAD_PRIO");
     chDbgAssert(m_thread == nullptr, "Transmitter cannot be started if already running");
-
-    // Set priority of USB data pump thread. In general, it should be higher
-    // than the writer (this thread).
-    // Note: we don't do any explicit rescheduling but scheduling should resolve next
-    // time the usb_lld_pump thread runs.
-    tprio_t newprio = priority + 1;
-    thread_t* usbtr = SDU1.config->usbp->tr;
-#if CH_CFG_USE_MUTEXES == TRUE
-    if ((usbtr->p_prio == usbtr->p_realprio) || (newprio > usbtr->p_prio)) {
-        usbtr->p_prio = newprio;
-    }
-    usbtr->p_realprio = newprio;
-#else
-    usbtr->p_prio = newprio;
-#endif
 
     m_thread = chThdCreateStatic(m_wa_transmitter_thread,
             sizeof(m_wa_transmitter_thread), priority,
