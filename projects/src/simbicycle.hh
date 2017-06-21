@@ -78,8 +78,11 @@ void Bicycle<Model, Observer>::update_dynamics(real_t roll_torque_input, real_t 
 
     // The auxiliary states _must_ also be integrated at the same time as the
     // dynamic state. After the observer update, we "merge" dynamic states together.
+    chBSemWait(&m_state_sem);
+    full_state_t x = m_state_full;
+    chBSemSignal(&m_state_sem);
     full_state_t state_full = m_model.integrate_full_state(
-            m_state_full, m_input, m_model.dt(), measurement);
+            x, m_input, m_model.dt(), measurement);
     m_observer.update_state(m_input, measurement);
 
     if (!m_observer.state().allFinite()) {
@@ -140,12 +143,12 @@ void Bicycle<Model, Observer>::update_kinematics() {
     // update full state with newest computed pitch angle
     chBSemWait(&m_state_sem);
     model_t::set_full_state_element(m_state_full, full_state_index_t::pitch_angle, pitch);
-    chBSemSignal(&m_state_sem);
 
     // mod rear wheel angle so it does not grow beyond all bounds
     model_t::set_full_state_element(m_state_full, full_state_index_t::rear_wheel_angle,
             std::fmod(model_t::get_full_state_element(x, full_state_index_t::rear_wheel_angle),
                       constants::two_pi)),
+    chBSemSignal(&m_state_sem);
 
     m_pose.timestamp = chVTGetSystemTime();
     m_pose.x = model_t::get_full_state_element(x, full_state_index_t::x);
