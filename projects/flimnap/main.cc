@@ -204,7 +204,7 @@ int main(void) {
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
 #if !defined(FLIMNAP_ZERO_INPUT)
-    haptic::HandlebarDynamic handlebar_model(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA_VIRTUAL);
+    haptic::HandlebarDynamic handlebar_model(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL);
 #endif  // !defined(FLIMNAP_ZERO_INPUT)
 
     observer_initializer<observer_t> oi;
