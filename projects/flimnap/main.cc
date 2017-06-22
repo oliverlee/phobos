@@ -66,6 +66,9 @@ namespace {
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
 
+    // virtual roll torque assistance enabled for
+    constexpr float assistive_velocity_limit = 1.0f; // [m/s] values less than this
+
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
 
