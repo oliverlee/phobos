@@ -37,16 +37,22 @@
 #include "simbicycle.h"
 #include "transmitter.h"
 
-namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
 #include "bicycle/kinematic.h" // simplified bicycle model
+#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
+#include "bicycle/whipple.h" // whipple bicycle model
+#include "kalman.h" // Kalman filter observer
+#include "lqr.h" // LQR controller
+#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
+
+namespace {
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleKinematic;
     using observer_t = std::nullptr_t;
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
-#include "bicycle/whipple.h" // whipple bicycle model
-#include "kalman.h" // kalman filter observer
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
+    using lqr_t = controller::Lqr<model_t>;
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using bicycle_t = sim::Bicycle<model_t, observer_t>;
 
@@ -57,6 +63,9 @@ namespace {
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
+
+    // virtual roll torque assistance enabled for
+    constexpr float assistive_velocity_limit = 1.0f; // [m/s] values less than this
 
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
@@ -213,6 +222,25 @@ int main(void) {
     // the Kalman gain matrix.
     bicycle_t bicycle(0.0, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
+#if !defined(USE_BICYCLE_KINEMATIC_MODEL)
+    // At low speed, we add an assistive roll torque to stabilize the bicycle.
+    lqr_t controller(bicycle.model(),
+            (lqr_t::state_cost_t() <<
+             0, 0, 0, 0, 0,                 // no yaw angle penalty
+             0, 100000, 0, 0, 0,            // large roll angle penalty
+             0, 0, 1000, 0, 0,              // small steer angle penalty
+             0, 0, 0, 0, 0,                 // small roll rate penalty
+             0, 0, 0, 0, 0).finished(),     // small steer rate penalty
+            (lqr_t::input_cost_t() <<
+             1, 0,                          // enable roll torque
+             0, 0).finished(),              // disable steer torque
+            model_t::state_t::Zero(),       // reference state
+            2000);
+    // Calculate control to perform value iterations and reach gain steady state
+    controller.control_calculate(lqr_t::state_t::Zero());
+    controller.set_horizon(1);
+#endif
+
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
 #if !defined(FLIMNAP_ZERO_INPUT)
@@ -249,7 +277,7 @@ int main(void) {
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
-        constexpr float roll_torque = 0.0f;
+        float roll_torque = 0.0f;
 
         // get sensor measurements
         const float kistler_torque = adc_to_nm(analog.get_adc12(),
@@ -277,6 +305,12 @@ int main(void) {
 
         // simulate bicycle
         bicycle.set_v(v);
+#if !defined(USE_BICYCLE_KINEMATIC_MODEL)
+        if (bicycle.v() < assistive_velocity_limit) {
+            const model_t::input_t u = controller.control_calculate(bicycle.observer().state());
+            roll_torque += model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+        }
+#endif
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
