@@ -266,8 +266,11 @@ int main(void) {
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
-                model_t::state_index_t::steer_rate);
+        const float desired_velocity = bicycle.v() > bicycle.v_critical ?
+            // calculate desired handlebar velocity
+            model_t::get_state_element(bicycle.observer().state(), model_t::state_index_t::steer_rate) :
+            // disabled below critical speed
+            0.0f;
         const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
 
