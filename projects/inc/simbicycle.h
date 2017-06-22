@@ -67,10 +67,11 @@ class Bicycle {
         OBSERVER_FUNCTION_DECL(void) reset();
         NULL_OBSERVER_FUNCTION_DECL(void) reset();
         void update_dynamics(real_t roll_torque_input, // update bicycle internal state
-                real_t steer_torque_input,             // and handlebar feedback torque
+                real_t steer_torque_input,
                 real_t yaw_angle_measurement,
                 real_t steer_angle_measurement,
                 real_t rear_wheel_angle_measurement);
+        void update_dynamics(input_t u, measurement_t z);
         void update_kinematics(); // update bicycle pose
         OBSERVER_FUNCTION_DECL(void) prime_observer(); // perform observer specific initialization routine
         NULL_OBSERVER_FUNCTION_DECL(void) prime_observer(); // perform observer specific initialization routine
