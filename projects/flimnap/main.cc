@@ -40,22 +40,28 @@
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
 #include "bicycle/kinematic.h" // simplified bicycle model
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
-#include "bicycle/whipple.h" // whipple bicycle model
-#include "kalman.h" // Kalman filter observer
+#elif defined(USE_BICYCLE_AREND_MODEL)
+#include "bicycle/arend.h" // simplified bicycle model
+#else // No Whipple model simplifications
+#include "bicycle/whipple.h"
+#include "kalman.h" // kalman filter observer
 #include "interpolated_lqr.h" // LQR controller
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
+#endif
 
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleKinematic;
     using observer_t = std::nullptr_t;
-    using haptic_drive_t = haptic::HandlebarStatic;
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
+    using haptic_drive_t = haptic::Handlebar0;
+#elif defined(USE_BICYCLE_AREND_MODEL)
+    using model_t = model::BicycleArend;
+    using observer_t = std::nullptr_t;
+    using haptic_drive_t = haptic::Handlebar1;
+#else
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
     using lqr_t = controller::InterpolatedLqr<model_t>;
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
+#endif
     using bicycle_t = sim::Bicycle<model_t, observer_t>;
 
     // sensors
@@ -213,7 +219,8 @@ int main(void) {
     // the Kalman gain matrix.
     bicycle_t bicycle(0.0, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
-#if defined(USE_BICYCLE_KINEMATIC_MODEL)
+#if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+    // Initialize handlebar object to calculate motor drive feedback torque
     haptic_drive_t haptic_drive(bicycle.model());
 #else
     // At low speed, we add an assistive roll torque to stabilize the bicycle.
@@ -230,7 +237,7 @@ int main(void) {
 
 #if !defined(FLIMNAP_ZERO_INPUT)
     // Initialize handlebar object to estimate torque due to handlebar inertia.
-    haptic::Handlebar2 handlebar_model(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL);
+    haptic::Handlebar2 handlebar_inertia(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL);
 #endif  // !defined(FLIMNAP_ZERO_INPUT)
 
     observer_initializer<observer_t> oi;
@@ -283,7 +290,7 @@ int main(void) {
         float steer_torque = 0.0f;
         (void)kistler_torque;
 #else // defined(FLIMNAP_ZERO_INPUT)
-        const float inertia_torque = -handlebar_model.torque(model_t::get_state_part(bicycle.full_state()));
+        const float inertia_torque = -handlebar_inertia.torque(model_t::get_state_part(bicycle.full_state()));
         float steer_torque = kistler_torque - inertia_torque;
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
@@ -308,8 +315,8 @@ int main(void) {
 #endif
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
-        // generate handlebar velocity or torque output
-#if defined(USE_BICYCLE_KINEMATIC_MODEL)
+        // generate handlebar torque or velocity reference
+#if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
         const float desired_torque = haptic_drive.torque(model_t::get_state_part(bicycle.full_state()));
         const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_torque(desired_torque);
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
@@ -318,7 +325,6 @@ int main(void) {
                                             model_t::full_state_index_t::steer_rate);
         const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_velocity(desired_velocity);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
-
         chTMStopMeasurementX(&computation_time_measurement);
 
         {   // prepare message for transmission
