@@ -33,17 +33,18 @@
 #include <array>
 #include <type_traits>
 
-#include "bicycle/kinematic.h" // simplified bicycle model
-#include "bicycle/whipple.h" // whipple bicycle model
-#include "kalman.h" // kalman filter observer
+#include "haptic.h"
 #include "simbicycle.h"
 #include "transmitter.h"
 
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
+#include "bicycle/kinematic.h" // simplified bicycle model
     using model_t = model::BicycleKinematic;
     using observer_t = std::nullptr_t;
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
+#include "bicycle/whipple.h" // whipple bicycle model
+#include "kalman.h" // kalman filter observer
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
@@ -56,8 +57,6 @@ namespace {
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
-
-    constexpr float fixed_velocity = 5.0f;
 
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
@@ -212,7 +211,7 @@ int main(void) {
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(fixed_velocity, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+    bicycle_t bicycle(0.0, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
@@ -277,7 +276,7 @@ int main(void) {
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
         // simulate bicycle
-        bicycle.set_v(fixed_velocity);
+        bicycle.set_v(v);
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
