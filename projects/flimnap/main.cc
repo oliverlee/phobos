@@ -314,8 +314,9 @@ int main(void) {
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const float desired_velocity = model_t::get_full_state_element(bicycle.full_state(),
-                model_t::full_state_index_t::steer_rate);
+        const float desired_velocity = bicycle.v() < assistive_velocity_limit ?
+            0.0f : // set velocity reference to zero if bicycle is not moving
+            model_t::get_full_state_element(bicycle.full_state(), model_t::full_state_index_t::steer_rate);
         const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
 
