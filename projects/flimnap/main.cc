@@ -58,12 +58,6 @@ namespace {
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
 
-    // transmission
-    constexpr std::size_t VARINT_MAX_SIZE = 10;
-    std::array<uint8_t, SimulationMessage_size + VARINT_MAX_SIZE> encode_buffer;
-    std::array<uint8_t, cobs::max_encoded_length(SimulationMessage_size + VARINT_MAX_SIZE)> packet_buffer;
-    SimulationMessage msg;
-
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
 
