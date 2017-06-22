@@ -66,10 +66,19 @@ namespace {
 
     // sensors
     Analog analog;
+
+#if defined(USE_BICYCLE_AREND_MODEL)
+    EncoderFoaw<float, 32> encoder_steer(sa::RLS_ROLIN_ENC,
+                                         sa::RLS_ROLIN_ENC_INDEX_CFG,
+                                         MS2ST(1),
+                                         3.0f);
+#else
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
+#endif
     EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC,
                                               sa::RLS_GTS35_ENC_CFG,
-                                              MS2ST(1), 3.0f);
+                                              MS2ST(1),
+                                              3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
 
     // virtual roll torque assistance enabled for
@@ -296,24 +305,41 @@ int main(void) {
 
         // simulate bicycle
         bicycle.set_v(v);
+        { // perform variant specific code for creating input/measurement
+#if defined(USE_BICYCLE_AREND_MODEL)
+            // BicyleArend uses a different output/measurement vector definition
+            const float steer_rate = util::encoder_rate(encoder_steer);
+
+            model_t::input_t u = model_t::input_t::Zero();
+            model_t::set_input_element(u, model_t::input_index_t::roll_torque, roll_torque);
+            model_t::set_input_element(u, model_t::input_index_t::steer_torque, steer_torque);
+
+            model_t::measurement_t z = model_t::measurement_t::Zero();
+            bicycle.model().set_output_element(z, bicycle.model().output_index_t::steer_angle, steer_angle);
+            bicycle.model().set_output_element(z, bicycle.model().output_index_t::steer_rate, steer_rate);
+
+            bicycle.update_dynamics(u, z);
+#else
 #if !defined(USE_BICYCLE_KINEMATIC_MODEL)
-        if (bicycle.v() < assistance_velocity_limit) {
-            const float interp = bicycle.v() / assistance_velocity_limit;
-            const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), interp);
-            if (assistance_fade_counter < assistance_fade_period) {
-                ++assistance_fade_counter;
+            if (bicycle.v() < assistance_velocity_limit) {
+                const float interp = bicycle.v() / assistance_velocity_limit;
+                const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), interp);
+                if (assistance_fade_counter < assistance_fade_period) {
+                    ++assistance_fade_counter;
+                }
+                const float fade = static_cast<float>(assistance_fade_counter)/assistance_fade_period;
+                roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+                steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
+            } else if (assistance_fade_counter != 0) {
+                const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), 1.0f);
+                const float fade = static_cast<float>(assistance_fade_counter--)/assistance_fade_period;
+                roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+                steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
             }
-            const float fade = static_cast<float>(assistance_fade_counter)/assistance_fade_period;
-            roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
-            steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
-        } else if (assistance_fade_counter != 0) {
-            const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), 1.0f);
-            const float fade = static_cast<float>(assistance_fade_counter--)/assistance_fade_period;
-            roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
-            steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
-        }
 #endif
-        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+            bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+#endif
+        }
 
         // generate handlebar torque or velocity reference
 #if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
