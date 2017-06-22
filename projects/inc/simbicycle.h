@@ -86,7 +86,7 @@ class Bicycle {
     private:
         model_t m_model; // bicycle model object
         observer_t m_observer; // observer object
-        full_state_t m_state_full; // auxiliary + dynamic state
+        full_state_t m_full_state; // auxiliary + dynamic state
         BicyclePoseMessage m_pose; // Unity visualization message
         input_t m_input; // bicycle model input vector
         binary_semaphore_t m_state_sem; // bsem for synchronizing kinematics update
