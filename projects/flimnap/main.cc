@@ -278,6 +278,9 @@ int main(void) {
             if (msg != nullptr) {
                 *msg = SimulationMessage_init_zero;
                 msg->timestamp = starttime;
+                msg->model.v = bicycle.v();
+                msg->model.has_v = true;
+                msg->has_model = true;
                 message::set_bicycle_input(&msg->input,
                         (model_t::input_t() << roll_torque, steer_torque).finished());
                 msg->has_input = true;
