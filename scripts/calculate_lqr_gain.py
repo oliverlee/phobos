@@ -11,7 +11,6 @@ def compute_whipple_lqr_gain(velocity):
     Q = np.diag([1e5, 1e3, 1e3, 1e2])
     R = np.eye(2)
 
-
     gains = [control.lqr(Ai, Bi, Q, R)[0] for Ai, Bi in zip(A, B)]
     return gains
 
@@ -29,6 +28,6 @@ if __name__ == '__main__':
     gains = compute_whipple_lqr_gain(velocities)
 
     for v, K in zip(velocities, gains):
-        print('computed LQR controller feedback gain for v = {}'.format(v)j)
-        print(K)
+        print('computed LQR controller feedback gain for v = {}'.format(v))
+        print(-K)
         print()

@@ -228,13 +228,14 @@ int main(void) {
 
 #if !defined(USE_BICYCLE_KINEMATIC_MODEL)
     // At low speed, we add an assistive roll torque to stabilize the bicycle.
+    // Gains calculated with script calculate_lqr_gain.py.
     lqr_t controller(
             (lqr_t::feedback_gain_t() << // v = 0
-             0, 1648.90829472, 48.43076882, 516.76805995, 14.59295354,
-             0, 50.23751925, 42.32812576, 26.53589725, 11.70135889).finished(),
+             0, -1648.90829472, -48.43076882, -516.76805995, -14.59295354,
+             0, -50.23751925, -42.32812576, -26.53589725, -11.70135889).finished(),
             (lqr_t::feedback_gain_t() << // v = 1 = assistance_velocity_limit
-             0, 238.99395251, 8.0805282, 71.5451519, 1.21535324,
-             0, -624.96912408, 16.89860361, -176.94881285, 6.47514655).finished()
+             0, -238.99395251, -8.0805282, -71.5451519, -1.21535324,
+             0, 624.96912408, -16.89860361, 176.94881285, -6.47514655).finished()
     );
 #endif
 
