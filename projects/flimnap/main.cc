@@ -64,8 +64,12 @@ namespace {
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
 
-    // virtual roll torque assistance enabled for
-    constexpr float assistive_velocity_limit = 1.0f; // [m/s] values less than this
+    // virtual roll and steer torque assistance enabled for
+    constexpr float assistance_velocity_limit = 1.0f; // [m/s] values less than this
+    // we gradually decrease torque assistance over this period
+    // after the velocity is above the velocity limit
+    constexpr systime_t assistance_fade_period = MS2ST(50);
+    systime_t assistance_fade_starttime = assistance_fade_period;
 
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
@@ -228,7 +232,7 @@ int main(void) {
             (lqr_t::feedback_gain_t() << // v = 0
              0, 1648.90829472, 48.43076882, 516.76805995, 14.59295354,
              0, 50.23751925, 42.32812576, 26.53589725, 11.70135889).finished(),
-            (lqr_t::feedback_gain_t() << // v = 1 = assistive_velocity_limit
+            (lqr_t::feedback_gain_t() << // v = 1 = assistance_velocity_limit
              0, 238.99395251, 8.0805282, 71.5451519, 1.21535324,
              0, -624.96912408, 16.89860361, -176.94881285, 6.47514655).finished()
     );
@@ -299,11 +303,19 @@ int main(void) {
         // simulate bicycle
         bicycle.set_v(v);
 #if !defined(USE_BICYCLE_KINEMATIC_MODEL)
-        if (bicycle.v() < assistive_velocity_limit) {
-            const float interp = bicycle.v() / assistive_velocity_limit;
+        systime_t fade_elapsed_time = chVTTimeElapsedSinceX(assistance_fade_starttime);
+        if (bicycle.v() < assistance_velocity_limit) {
+            const float interp = bicycle.v() / assistance_velocity_limit;
             const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), interp);
             roll_torque += model_t::get_input_element(u, model_t::input_index_t::roll_torque);
             steer_torque += model_t::get_input_element(u, model_t::input_index_t::steer_torque);
+            assistance_fade_starttime = chVTGetSystemTime();
+        } else if (fade_elapsed_time < assistance_fade_period) {
+            // TimeElapsed check will fail after timer rollover (~11.6 hours with CH_CFG_ST_FREQUENCY = 100000)
+            const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), 1.0f);
+            const float fade = 1.0f - static_cast<float>(fade_elapsed_time)/assistance_fade_period;
+            roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+            steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
         }
 #endif
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
