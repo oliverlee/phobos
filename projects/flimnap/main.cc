@@ -309,9 +309,7 @@ int main(void) {
         if (bicycle.v() < assistive_velocity_limit) {
             const model_t::input_t u = controller.control_calculate(bicycle.observer().state());
             roll_torque += model_t::get_input_element(u, model_t::input_index_t::roll_torque);
-            if (bicycle.v() == 0.0f) {
-                steer_torque += model_t::get_input_element(u, model_t::input_index_t::steer_torque);
-            }
+            steer_torque += model_t::get_input_element(u, model_t::input_index_t::steer_torque);
         }
 #endif
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
