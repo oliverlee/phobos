@@ -58,8 +58,6 @@ namespace {
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
 
-    constexpr float fixed_velocity = 5.0f;
-
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
 
@@ -199,7 +197,7 @@ int main(void) {
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(fixed_velocity, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+    bicycle_t bicycle(0.0f, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
@@ -264,12 +262,15 @@ int main(void) {
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
         // simulate bicycle
-        bicycle.set_v(fixed_velocity);
+        bicycle.set_v(v);
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
-                model_t::state_index_t::steer_rate);
+        const float desired_velocity = bicycle.v() > bicycle.v_critical ?
+            // calculate desired handlebar velocity
+            model_t::get_state_element(bicycle.observer().state(), model_t::state_index_t::steer_rate) :
+            // disabled below critical speed
+            0.0f;
         const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
 

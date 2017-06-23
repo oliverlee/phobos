@@ -46,6 +46,11 @@ def load_messages(filename):
 
 def get_records_from_messages(messages):
     _, dtype = get_simulation_types()
+
+    # Discard pose messages as we are only interested in simulation messages
+    # TODO: Return pose messages
+    messages = [msg for msg in messages if msg.timestamp != 0]
+
     records = np.recarray((len(messages),), dtype)
     for rec, msg in zip(records, messages):
         pb.set_record_from_message(rec, msg)
@@ -76,4 +81,5 @@ if __name__ == '__main__':
     messages = load_messages(sys.argv[1])
     print('got {} message(s)'.format(len(messages)))
     records = get_records_from_messages(messages)
+    print('created {} record(s)'.format(len(records)))
     t = get_time_vector(records)
