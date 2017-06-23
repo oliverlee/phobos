@@ -42,7 +42,7 @@
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
 #include "bicycle/whipple.h" // whipple bicycle model
 #include "kalman.h" // Kalman filter observer
-#include "lqr.h" // LQR controller
+#include "interpolated_lqr.h" // LQR controller
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
 
 namespace {
@@ -52,7 +52,7 @@ namespace {
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
-    using lqr_t = controller::Lqr<model_t>;
+    using lqr_t = controller::InterpolatedLqr<model_t>;
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using bicycle_t = sim::Bicycle<model_t, observer_t>;
 
@@ -224,21 +224,14 @@ int main(void) {
 
 #if !defined(USE_BICYCLE_KINEMATIC_MODEL)
     // At low speed, we add an assistive roll torque to stabilize the bicycle.
-    lqr_t controller(bicycle.model(),
-            (lqr_t::state_cost_t() <<
-             0, 0, 0, 0, 0,                 // no yaw angle penalty
-             0, 100000, 0, 0, 0,            // large roll angle penalty
-             0, 0, 1000, 0, 0,              // small steer angle penalty
-             0, 0, 0, 1000, 0,                 // small roll rate penalty
-             0, 0, 0, 0, 100).finished(),     // small steer rate penalty
-            (lqr_t::input_cost_t() <<
-             1, 0,                          // enable roll torque
-             0, 1).finished(),              // enable steer torque
-            model_t::state_t::Zero(),       // reference state
-            2000);
-    // Calculate control to perform value iterations and reach gain steady state
-    controller.control_calculate(lqr_t::state_t::Zero());
-    controller.set_horizon(1);
+    lqr_t controller(
+            (lqr_t::feedback_gain_t() << // v = 0
+             0, 1648.90829472, 48.43076882, 516.76805995, 14.59295354,
+             0, 50.23751925, 42.32812576, 26.53589725, 11.70135889).finished(),
+            (lqr_t::feedback_gain_t() << // v = 1 = assistive_velocity_limit
+             0, 238.99395251, 8.0805282, 71.5451519, 1.21535324,
+             0, -624.96912408, 16.89860361, -176.94881285, 6.47514655).finished()
+    );
 #endif
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
@@ -307,7 +300,8 @@ int main(void) {
         bicycle.set_v(v);
 #if !defined(USE_BICYCLE_KINEMATIC_MODEL)
         if (bicycle.v() < assistive_velocity_limit) {
-            const model_t::input_t u = controller.control_calculate(bicycle.observer().state());
+            const float interp = bicycle.v() / assistive_velocity_limit;
+            const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), interp);
             roll_torque += model_t::get_input_element(u, model_t::input_index_t::roll_torque);
             steer_torque += model_t::get_input_element(u, model_t::input_index_t::steer_torque);
         }
