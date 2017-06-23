@@ -12,7 +12,9 @@ ActuatorMessage.kollmorgen_command_velocity int_size:IS_16
 
 SymmetricStateMatrixMessage.m               max_count:15
 SymmetricOutputMatrixMessage.m              max_count:3
+SymmetricInputMatrixMessage.m               max_count:3
 KalmanGainMatrixMessage.m                   max_count:10
+LqrGainMatrixMessage.m                      max_count:10
 
 SecondOrderMatrixMessage.m                  max_count:4
 StateMatrixMessage.m                        max_count:25

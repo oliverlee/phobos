@@ -50,7 +50,7 @@ set(NANOPB_SRC_ROOT_FOLDER ${PROJECT_SOURCE_DIR}/external/nanopb)
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GITSHA1)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1z")
 
 ## Define macro for phobos project executable
 # This macro adds common sources for all targets in this project and
@@ -89,14 +89,15 @@ macro(add_phobos_executable target_name)
             math(EXPR source_file_properties_modified
                 "${source_file_properties_modified} + 1")
         endif()
-        if(source_file_properties_modified GREATER 2)
-            break()
-        endif()
+        #if(source_file_properties_modified GREATER 2)
+        #    break()
+        #endif()
     endforeach()
 
     if(USE_BICYCLE_BOOST_SUBMODULE)
         # suppress boost undef warnings
         set_property(SOURCE ${BICYCLE_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
+        set_property(SOURCE ${ARGN} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-misleading-indentation")
     endif()
     if(USE_BICYCLE_EIGEN3_SUBMODULE)
         # Any request from Eigen to allocate memory from heap results in an assertion failure

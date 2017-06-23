@@ -37,6 +37,8 @@
 #include "bicycle/whipple.h" // whipple bicycle model
 #include "oracle.h" // oracle observer
 #include "kalman.h" // kalman filter observer
+#include "lqr.h" // LQR controller
+#include "haptic.h" // handlebar feedback
 #include "simbicycle.h"
 #include "transmitter.h"
 
@@ -49,6 +51,7 @@ namespace {
     using observer_t = observer::Kalman<model_t>;
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using bicycle_t = sim::Bicycle<model_t, observer_t>;
+    using lqr_t = controller::Lqr<model_t>;
 
     // sensors
     Analog analog;
@@ -58,13 +61,15 @@ namespace {
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
 
-    constexpr float fixed_velocity = 5.0f;
+    // "virtual" roll torque assistance enabled for
+    constexpr float assistive_velocity_limit = 0.5f; // [m/s] velocity less than this
+    constexpr float assistive_roll_angle_limit= 1.0f; // [rad] abs(roll angle) greater than this
 
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
 
     // dynamics loop
-    constexpr systime_t dynamics_loop_period = MS2ST(1); // 1 ms -> 1 kHz
+    constexpr systime_t dynamics_loop_period = MS2ST(2); // 2 ms -> 500 Hz
 
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
@@ -199,7 +204,24 @@ int main(void) {
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(fixed_velocity, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+    bicycle_t bicycle(1.0, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+
+    // In some situations, we add an assistive roll torque to stabilize the bicycle,
+    // namely at low speed and at "large" roll angles.
+    lqr_t controller(bicycle.model(),
+            (lqr_t::state_cost_t() <<
+             0, 0, 0, 0, 0,                     // no yaw angle penalty
+             0, 100000, 0, 0, 0,                // large roll angle penalty
+             0, 0, 1000, 0, 0,                  // small steer angle penalty
+             0, 0, 0, 1000, 0,                  // small roll rate penalty
+             0, 0, 0, 0, 100).finished(),       // small steer rate penalty
+            (lqr_t::input_cost_t() <<
+             1, 0,                              // enable roll torque cost
+             0, 10).finished(),                 // enable steer control
+            model_t::state_t::Zero(),           // reference state
+            1);                                 // horizon length in iterations
+    // perform value iterations to reach controller steady state
+    controller.perform_value_iteration(2000);
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
@@ -237,7 +259,6 @@ int main(void) {
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
-        constexpr float roll_torque = 0.0f;
 
         // get sensor measurements
         const float kistler_torque = adc_to_nm(analog.get_adc12(),
@@ -256,19 +277,33 @@ int main(void) {
 
         // calculate rider applied torque
 #if defined(FLIMNAP_ZERO_INPUT)
-        const float steer_torque = 0.0f;
+        float steer_torque = 0.0f;
         (void)kistler_torque;
 #else // defined(FLIMNAP_ZERO_INPUT)
         const float inertia_torque = -handlebar_model.torque(bicycle.observer().state());
-        const float steer_torque = kistler_torque - inertia_torque;
+        float steer_torque = kistler_torque - inertia_torque;
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
         // simulate bicycle
-        bicycle.set_v(fixed_velocity);
+        bicycle.set_v(v);
+        // calculate assistive torque
+        float roll_torque = 0.0f;
+        bool assistive_torque = false;
+        if ( (bicycle.v() < assistive_velocity_limit) ||
+             (std::abs(model_t::get_state_element(bicycle.observer().state(),
+                                                  model_t::state_index_t::roll_angle)) >
+                                             assistive_roll_angle_limit) ) {
+            const model_t::input_t u = controller.control_calculate(bicycle.observer().state());
+            roll_torque = model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+            if (bicycle.v() == 0.0f) {
+                steer_torque += model_t::get_input_element(u, model_t::input_index_t::steer_torque);
+            }
+            assistive_torque = true;
+        }
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
+        float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
                 model_t::state_index_t::steer_rate);
         const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
@@ -289,6 +324,15 @@ int main(void) {
                 if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
                     message::set_kalman_gain(&msg->kalman, bicycle.observer());
                     msg->has_kalman = true;
+                }
+                if (assistive_torque) {
+                    msg.lqr.horizon_iterations = controller.horizon_iterations();
+                    message::set_controller_gain_matrix<lqr_t>(&msg.lqr.lqr_gain, controller.K());
+                    message::set_state_matrix(&msg.lqr.horizon_cost, controller.P());
+                    msg.lqr.has_horizon_iterations = true;
+                    msg.lqr.has_lqr_gain = true;
+                    msg.lqr.has_horizon_cost = true;
+                    msg.has_lqr = true;
                 }
                 message::set_simulation_actuators(msg, handlebar_velocity_dac);
                 message::set_simulation_sensors(msg,

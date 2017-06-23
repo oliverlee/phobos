@@ -2,6 +2,7 @@
 #include "simulation.pb.h"
 #include "bicycle/bicycle.h"
 #include "kalman.h"
+#include "lqr.h"
 #include "simbicycle.h"
 
 namespace message {
@@ -18,7 +19,7 @@ namespace message {
     void set_bicycle_canonical(BicycleModelMessage* pb, const bicycle_t& b);
     void set_bicycle_discrete_time_state_space(BicycleModelMessage* pb, const bicycle_t& b);
 
-    /* functions for different observer variants */
+    // functions for different observer variants
     template <typename observer_t>
     typename std::enable_if<std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
     set_symmetric_output_matrix(SymmetricOutputMatrixMessage* pb, const typename observer_t::measurement_noise_covariance_t& m);
@@ -50,6 +51,13 @@ namespace message {
     template <typename observer_t>
     typename std::enable_if<!std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
     set_kalman_gain(BicycleKalmanMessage* pb, const observer_t& k);
+
+    // functions for controllers
+    template <typename controller_t>
+    void set_controller_gain_matrix(LqrGainMatrixMessage* pb, const typename controller_t::lqr_gain_t& m);
+
+    // TODO: Write setters for symmetric output matrix, symmetric input matrix that do not depend on controller or
+    // observer types
 
     void set_simulation_gitsha1(SimulationMessage* pb);
     void set_simulation_sensors(SimulationMessage* pb,
@@ -150,6 +158,12 @@ set_kalman_gain(BicycleKalmanMessage* pb, const observer_t& k) {
     // no-op
     (void)pb;
     (void)k;
+}
+
+template <typename controller_t>
+void set_controller_gain_matrix(LqrGainMatrixMessage* pb, const typename controller_t::lqr_gain_t& m) {
+    std::memcpy(pb->m, m.data(), sizeof(pb->m));
+    pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
 }
 
 template <typename simbicycle_t>
