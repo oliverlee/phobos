@@ -231,8 +231,9 @@ int main(void) {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
     // Initialize handlebar object to calculate motor drive feedback torque
     haptic_drive_t haptic_drive(bicycle.model());
-#else
-    // At low speed, we add an assistive roll torque to stabilize the bicycle.
+# else
+    // Otherwise we need a controller to generate feedback gains to stabilize
+    // the bicycle at low speed.
     // Gains calculated with script calculate_lqr_gain.py.
     lqr_t controller(
             (lqr_t::feedback_gain_t() << // v = 0
@@ -306,7 +307,9 @@ int main(void) {
         // simulate bicycle
         bicycle.set_v(v);
         { // perform variant specific code for creating input/measurement
-#if defined(USE_BICYCLE_AREND_MODEL)
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
+            bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+#elif defined(USE_BICYCLE_AREND_MODEL)
             // BicyleArend uses a different output/measurement vector definition
             const float steer_rate = util::encoder_rate(encoder_steer);
 
@@ -320,7 +323,6 @@ int main(void) {
 
             bicycle.update_dynamics(u, z);
 #else
-#if !defined(USE_BICYCLE_KINEMATIC_MODEL)
             if (bicycle.v() < assistance_velocity_limit) {
                 const float interp = bicycle.v() / assistance_velocity_limit;
                 const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), interp);
@@ -336,7 +338,6 @@ int main(void) {
                 roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
                 steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
             }
-#endif
             bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 #endif
         }
