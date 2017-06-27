@@ -33,11 +33,17 @@
 #include <array>
 #include <type_traits>
 
-#include "bicycle/kinematic.h" // simplified bicycle model
-#include "bicycle/whipple.h" // whipple bicycle model
-#include "kalman.h" // kalman filter observer
+#include "haptic.h"
 #include "simbicycle.h"
 #include "transmitter.h"
+
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
+#include "bicycle/kinematic.h" // simplified bicycle model
+#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
+#include "bicycle/whipple.h" // whipple bicycle model
+#include "kalman.h" // Kalman filter observer
+#include "interpolated_lqr.h" // LQR controller
+#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
 
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
@@ -46,6 +52,7 @@ namespace {
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
+    using lqr_t = controller::InterpolatedLqr<model_t>;
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using bicycle_t = sim::Bicycle<model_t, observer_t>;
 
@@ -57,13 +64,18 @@ namespace {
                                               MS2ST(1), 3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
 
-    constexpr float fixed_velocity = 5.0f;
-
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
 
     // dynamics loop
     constexpr systime_t dynamics_loop_period = MS2ST(1); // 1 ms -> 1 kHz
+
+    // virtual roll and steer torque assistance enabled for
+    constexpr float assistance_velocity_limit = 1.0f; // [m/s] values less than this
+    // we gradually increase/decrease torque assistance over this period
+    // after the velocity crosses the velocity limit
+    constexpr systime_t assistance_fade_period = MS2ST(50)/dynamics_loop_period; // in iterations
+    systime_t assistance_fade_counter = 0;
 
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
@@ -212,7 +224,20 @@ int main(void) {
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(fixed_velocity, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+    bicycle_t bicycle(0.0, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+
+#if !defined(USE_BICYCLE_KINEMATIC_MODEL)
+    // At low speed, we add an assistive roll torque to stabilize the bicycle.
+    // Gains calculated with script calculate_lqr_gain.py.
+    lqr_t controller(
+            (lqr_t::feedback_gain_t() << // v = 0
+             0, -1648.90829472, -48.43076882, -516.76805995, -14.59295354,
+             0, -50.23751925, -42.32812576, -26.53589725, -11.70135889).finished(),
+            (lqr_t::feedback_gain_t() << // v = 1 = assistance_velocity_limit
+             0, -238.99395251, -8.0805282, -71.5451519, -1.21535324,
+             0, 624.96912408, -16.89860361, 176.94881285, -6.47514655).finished()
+    );
+#endif
 
     // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
     // TODO: naming here is poor
@@ -250,7 +275,7 @@ int main(void) {
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
-        constexpr float roll_torque = 0.0f;
+        float roll_torque = 0.0f;
 
         // get sensor measurements
         const float kistler_torque = adc_to_nm(analog.get_adc12(),
@@ -269,21 +294,40 @@ int main(void) {
 
         // calculate rider applied torque
 #if defined(FLIMNAP_ZERO_INPUT)
-        const float steer_torque = 0.0f;
+        float steer_torque = 0.0f;
         (void)kistler_torque;
 #else // defined(FLIMNAP_ZERO_INPUT)
         const float inertia_torque = -handlebar_model.torque(model_t::get_state_part(bicycle.full_state()));
-        const float steer_torque = kistler_torque - inertia_torque;
+        float steer_torque = kistler_torque - inertia_torque;
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
         // simulate bicycle
-        bicycle.set_v(fixed_velocity);
+        bicycle.set_v(v);
+#if !defined(USE_BICYCLE_KINEMATIC_MODEL)
+        if (bicycle.v() < assistance_velocity_limit) {
+            const float interp = bicycle.v() / assistance_velocity_limit;
+            const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), interp);
+            if (assistance_fade_counter < assistance_fade_period) {
+                ++assistance_fade_counter;
+            }
+            const float fade = static_cast<float>(assistance_fade_counter)/assistance_fade_period;
+            roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+            steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
+        } else if (assistance_fade_counter != 0) {
+            const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), 1.0f);
+            const float fade = static_cast<float>(assistance_fade_counter--)/assistance_fade_period;
+            roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+            steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
+        }
+#endif
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const float desired_velocity = model_t::get_full_state_element(bicycle.full_state(),
-                model_t::full_state_index_t::steer_rate);
+        const float desired_velocity =
+            model_t::get_full_state_element(bicycle.full_state(),
+                                            model_t::full_state_index_t::steer_rate);
         const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
+
         chTMStopMeasurementX(&computation_time_measurement);
 
         {   // prepare message for transmission

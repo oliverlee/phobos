@@ -269,33 +269,6 @@ OBSERVER_FUNCTION(typename BICYCLE_TYPE::full_state_t) Bicycle<Model, Observer>:
         chSysHalt("state elements with non finite values");
     }
 
-    { // limit allowed bicycle state
-        state_t x = m_observer.state();
-
-        auto limit_state_element = [&x](model::Bicycle::state_index_t index, real_t limit) {
-            const real_t value = model::Bicycle::get_state_element(x, index);
-            if (std::abs(value) > limit) {
-                model::Bicycle::set_state_element(x, index, std::copysign(limit, value));
-            }
-        };
-
-        const real_t roll_angle = model_t::get_state_element(x, model_t::state_index_t::roll_angle);
-        if (std::abs(roll_angle) > constants::pi) {
-            // state normalization limits angles to the range [-2*pi, 2*pi]
-            // and here we constrain it further to [-pi, pi]
-            chDbgAssert((roll_angle <= constants::two_pi) &&
-                        (roll_angle >= -constants::two_pi),
-                        "roll angle not model normalized");
-            model_t::set_state_element(x, model_t::state_index_t::roll_angle,
-                    roll_angle + std::copysign(constants::two_pi, -1*roll_angle));
-        }
-
-        limit_state_element(model_t::state_index_t::roll_rate, roll_rate_limit);
-        limit_state_element(model_t::state_index_t::steer_rate, steer_rate_limit);
-
-        m_observer.set_state(x);
-    }
-
     // Merge observer and model states
     //
     // We simply copy the observer state estimate to the full state vector

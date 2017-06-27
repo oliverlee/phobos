@@ -54,8 +54,6 @@ class Bicycle {
         static constexpr real_t default_dt = 1.0/default_fs; // sample period, s
         static constexpr real_t default_v = 5.0; // forward speed, m/s
         static constexpr real_t v_quantization_resolution = 0.1; // m/s
-        static constexpr real_t roll_rate_limit = 1e10; // rad
-        static constexpr real_t steer_rate_limit = 1e10; // rad
 
         template <typename T = Observer>
             Bicycle(typename std::enable_if<std::is_base_of<observer::ObserverBase, T>::value, real_t>::type
