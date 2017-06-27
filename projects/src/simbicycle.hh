@@ -284,6 +284,9 @@ OBSERVER_FUNCTION(typename BICYCLE_TYPE::full_state_t) Bicycle<Model, Observer>:
         if (std::abs(roll_angle) > constants::pi) {
             // state normalization limits angles to the range [-2*pi, 2*pi]
             // and here we constrain it further to [-pi, pi]
+            chDbgAssert((roll_angle <= constants::two_pi) &&
+                        (roll_angle >= -constants::two_pi),
+                        "roll angle not model normalized");
             roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
         }
 
