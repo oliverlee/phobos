@@ -279,15 +279,15 @@ OBSERVER_FUNCTION(typename BICYCLE_TYPE::full_state_t) Bicycle<Model, Observer>:
             }
         };
 
-        real_t roll_angle = model_t::get_state_element(m_observer.state(),
-                model_t::state_index_t::roll_angle);
+        const real_t roll_angle = model_t::get_state_element(x, model_t::state_index_t::roll_angle);
         if (std::abs(roll_angle) > constants::pi) {
             // state normalization limits angles to the range [-2*pi, 2*pi]
             // and here we constrain it further to [-pi, pi]
             chDbgAssert((roll_angle <= constants::two_pi) &&
                         (roll_angle >= -constants::two_pi),
                         "roll angle not model normalized");
-            roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
+            model_t::set_state_element(x, model_t::state_index_t::roll_angle,
+                    roll_angle + std::copysign(constants::two_pi, -1*roll_angle));
         }
 
         limit_state_element(model_t::state_index_t::roll_rate, roll_rate_limit);
