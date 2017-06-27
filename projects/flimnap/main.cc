@@ -35,7 +35,6 @@
 
 #include "bicycle/kinematic.h" // simplified bicycle model
 #include "bicycle/whipple.h" // whipple bicycle model
-#include "oracle.h" // oracle observer
 #include "kalman.h" // kalman filter observer
 #include "simbicycle.h"
 #include "transmitter.h"
@@ -43,7 +42,7 @@
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleKinematic;
-    using observer_t = observer::Oracle<model_t>;
+    using observer_t = std::nullptr_t;
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
@@ -108,7 +107,7 @@ namespace {
     struct observer_initializer{
         template <typename S = T>
         typename std::enable_if<std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
-        initialize(S& bicycle) {
+            initialize(S& bicycle) {
             typename S::observer_t& observer = bicycle.observer();
             observer.set_Q(parameters::defaultvalue::kalman::Q(observer.dt()));
             // Reduce steer measurement noise covariance
@@ -125,9 +124,23 @@ namespace {
         }
         template <typename S = T>
         typename std::enable_if<!std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
-        initialize(S& bicycle) {
+            initialize(S& bicycle) {
             // no-op
             (void)bicycle;
+        }
+
+        template <typename S = T>
+        typename std::enable_if<std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
+            set_message(S& bicycle, SimulationMessage* msg) {
+            message::set_kalman_gain(&msg->kalman, bicycle.observer());
+            msg->has_kalman = true;
+        }
+        template <typename S = T>
+        typename std::enable_if<!std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
+            set_message(S& bicycle, SimulationMessage* msg) {
+            // no-op
+            (void)bicycle;
+            (void)msg;
         }
     };
 
@@ -259,7 +272,7 @@ int main(void) {
         const float steer_torque = 0.0f;
         (void)kistler_torque;
 #else // defined(FLIMNAP_ZERO_INPUT)
-        const float inertia_torque = -handlebar_model.torque(bicycle.observer().state());
+        const float inertia_torque = -handlebar_model.torque(model_t::get_state_part(bicycle.full_state()));
         const float steer_torque = kistler_torque - inertia_torque;
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
@@ -268,8 +281,8 @@ int main(void) {
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque output
-        const float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
-                model_t::state_index_t::steer_rate);
+        const float desired_velocity = model_t::get_full_state_element(bicycle.full_state(),
+                model_t::full_state_index_t::steer_rate);
         const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
         chTMStopMeasurementX(&computation_time_measurement);
 
@@ -286,10 +299,7 @@ int main(void) {
                 msg->has_input = true;
                 message::set_simulation_state(msg, bicycle);
                 message::set_simulation_auxiliary_state(msg, bicycle);
-                if (std::is_same<observer_t, typename observer::Kalman<model_t>>::value) {
-                    message::set_kalman_gain(&msg->kalman, bicycle.observer());
-                    msg->has_kalman = true;
-                }
+                oi.set_message(bicycle, msg);
                 message::set_simulation_actuators(msg, handlebar_velocity_dac);
                 message::set_simulation_sensors(msg,
                         analog.get_adc12(), analog.get_adc13(),
