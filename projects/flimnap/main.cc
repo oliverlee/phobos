@@ -100,9 +100,15 @@ namespace {
     dacsample_t set_handlebar_velocity(float velocity) {
         // limit velocity to a maximum magnitude of 100 deg/s
         // input is in units of rad/s
-        const float saturated_velocity = util::clamp(velocity, -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
-        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
-        dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
+        const float saturated_velocity = util::clamp(velocity,
+                -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
+        const dacsample_t aout =
+            saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
+        // Calculate channel value based on DAC device params
+        // regshift = 0 -> CH1 -> channel value 0
+        // regshift = 16 -> CH2 -> channel value 1
+        static const dacchannel_t channel = sa::KOLLM_DAC->params->regshift/16;
+        dacPutChannelX(sa::KOLLM_DAC, channel, aout);
         return aout;
     }
 
