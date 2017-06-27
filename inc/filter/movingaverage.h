@@ -3,6 +3,11 @@
 
 namespace filter {
 
+/*
+ * Warning: This class does not protect against sum overflow. It is possible
+ * that the sum of values exceeds the maximum value T can store.
+ */
+
 template <typename T, size_t N>
 class MovingAverage {
     public:
