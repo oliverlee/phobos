@@ -17,6 +17,7 @@ namespace {
 
     asio::io_service io_service;
     asio::serial_port port(io_service);
+    std::ifstream* input_file = nullptr;
 
     // serial port
     //   --[read]--> serial_buffer
@@ -35,6 +36,15 @@ namespace {
             asio::buffer(serial_buffer_write, serial_buffer_remaining),
             &handle_read
         );
+    }
+
+    void start_read(std::ifstream* ifs) {
+        const size_t serial_buffer_remaining = serial_buffer_end - serial_buffer_write;
+        const size_t bytes_read = ifs->readsome(reinterpret_cast<char*>(serial_buffer_write), serial_buffer_remaining);
+        if (bytes_read > 0) {
+            asio::error_code error;
+            handle_read(error, bytes_read);
+        }
     }
 
     void deserialize_packet(const uint8_t * const packet_buffer_start, const size_t packet_buffer_length) {
@@ -132,7 +142,11 @@ namespace {
         serial_buffer_write = serial_buffer_start + serial_buffer_remaining;
 
         // Start another read operation.
-        start_read();
+        if (input_file == nullptr) {
+            start_read();
+        } else {
+            start_read(input_file);
+        }
     }
 
     void handle_stop(const asio::error_code&, int signal_number) {
@@ -149,7 +163,7 @@ int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <serial_device> [<baud_rate>]\n\n"
             << "Decode streaming serialized simulation protobuf messages.\n"
-            << " <serial_device>      device from which to read serial data\n"
+            << " <serial_device>      device or file from which to read serial data\n"
             << " <baud_rate=115200>   serial baud rate\n"
 
             << "A virtual serial port can be created using socat with:\n"
@@ -161,7 +175,7 @@ int main(int argc, char* argv[]) {
             << "  2017/02/17 18:00:30 socat[71176] N PTY is /dev/ttys010\n"
             << "  2017/02/17 18:00:30 socat[71176] N starting data transfer loop with FDs [5,5] and [7,7]\n\n"
             << "  $ ./pbprint /dev/ttys010\n\n"
-            << "  $ cat log.pb > /dev/ttys009\n";
+            << "  $ cat log.pb.cobs > /dev/ttys009\n";
         return EXIT_FAILURE;
     }
 
@@ -171,7 +185,15 @@ int main(int argc, char* argv[]) {
         baud_rate = std::atoi(argv[2]);
     }
 
-    port.open(devname);
+    try {
+        port.open(devname);
+    } catch (const std::system_error& e) {
+        // assume we have a file
+        std::ifstream ifs(devname, std::ios::binary);
+        input_file = &ifs;
+        start_read(input_file);
+        return EXIT_SUCCESS;
+    }
     port.set_option(asio::serial_port_base::baud_rate(baud_rate));
     port.set_option(asio::serial_port_base::parity(asio::serial_port_base::parity::none));
     port.set_option(asio::serial_port_base::character_size(8));
