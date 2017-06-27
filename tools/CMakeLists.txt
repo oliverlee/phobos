@@ -25,12 +25,15 @@ protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS
 
 add_executable(seriallog seriallog.cc)
 add_executable(pbprint pbprint.cc ../src/cobs.cc ${PROTO_SRCS} ${PROTO_HDRS})
+add_executable(printpbcobs printpbcobs.cc ../src/cobs.cc ${PROTO_SRCS} ${PROTO_HDRS})
 # enable warnings for unused parameters for source files
-set_property(SOURCE seriallog.cc pbprint.cc ../src/cobs.cc
+set_property(SOURCE seriallog.cc pbprint.cc printpbcobs.cc ../src/cobs.cc
     APPEND_STRING PROPERTY COMPILE_FLAGS " -Wunused-parameter")
 target_link_libraries(pbprint ${PROTOBUF_LIBRARIES})
+target_link_libraries(printpbcobs ${PROTOBUF_LIBRARIES})
 if (NOT APPLE)
     find_package(Threads)
     target_link_libraries(seriallog ${CMAKE_THREAD_LIBS_INIT})
     target_link_libraries(pbprint ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(printpbcobs ${CMAKE_THREAD_LIBS_INIT})
 endif()
