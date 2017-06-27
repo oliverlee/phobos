@@ -73,11 +73,11 @@ void Bicycle<Model, Observer>::set_dt(real_t dt)  {
 template <typename Model, typename Observer>
 OBSERVER_FUNCTION(void) Bicycle<Model, Observer>::reset() {
     m_observer.reset();
-    //TODO: reset full state?
+    m_full_state = full_state_t::Zero();
 }
 template <typename Model, typename Observer>
 NULL_OBSERVER_FUNCTION(void) Bicycle<Model, Observer>::reset() {
-    //TODO: reset full state?
+    m_full_state = full_state_t::Zero();
 }
 
 template <typename Model, typename Observer>
@@ -266,7 +266,7 @@ OBSERVER_FUNCTION(typename BICYCLE_TYPE::full_state_t) Bicycle<Model, Observer>:
     m_observer.update_state(m_input, m_measurement);
 
     if (!m_observer.state().allFinite()) {
-        chSysHalt("");
+        chSysHalt("state elements with non finite values");
     }
 
     { // limit allowed bicycle state
@@ -283,6 +283,7 @@ OBSERVER_FUNCTION(typename BICYCLE_TYPE::full_state_t) Bicycle<Model, Observer>:
                 model_t::state_index_t::roll_angle);
         if (std::abs(roll_angle) > constants::pi) {
             // state normalization limits angles to the range [-2*pi, 2*pi]
+            // and here we constrain it further to [-pi, pi]
             roll_angle += std::copysign(constants::two_pi, -1*roll_angle);
         }
 
@@ -299,8 +300,6 @@ OBSERVER_FUNCTION(typename BICYCLE_TYPE::full_state_t) Bicycle<Model, Observer>:
     // convergence of the observer estimate should keep it low.
     // Also, we have no way to correct auxiliary states as there are no sensors
     // to measure them and that's because they are _purely_ virtual.
-    //
-    // TODO: improve this
     return model_t::make_full_state(model_t::get_auxiliary_state_part(state_full),
                                     m_observer.state());
 }
