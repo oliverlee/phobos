@@ -175,7 +175,7 @@ int main(int argc, char* argv[]) {
             << "  2017/02/17 18:00:30 socat[71176] N PTY is /dev/ttys010\n"
             << "  2017/02/17 18:00:30 socat[71176] N starting data transfer loop with FDs [5,5] and [7,7]\n\n"
             << "  $ ./pbprint /dev/ttys010\n\n"
-            << "  $ cat log.pb > /dev/ttys009\n";
+            << "  $ cat log.pb.cobs > /dev/ttys009\n";
         return EXIT_FAILURE;
     }
 
