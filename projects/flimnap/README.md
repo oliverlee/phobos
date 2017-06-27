@@ -11,7 +11,12 @@ The following sensors are used:
  - kollmorgen actual torque, ADC13, 10 kHz
 
 The following actuators are used:
- - handlebar, DAC1, __velocity reference__, 1 kHz
+ - binary __flimnap_kinematic__
+    - handlebar, DAC1, __torque reference__, 1 kHz
+ - binary __flimnap_whipple__
+    - handlebar, DAC1, __velocity reference__, 1 kHz
+ - binary __flimnap_zero_input__
+    - handlebar, DAC1, __velocity reference__, 1 kHz
 
 Simulation loop rate is 1 kHz. This project creates multiple binaries
 differences in configurations.
