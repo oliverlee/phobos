@@ -106,6 +106,48 @@ namespace {
         return aout;
     }
 
+    bool steer_encoder_index_search(systime_t timelimit, float speed) {
+        if (encoder_steer.index() == Encoder::index_t::NONE) {
+            return false;
+        }
+
+        if (encoder_steer.index() == Encoder::index_t::NOTFOUND) {
+            systime_t start_time = chVTGetSystemTime();
+            set_handlebar_velocity(std::abs(speed));
+            while (chVTTimeElapsedSinceX(start_time) < timelimit) {
+                if (encoder_steer.index() == Encoder::index_t::FOUND) {
+                    set_handlebar_velocity(0.0f);
+                    return true;
+                }
+            }
+
+            start_time = chVTGetSystemTime();
+            set_handlebar_velocity(-1.0f*std::abs(speed));
+            while (chVTTimeElapsedSinceX(start_time) < 2*timelimit) {
+                if (encoder_steer.index() == Encoder::index_t::FOUND) {
+                    set_handlebar_velocity(0.0f);
+                    return true;
+                }
+            }
+        }
+        set_handlebar_velocity(0.0f);
+        return encoder_steer.index() == Encoder::index_t::FOUND;
+
+    }
+
+    void steer_encoder_move_to_zero(float tolerance, float speed) {
+        float encoder_angle;
+        constexpr systime_t timelimit = S2ST(5); // fixed time limit
+        const systime_t start_time = chVTGetSystemTime();
+        while (encoder_angle = util::encoder_count<float>(encoder_steer),
+                std::abs(encoder_angle) > std::abs(tolerance)) {
+            set_handlebar_velocity(-1.0f*std::copysign(std::abs(speed), encoder_angle));
+            if (chVTTimeElapsedSinceX(start_time) > timelimit) {
+                return;
+            }
+        }
+    }
+
     constexpr float adc_to_nm(adcsample_t value, adcsample_t adc_zero, float magnitude) {
         // Convert torque from ADC samples to Nm.
         // ADC samples are 12 bits.
@@ -221,6 +263,14 @@ int main(void) {
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
     set_handlebar_velocity(0.0f);
+
+
+    // Search for steer encoder index.
+    // Rotate slowly right and the left for a fixed amount of time.
+    steer_encoder_index_search(S2ST(3), 0.1f);
+
+    // Move steer encoder to zero position if index has been found.
+    steer_encoder_move_to_zero(0.01f, 0.1f);
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
