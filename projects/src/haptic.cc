@@ -75,11 +75,22 @@ real_t Handlebar1::torque(const model_t::state_t& x, const model_t::input_t& u) 
     const real_t v = m_bicycle.v();
     const model_t::second_order_matrix_t K = constants::g*m_bicycle.K0() + v*v*m_bicycle.K2();
     const model_t::second_order_matrix_t C = v*m_bicycle.C1();
+    const model_t::second_order_matrix_t& M = m_bicycle.M();
 
-    return -(C(1, 0)*model_t::get_state_element(x, model_t::state_index_t::roll_rate) +
-             C(1, 1)*model_t::get_state_element(x, model_t::state_index_t::steer_rate) +
-             K(1, 0)*model_t::get_state_element(x, model_t::state_index_t::roll_angle) +
-             K(1, 1)*model_t::get_state_element(x, model_t::state_index_t::steer_angle));
+    const float roll_angle = model_t::get_state_element(x, model_t::state_index_t::roll_angle);
+    const float roll_rate = model_t::get_state_element(x, model_t::state_index_t::roll_rate);
+    const float steer_angle = model_t::get_state_element(x, model_t::state_index_t::steer_angle);
+    const float steer_rate = model_t::get_state_element(x, model_t::state_index_t::steer_rate);
+    const float roll_accel = -(C(0, 1)*steer_rate +
+                               K(0, 1)*steer_angle +
+                               C(0, 0)*roll_rate +
+                               K(0, 0)*roll_angle)/M(0, 0);
+
+    return -(M(1, 0)*roll_accel +
+             C(1, 0)*roll_rate +
+             C(1, 1)*steer_rate +
+             K(1, 0)*roll_angle +
+             K(1, 1)*steer_angle);
 }
 
 Handlebar2::Handlebar2(model_t& bicycle, real_t moment_of_inertia) :
