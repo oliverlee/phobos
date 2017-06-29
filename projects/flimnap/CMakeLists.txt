@@ -24,6 +24,7 @@ set(FLIMNAP_COMMON_SRC
     mcuconf.h
     main.cc
     serialize.cc
+    syshooks.cc
     usbconfig.c # add USB config file without input/output buffer queues
     ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc

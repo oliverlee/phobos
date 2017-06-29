@@ -77,6 +77,16 @@ namespace {
     constexpr systime_t assistance_fade_period = MS2ST(50)/dynamics_loop_period; // in iterations
     systime_t assistance_fade_counter = 0;
 
+    // motor cooldown
+    // we compute the moving average of motor torque values
+    bool cooldown_active = false;
+    constexpr systime_t cooldown_period = MS2ST(1500);  // this duration is also used to trigger cooldown
+                                                        // value is chosen based on collected data
+    constexpr uint32_t cooldown_subsample_rate = 100;
+    uint32_t cooldown_subsample_counter = 0;
+    filter::MovingAverage<float,
+        cooldown_period/dynamics_loop_period/cooldown_subsample_rate> cooldown_torque_average;
+
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
     // The system time is assumed to be between prev and time else the call is
@@ -97,12 +107,31 @@ namespace {
         return next;
     }
 
-    dacsample_t set_handlebar_velocity(float velocity) {
+    dacsample_t set_handlebar_velocity(float velocity, float measured_torque) {
+        cooldown_subsample_counter = (cooldown_subsample_counter + 1) % cooldown_subsample_rate;
+        if (cooldown_subsample_counter == 0) {
+            cooldown_torque_average.output(measured_torque);
+        }
+
+        if (cooldown_active) {
+            cooldown_active = std::abs(cooldown_torque_average.output()) < 0.1f*sa::MAX_KOLLMORGEN_TORQUE;
+            palClearLine(LINE_MOTOR1_EN);
+        } else {
+            cooldown_active = std::abs(cooldown_torque_average.output()) > 0.9f*sa::MAX_KOLLMORGEN_TORQUE;
+            palSetLine(LINE_MOTOR1_EN);
+        }
+
         // limit velocity to a maximum magnitude of 100 deg/s
         // input is in units of rad/s
-        const float saturated_velocity = util::clamp(velocity, -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
-        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
-        dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
+        const float saturated_velocity = util::clamp(velocity,
+                -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
+        const dacsample_t aout =
+            saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
+        // Calculate channel value based on DAC device params
+        // regshift = 0 -> CH1 -> channel value 0
+        // regshift = 16 -> CH2 -> channel value 1
+        static const dacchannel_t channel = sa::KOLLM_DAC->params->regshift/16;
+        dacPutChannelX(sa::KOLLM_DAC, channel, aout);
         return aout;
     }
 
@@ -218,9 +247,11 @@ int main(void) {
     // Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
     // The default line configuration is OUTPUT_OPENDRAIN_PULLUP for SPI1_ENC1_NSS
     // and must be changed to use as analog output.
+    // We also use MOTOR1_EN to enable the motor.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-    set_handlebar_velocity(0.0f);
+    palSetLine(LINE_MOTOR1_EN);
+    set_handlebar_velocity(0.0f, 0.0f);
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
@@ -287,7 +318,6 @@ int main(void) {
                                                  constants::two_pi);
         const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_rear_wheel)));
-        (void)motor_torque; // not currently used
 
         // yaw angle, just use previous state value
         const float yaw_angle = util::wrap(bicycle.pose().yaw);
@@ -326,8 +356,7 @@ int main(void) {
         const float desired_velocity =
             model_t::get_full_state_element(bicycle.full_state(),
                                             model_t::full_state_index_t::steer_rate);
-        const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
-
+        const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity, motor_torque);
         chTMStopMeasurementX(&computation_time_measurement);
 
         {   // prepare message for transmission

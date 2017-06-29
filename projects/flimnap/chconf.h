@@ -553,7 +553,8 @@
  *          the system is halted.
  */
 #define CH_CFG_SYSTEM_HALT_HOOK(reason) {                                   \
-  /* System halt code here.*/                                               \
+    extern void disable_motor(void); \
+    disable_motor(); \
 }
 
 /** @} */
