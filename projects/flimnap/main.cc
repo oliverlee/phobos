@@ -49,6 +49,7 @@ namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleKinematic;
     using observer_t = std::nullptr_t;
+    using haptic_drive_t = haptic::HandlebarStatic;
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
@@ -97,11 +98,12 @@ namespace {
         return next;
     }
 
-    dacsample_t set_handlebar_velocity(float velocity) {
-        // limit velocity to a maximum magnitude of 100 deg/s
-        // input is in units of rad/s
-        const float saturated_velocity = util::clamp(velocity, -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
-        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
+    dacsample_t set_handlebar_reference(float reference) {
+        constexpr float MAX_REF_VALUE = std::is_same<observer_t, std::nullptr_t>::value ?
+            sa::MAX_KOLLMORGEN_TORQUE :
+            sa::MAX_KOLLMORGEN_VELOCITY;
+        const float saturated_reference = util::clamp(reference, -MAX_REF_VALUE, MAX_REF_VALUE);
+        const dacsample_t aout = saturated_reference/MAX_REF_VALUE*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
         dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
         return aout;
     }
@@ -220,13 +222,15 @@ int main(void) {
     // and must be changed to use as analog output.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-    set_handlebar_velocity(0.0f);
+    set_handlebar_reference(0.0f);
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
     bicycle_t bicycle(0.0, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
-#if !defined(USE_BICYCLE_KINEMATIC_MODEL)
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
+    haptic_drive_t haptic_drive(bicycle.model());
+#else
     // At low speed, we add an assistive roll torque to stabilize the bicycle.
     // Gains calculated with script calculate_lqr_gain.py.
     lqr_t controller(
@@ -322,11 +326,16 @@ int main(void) {
 #endif
         bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
-        // generate handlebar torque output
+        // generate handlebar velocity or torque output
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
+        const float desired_torque = haptic_drive.torque(model_t::get_state_part(bicycle.full_state()));
+        const dacsample_t handlebar_reference_dac = set_handlebar_reference(desired_torque);
+#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float desired_velocity =
             model_t::get_full_state_element(bicycle.full_state(),
                                             model_t::full_state_index_t::steer_rate);
-        const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
+        const dacsample_t handlebar_reference_dac = set_handlebar_reference(desired_velocity);
+#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
 
         chTMStopMeasurementX(&computation_time_measurement);
 
@@ -344,7 +353,7 @@ int main(void) {
                 message::set_simulation_state(msg, bicycle);
                 message::set_simulation_auxiliary_state(msg, bicycle);
                 oi.set_message(bicycle, msg);
-                message::set_simulation_actuators(msg, handlebar_velocity_dac);
+                message::set_simulation_actuators(msg, handlebar_reference_dac);
                 message::set_simulation_sensors(msg,
                         analog.get_adc12(), analog.get_adc13(),
                         encoder_steer.count(), encoder_rear_wheel.count());
