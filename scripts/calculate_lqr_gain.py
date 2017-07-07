@@ -29,5 +29,10 @@ if __name__ == '__main__':
 
     for v, K in zip(velocities, gains):
         print('computed LQR controller feedback gain for v = {}'.format(v))
-        print(-K)
+        K = -K
+        for r in range(K.shape[0]):
+            row = ', '.join(str(elem) for elem in K[r, :])
+            if r != K.shape[0] - 1:
+                row += ','
+            print(row)
         print()
