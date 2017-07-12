@@ -7,9 +7,10 @@ The following sensors are used:
  - kollmorgen actual torque voltage, ADC13, 10 kHz
 
 The main loop transmits the following at 1 kHz:
- - short gitsha1
- - kistler steer torque [N/m]
- - kollmorgen actual torque [N/m]
+ - character denoting torque or velocity mode
+ - realtime count [rtcnt_t]
+ - kistler steer torque [N-m]
+ - kollmorgen actual torque [N-m]
  - steer angle [rad]
 
 A virtual torsional spring with spring constant k = 3.14 N-m/rad is used

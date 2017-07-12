@@ -28,8 +28,13 @@
 
 #include "parameters.h"
 
+#include <Eigen/Core>
+#include <boost/numeric/odeint/stepper/runge_kutta_dopri5.hpp>
+#include <boost/numeric/odeint/algebra/vector_space_algebra.hpp>
+
 namespace {
-    constexpr uint32_t dt_ms = 1; // ms
+    constexpr systime_t loop_period = MS2ST(1);
+    constexpr float dt = static_cast<float>(ST2MS(loop_period))/1000.0f; // seconds
     constexpr float k = 3.14f; // N-m/rad
 
     // sensors
@@ -37,12 +42,47 @@ namespace {
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
 
     dacsample_t set_handlebar_reference(float reference) {
+#if defined(LIMTOC_VELOCITY_MODE)
+        constexpr float MAX_REF_VALUE = sa::MAX_KOLLMORGEN_VELOCITY;
+#else // defined(LIMTOC_VELOCITY_MODE)
         constexpr float MAX_REF_VALUE = sa::MAX_KOLLMORGEN_TORQUE;
+#endif // defined(LIMTOC_VELOCITY_MODE)
         const float saturated_reference = util::clamp(reference, -MAX_REF_VALUE, MAX_REF_VALUE);
         const dacsample_t aout = saturated_reference/MAX_REF_VALUE*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
         dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
         return aout;
     }
+
+    // This is a simple mass-spring system so the equation of motion is:
+    //   m*x_ddot = -k*x
+    // and the state space formulation is
+    // [x_dot ] = [  0  1][x    ]
+    // [x_ddot]   [ -k  0][x_dot]
+#if defined(LIMTOC_VELOCITY_MODE)
+    float prev_steer_angle = 0.0f;
+    using state_t = Eigen::Matrix<float, 2, 1>;
+    boost::numeric::odeint::runge_kutta_dopri5<
+        state_t,
+        float,
+        state_t,
+        float,
+        boost::numeric::odeint::vector_space_algebra> stepper;
+
+    float get_velocity_reference(const state_t& x) {
+        state_t xout = x;
+        stepper.do_step([](const state_t& x, state_t& dxdt, const float t) -> void {
+                (void)t; // system is time-independent
+
+                dxdt[0] = x[1];
+                dxdt[1] = -k*x[0];
+                }, xout, 0.0f, dt); // newly obtained state written in place
+        return xout[1];
+    }
+#else // defined(LIMTOC_VELOCITY_MODE)
+    float get_torque_reference(float angle) {
+        return -k*angle;
+    }
+#endif // defined(LIMTOC_VELOCITY_MODE)
 } // namespace
 
 /*
@@ -92,6 +132,7 @@ int main(void) {
     palSetLine(LINE_TORQUE_MEAS_EN);
 
     // Normal main() thread activity
+    systime_t deadline = chVTGetSystemTime();
     while (true) {
         const float kistler_torque = util::adc_to_Nm(analog.get_adc12(),
                 sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE);
@@ -99,12 +140,22 @@ int main(void) {
                 sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
         const float steer_angle = util::encoder_count<float>(encoder_steer);
 
-        // generate feedback torque to simulate a spring
-        const float feedback_torque = -k*steer_angle;
-        set_handlebar_reference(feedback_torque);
+        // generate motor command to simulate a spring
+#if defined(LIMTOC_VELOCITY_MODE)
+        constexpr char modechar = 'v';
+        const float steer_rate = (steer_angle - prev_steer_angle)/dt;
+        prev_steer_angle = steer_angle;
+        state_t x;
+        x << steer_angle, steer_rate;
+        const float feedback_reference = get_velocity_reference(x);
+#else // defined(LIMTOC_VELOCITY_MODE)
+        constexpr char modechar = 't';
+        const float feedback_reference = get_torque_reference(steer_angle);
+#endif  // defined(LIMTOC_VELOCITY_MODE)
+        set_handlebar_reference(feedback_reference);
 
-        printf("[%.7s] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
-               g_GITSHA1, kistler_torque, motor_torque, steer_angle);
-        chThdSleepMilliseconds(dt_ms);
+        printf("%c[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
+               modechar, chSysGetRealtimeCounterX(), kistler_torque, motor_torque, steer_angle);
+        deadline = chThdSleepUntilWindowed(deadline, deadline + loop_period);
     }
 }
