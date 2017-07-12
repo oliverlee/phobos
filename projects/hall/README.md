@@ -10,5 +10,6 @@ The main loop transmits the following at 1 kHz:
  - realtime count [rtcnt_t]
  - kistler steer torque voltage [adccount_t]
  - kollmorgen actual torque voltage [adccount_t]
+
 The analog channel is sampled at 8 kHz. Voltage values are converted to
 `adccount_t` which are in the range [0, 4096).
