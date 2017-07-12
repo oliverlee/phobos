@@ -123,6 +123,13 @@ int main(void) {
     encoder_steer.start();
     analog.start(10000); /* trigger ADC conversion at 10 kHz */
 
+    // Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
+    // The default line configuration is OUTPUT_OPENDRAIN_PULLUP for SPI1_ENC1_NSS
+    // and must be changed to use as analog output.
+    palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
+    dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
+    set_handlebar_reference(0.0f);
+
     // Set torque measurement enable line low.
     // The output of the Kistler torque sensor is not valid until after a falling edge
     // on the measurement line and it is held low. The 'LINE_TORQUE_MEAS_EN' line is
