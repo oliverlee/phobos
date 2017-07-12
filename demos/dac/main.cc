@@ -63,7 +63,7 @@ int main(void) {
     /*
      * Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
      */
-    palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
+    palSetLineMode(LINE_DAC0_REF, PAL_MODE_INPUT_ANALOG);
     dacStart(&DACD1, &dac1cfg1);
 
     /*
