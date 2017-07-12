@@ -1,8 +1,10 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_phobos_executable(hall
+add_phobos_executable(limtoc
     chconf.h
     halconf.h
     mcuconf.h
     main.cc
-    ${PHOBOS_SOURCE_DIR}/src/analog.cc)
+    ${PHOBOS_SOURCE_DIR}/src/analog.cc
+    ${PHOBOS_SOURCE_DIR}/src/encoder.cc
+    ${PHOBOS_SOURCE_DIR}/src/extconfig.cc)

@@ -90,3 +90,8 @@ option(PHOBOS_BUILD_PROJECT_HALL "Build Hall (static simulator) demo" TRUE)
 if(PHOBOS_BUILD_PROJECT_HALL)
     add_subdirectory(hall)
 endif()
+
+option(PHOBOS_BUILD_PROJECT_LIMTOC "Build Limtoc (static simulator) demo" TRUE)
+if(PHOBOS_BUILD_PROJECT_LIMTOC)
+    add_subdirectory(limtoc)
+endif()
