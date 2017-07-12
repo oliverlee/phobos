@@ -28,14 +28,14 @@
 
 #include "parameters.h"
 
-#include <Eigen/Core>
-#include <boost/numeric/odeint/stepper/runge_kutta_dopri5.hpp>
-#include <boost/numeric/odeint/algebra/vector_space_algebra.hpp>
+#include "discrete_linear.h"
+#include "kalman.h"
 
 namespace {
     constexpr systime_t loop_period = MS2ST(1);
     constexpr float dt = static_cast<float>(ST2MS(loop_period))/1000.0f; // seconds
     constexpr float k = 3.14f; // N-m/rad
+    constexpr float m = 1.0f; // kg-m^2
 
     // sensors
     Analog analog;
@@ -56,31 +56,63 @@ namespace {
     // This is a simple mass-spring system so the equation of motion is:
     //   m*x_ddot = -k*x
     // and the state space formulation is
-    // [x_dot ] = [  0  1][x    ]
-    // [x_ddot]   [ -k  0][x_dot]
+    // [x_dot ] = [  0    1][x    ] + [   0] u
+    // [x_ddot]   [ -k/m  0][x_dot]   [ 1/m]
 #if defined(LIMTOC_VELOCITY_MODE)
-    float prev_steer_angle = 0.0f;
-    using state_t = Eigen::Matrix<float, 2, 1>;
-    boost::numeric::odeint::runge_kutta_dopri5<
-        state_t,
-        float,
-        state_t,
-        float,
-        boost::numeric::odeint::vector_space_algebra> stepper;
 
-    float get_velocity_reference(const state_t& x) {
-        state_t xout = x;
-        stepper.do_step([](const state_t& x, state_t& dxdt, const float t) -> void {
-                (void)t; // system is time-independent
+    class MassSpring final : public model::DiscreteLinear<2, 1, 1, 0> {
+        public:
+            MassSpring() : m_dt(0.001) {
+                m_Ad.setZero();
+                m_Ad <<  9.99998430e-01,   9.99999477e-04,
+                        -3.13999836e-03,   9.99998430e-01;
+                m_Bd.setZero();
+                m_Bd <<  4.99999869e-07,
+                         9.99999477e-04;
+                m_Cd.setZero();
+                m_Cd << 1, 0;
+            }
+            virtual state_t update_state(const state_t& x, const input_t& u, const measurement_t& z) const override {
+                (void)z;
+                return m_Ad*x + m_Bd*u;
+            }
+            virtual output_t calculate_output(const state_t& x, const input_t& u) const override {
+                (void)u;
+                return m_Cd*x;
+            }
+            virtual const state_matrix_t& Ad() const override {
+                return m_Ad;
+            }
+            virtual const input_matrix_t& Bd() const override {
+                return m_Bd;
+            }
+            virtual const output_matrix_t& Cd() const override {
+                return m_Cd;
+            }
+            virtual const feedthrough_matrix_t& Dd() const override {
+                return m_Dd;
+            }
+            virtual model::real_t dt() const override {
+                return m_dt;
+            }
+            virtual state_t normalize_state(const state_t& x) const override {
+                return x;
+            }
+            virtual output_t normalize_output(const output_t& y) const override {
+                return y;
+            }
 
-                dxdt[0] = x[1];
-                dxdt[1] = -k*x[0];
-                }, xout, 0.0f, dt); // newly obtained state written in place
-        return xout[1];
-    }
+        private:
+            model::real_t m_dt;
+            state_matrix_t m_Ad;
+            input_matrix_t m_Bd;
+            output_matrix_t m_Cd;
+            const feedthrough_matrix_t m_Dd = feedthrough_matrix_t::Zero();
+    };
+    using kalman_t = observer::Kalman<MassSpring>;
 #else // defined(LIMTOC_VELOCITY_MODE)
     float get_torque_reference(float angle) {
-        return -k*angle;
+        return -k/m*angle;
     }
 #endif // defined(LIMTOC_VELOCITY_MODE)
 } // namespace
@@ -138,6 +170,16 @@ int main(void) {
     chThdSleepMilliseconds(1);
     palSetLine(LINE_TORQUE_MEAS_EN);
 
+#if defined(LIMTOC_VELOCITY_MODE)
+    MassSpring model;
+    kalman_t observer(model);
+    observer.set_Q((kalman_t::process_noise_covariance_t() <<
+                dt, 0,
+                0, dt*dt/2).finished() * std::pow(0.1*constants::as_radians, 2));
+    observer.set_R((kalman_t::measurement_noise_covariance_t() <<
+                0.008).finished() * constants::as_radians/1000);
+#endif // defined(LIMTOC_VELOCITY_MODE)
+
     // Normal main() thread activity
     systime_t deadline = chVTGetSystemTime();
     while (true) {
@@ -149,20 +191,25 @@ int main(void) {
 
         // generate motor command to simulate a spring
 #if defined(LIMTOC_VELOCITY_MODE)
-        constexpr char modechar = 'v';
-        const float steer_rate = (steer_angle - prev_steer_angle)/dt;
-        prev_steer_angle = steer_angle;
-        state_t x;
-        x << steer_angle, steer_rate;
-        const float feedback_reference = get_velocity_reference(x);
+        kalman_t::input_t u = kalman_t::input_t::Zero();
+        u << kistler_torque;
+        kalman_t::measurement_t z = kalman_t::measurement_t::Zero();
+        z << steer_angle;
+        observer.update_state(u, z);
+
+        const float feedback_reference = observer.x()[1];
 #else // defined(LIMTOC_VELOCITY_MODE)
-        constexpr char modechar = 't';
         const float feedback_reference = get_torque_reference(steer_angle);
 #endif  // defined(LIMTOC_VELOCITY_MODE)
         set_handlebar_reference(feedback_reference);
 
-        printf("%c[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
-               modechar, chSysGetRealtimeCounterX(), kistler_torque, motor_torque, steer_angle);
+#if defined(LIMTOC_VELOCITY_MODE)
+        printf("[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\trate: %8.3f rad/s\r\n",
+               chSysGetRealtimeCounterX(), kistler_torque, motor_torque, observer.x()[0], observer.x()[1]);
+#else // defined(LIMTOC_VELOCITY_MODE)
+        printf("[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
+               chSysGetRealtimeCounterX(), kistler_torque, motor_torque, steer_angle);
+#endif // defined(LIMTOC_VELOCITY_MODE)
         deadline = chThdSleepUntilWindowed(deadline, deadline + loop_period);
     }
 }
