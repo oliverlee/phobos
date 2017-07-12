@@ -16,5 +16,6 @@ The main loop transmits the following at 20 Hz:
  - steer angle [rad]
  - roller angle [rad]
  - bicycle forward velocity [m/s]
+
 The handlebar torque is a sinusoid with amplitude 5 N/m and a period of 1
 second.
