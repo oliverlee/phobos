@@ -4,6 +4,7 @@
 #include "debug.h"
 #include "encoder.h"
 #include "encoderfoaw.h"
+#include "hal.h"
 
 namespace util {
 template <typename T>
@@ -45,4 +46,16 @@ T encoder_rate(const EncoderFoaw<T, N>& encoder) {
     auto rev = static_cast<std::make_signed<enccnt_t>::type>(encoder.config().counts_per_rev);
     return static_cast<T>(encoder.velocity()) / rev * boost::math::constants::two_pi<T>();
 }
+
+
+template <typename T>
+constexpr T adc_to_Nm(adcsample_t value, adcsample_t adc_zero, T magnitude) {
+    // Convert torque from ADC samples to Nm.
+    // ADC samples are 12 bits.
+    // It's not clear when scaling should be applied as data was never saved after the scale
+    // factors were determined.
+    const int16_t shifted_value = static_cast<int16_t>(value) - static_cast<int16_t>(adc_zero);
+    return static_cast<T>(shifted_value)*magnitude/static_cast<T>(sa::ADC_HALF_RANGE);
+}
+
 } // namespace util

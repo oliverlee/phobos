@@ -108,15 +108,6 @@ namespace {
         return aout;
     }
 
-    constexpr float adc_to_nm(adcsample_t value, adcsample_t adc_zero, float magnitude) {
-        // Convert torque from ADC samples to Nm.
-        // ADC samples are 12 bits.
-        // It's not clear when scaling should be applied as data was never saved after the scale
-        // factors were determined.
-        const int16_t shifted_value = static_cast<int16_t>(value) - static_cast<int16_t>(adc_zero);
-        return static_cast<float>(shifted_value)*magnitude/static_cast<float>(sa::ADC_HALF_RANGE);
-    }
-
     template <typename T>
     struct observer_initializer{
         template <typename S = T>
@@ -282,9 +273,9 @@ int main(void) {
         float roll_torque = 0.0f;
 
         // get sensor measurements
-        const float kistler_torque = adc_to_nm(analog.get_adc12(),
+        const float kistler_torque = util::adc_to_Nm(analog.get_adc12(),
                 sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE);
-        const float motor_torque = adc_to_nm(analog.get_adc13(),
+        const float motor_torque = util::adc_to_Nm(analog.get_adc13(),
                 sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float rear_wheel_angle = std::fmod(-util::encoder_count<float>(encoder_rear_wheel),
