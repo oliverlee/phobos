@@ -204,7 +204,7 @@ int main(void) {
         set_handlebar_reference(feedback_reference);
 
 #if defined(LIMTOC_VELOCITY_MODE)
-        printf("[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\trate: %8.3f rad/s\r\n",
+        printf("[%u] kistler: %10.5f Nm\tkollmorgen: %10.5f Nm\tsteer: %10.5f rad\trate: %10.5f rad/s\r\n",
                chSysGetRealtimeCounterX(), kistler_torque, motor_torque, observer.x()[0], observer.x()[1]);
 #else // defined(LIMTOC_VELOCITY_MODE)
         printf("[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
