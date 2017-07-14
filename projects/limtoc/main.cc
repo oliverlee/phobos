@@ -59,7 +59,6 @@ namespace {
     // [x_dot ] = [  0    1][x    ] + [   0] u
     // [x_ddot]   [ -k/m  0][x_dot]   [ 1/m]
 #if defined(LIMTOC_VELOCITY_MODE)
-
     class MassSpring final : public model::DiscreteLinear<2, 1, 1, 0> {
         public:
             MassSpring() : m_dt(0.001) {
@@ -173,11 +172,12 @@ int main(void) {
 #if defined(LIMTOC_VELOCITY_MODE)
     MassSpring model;
     kalman_t observer(model);
+    constexpr float noise_var = 0.09;
     observer.set_Q((kalman_t::process_noise_covariance_t() <<
-                dt, 0,
-                0, dt*dt/2).finished() * std::pow(0.1*constants::as_radians, 2));
+                dt*dt*dt*dt/4, dt*dt*dt/2,
+                   dt*dt*dt/2,      dt*dt).finished() * noise_var);
     observer.set_R((kalman_t::measurement_noise_covariance_t() <<
-                0.008).finished() * constants::as_radians/1000);
+                0.0001 * 0.0001).finished() * constants::as_radians*constants::as_radians);
 #endif // defined(LIMTOC_VELOCITY_MODE)
 
     // Normal main() thread activity
