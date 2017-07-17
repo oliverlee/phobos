@@ -109,11 +109,10 @@ namespace {
             const feedthrough_matrix_t m_Dd = feedthrough_matrix_t::Zero();
     };
     using kalman_t = observer::Kalman<MassSpring>;
-#else // defined(LIMTOC_VELOCITY_MODE)
+#endif // defined(LIMTOC_VELOCITY_MODE)
     float get_torque_reference(float angle) {
         return -k/m*angle;
     }
-#endif // defined(LIMTOC_VELOCITY_MODE)
 } // namespace
 
 /*
@@ -191,13 +190,21 @@ int main(void) {
 
         // generate motor command to simulate a spring
 #if defined(LIMTOC_VELOCITY_MODE)
+        // update our state estimate
         kalman_t::input_t u = kalman_t::input_t::Zero();
         u << kistler_torque;
         kalman_t::measurement_t z = kalman_t::measurement_t::Zero();
         z << steer_angle;
         observer.update_state(u, z);
 
-        const float feedback_reference = observer.x()[1];
+        // we want to apply a spring like feedback torque, so predict what the
+        // velocity will be after applying this torque
+        const float applied_torque = get_torque_reference(observer.x()[0]);
+        u = kalman_t::input_t::Zero();
+        u << applied_torque;
+        const MassSpring::state_t x_plus = model.update_state(observer.x(), u);
+
+        const float feedback_reference = x_plus[1];
 #else // defined(LIMTOC_VELOCITY_MODE)
         const float feedback_reference = get_torque_reference(steer_angle);
 #endif  // defined(LIMTOC_VELOCITY_MODE)
