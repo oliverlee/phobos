@@ -111,7 +111,7 @@ namespace {
     using kalman_t = observer::Kalman<MassSpring>;
 #endif // defined(LIMTOC_VELOCITY_MODE)
     float get_torque_reference(float angle) {
-        return -k/m*angle;
+        return -k*angle;
     }
 } // namespace
 
