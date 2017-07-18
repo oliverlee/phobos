@@ -71,7 +71,7 @@ namespace {
                 m_Cd.setZero();
                 m_Cd << 1, 0;
             }
-            virtual state_t update_state(const state_t& x, const input_t& u, const measurement_t& z) const override {
+            virtual state_t update_state(const state_t& x, const input_t& u, const measurement_t& z=measurement_t::Zero()) const override {
                 (void)z;
                 return m_Ad*x + m_Bd*u;
             }
@@ -200,11 +200,12 @@ int main(void) {
         // we want to apply a spring like feedback torque, so predict what the
         // velocity will be after applying this torque
         const float applied_torque = get_torque_reference(observer.x()[0]);
-        u = kalman_t::input_t::Zero();
-        u << applied_torque;
-        const MassSpring::state_t x_plus = model.update_state(observer.x(), u);
+        constexpr float k_torque = 0.742f; // [Nm/Arms] motor torque constant
+        constexpr float k_p = 0.260f; // [Arms/(rad/s)] velocity loop proportional gain
+        const float feedforward_velocity = applied_torque / k_torque / k_p;
 
-        const float feedback_reference = x_plus[1];
+        //const float feedback_reference = observer.x()[1] + feedforward_velocity;
+        const float feedback_reference = feedforward_velocity;
 #else // defined(LIMTOC_VELOCITY_MODE)
         const float feedback_reference = get_torque_reference(steer_angle);
 #endif  // defined(LIMTOC_VELOCITY_MODE)
