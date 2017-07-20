@@ -30,12 +30,13 @@
 
 #include "discrete_linear.h"
 #include "kalman.h"
+#include <unsupported/Eigen/MatrixFunctions>
 
 namespace {
     constexpr systime_t loop_period = MS2ST(1);
     constexpr float dt = static_cast<float>(ST2MS(loop_period))/1000.0f; // seconds
     constexpr float k = 3.14f; // N-m/rad
-    constexpr float m = 1.0f; // kg-m^2
+    constexpr float m = 0.00592455; // kg-m^2
 
     // sensors
     Analog analog;
@@ -61,17 +62,34 @@ namespace {
 #if defined(LIMTOC_VELOCITY_MODE)
     class MassSpring final : public model::DiscreteLinear<2, 1, 1, 0> {
         public:
-            MassSpring() : m_dt(0.001) {
-                m_Ad.setZero();
-                m_Ad <<  9.99998430e-01,   9.99999477e-04,
-                        -3.13999836e-03,   9.99998430e-01;
-                m_Bd.setZero();
-                m_Bd <<  4.99999869e-07,
-                         9.99999477e-04;
+            MassSpring(model::real_t mass,
+                       model::real_t k,
+                       model::real_t dt) :
+            m_mass(mass), m_k(k), m_dt(dt) {
+                using discretization_matrix_t = Eigen::Matrix<model::real_t, n + m, n + m>;
+                discretization_matrix_t AT = discretization_matrix_t::Zero();
+                AT(0, 1) = 1.0f;
+                AT(1, 0) = -m_k/m_mass;
+                AT(1, 2) = 1.0f/m_mass;
+                AT *= m_dt;
+
+                discretization_matrix_t T = AT.exp();
+#if !defined(NDEBUG)
+                static const model::real_t discretization_precision =
+#endif
+                    Eigen::NumTraits<model::real_t>::dummy_precision();
+                assert((T.bottomLeftCorner<m, n>().isZero(discretization_precision)) &&
+                       (T.bottomRightCorner<m, m>().isIdentity(discretization_precision)));
+                m_Ad = T.topLeftCorner<n, n>();
+                m_Bd = T.topRightCorner<n, m>();
+
                 m_Cd.setZero();
                 m_Cd << 1, 0;
             }
-            virtual state_t update_state(const state_t& x, const input_t& u, const measurement_t& z=measurement_t::Zero()) const override {
+            virtual state_t update_state(
+                    const state_t& x,
+                    const input_t& u=input_t::Zero(),
+                    const measurement_t& z=measurement_t::Zero()) const override {
                 (void)z;
                 return m_Ad*x + m_Bd*u;
             }
@@ -100,19 +118,80 @@ namespace {
             virtual output_t normalize_output(const output_t& y) const override {
                 return y;
             }
+            model::real_t mass() const {
+                return m_mass;
+            }
+            model::real_t k() const {
+                return m_k;
+            }
 
         private:
+            model::real_t m_mass;
+            model::real_t m_k;
             model::real_t m_dt;
+            state_matrix_t m_A;
             state_matrix_t m_Ad;
             input_matrix_t m_Bd;
             output_matrix_t m_Cd;
             const feedthrough_matrix_t m_Dd = feedthrough_matrix_t::Zero();
     };
-    using kalman_t = observer::Kalman<MassSpring>;
-#endif // defined(LIMTOC_VELOCITY_MODE)
+
+    class EncoderModel final : public model::DiscreteLinear<3, 0, 1, 0> {
+        public:
+            EncoderModel(model::real_t dt) : m_dt(dt) {
+                m_Ad.setZero();
+                m_Ad << 1.0f,   dt, dt*dt/2.0f,
+                        0.0f, 1.0f,         dt,
+                        0.0f, 0.0f,       1.0f;
+                m_Cd.setZero();
+                m_Cd << 1.0f, 0.0f, 0.0f;
+            }
+            virtual state_t update_state(
+                    const state_t& x,
+                    const input_t& u=input_t::Zero(),
+                    const measurement_t& z=measurement_t::Zero()) const override {
+                (void)u;
+                (void)z;
+                return m_Ad*x;
+            }
+            virtual output_t calculate_output(const state_t& x, const input_t& u) const override {
+                (void)u;
+                return m_Cd*x;
+            }
+            virtual const state_matrix_t& Ad() const override {
+                return m_Ad;
+            }
+            virtual const input_matrix_t& Bd() const override {
+                return m_Bd;
+            }
+            virtual const output_matrix_t& Cd() const override {
+                return m_Cd;
+            }
+            virtual const feedthrough_matrix_t& Dd() const override {
+                return m_Dd;
+            }
+            virtual model::real_t dt() const override {
+                return m_dt;
+            }
+            virtual state_t normalize_state(const state_t& x) const override {
+                return x;
+            }
+            virtual output_t normalize_output(const output_t& y) const override {
+                return y;
+            }
+        private:
+            model::real_t m_dt;
+            state_matrix_t m_Ad;
+            const input_matrix_t m_Bd = input_matrix_t::Zero();
+            output_matrix_t m_Cd;
+            const feedthrough_matrix_t m_Dd = feedthrough_matrix_t::Zero();
+    };
+    using KalmanEncoder = observer::Kalman<EncoderModel>;
+#else // defined(LIMTOC_VELOCITY_MODE)
     float get_torque_reference(float angle) {
         return -k*angle;
     }
+#endif // defined(LIMTOC_VELOCITY_MODE)
 } // namespace
 
 /*
@@ -169,14 +248,16 @@ int main(void) {
     palSetLine(LINE_TORQUE_MEAS_EN);
 
 #if defined(LIMTOC_VELOCITY_MODE)
-    MassSpring model;
-    kalman_t observer(model);
-    constexpr float noise_var = 0.09;
-    observer.set_Q((kalman_t::process_noise_covariance_t() <<
-                dt*dt*dt*dt/4, dt*dt*dt/2,
-                   dt*dt*dt/2,      dt*dt).finished() * noise_var);
-    observer.set_R((kalman_t::measurement_noise_covariance_t() <<
-                0.0001 * 0.0001).finished() * constants::as_radians*constants::as_radians);
+    MassSpring model(m, k, dt);
+    EncoderModel encoder_model(dt);
+    KalmanEncoder kalman_encoder(encoder_model);
+    constexpr float q = 1000;
+    kalman_encoder.set_Q((KalmanEncoder::process_noise_covariance_t() <<
+                dt*dt*dt*dt*dt/20.0f, dt*dt*dt*dt/8.0f, dt*dt*dt/6.0f,
+                    dt*dt*dt*dt/8.0f,    dt*dt*dt/3.0f,    dt*dt/2.0f,
+                       dt*dt*dt/6.0f,       dt*dt/2.0f,            dt).finished() * q);
+    kalman_encoder.set_R((KalmanEncoder::measurement_noise_covariance_t() <<
+                0.00001 * 0.00001).finished() * constants::as_radians*constants::as_radians);
 #endif // defined(LIMTOC_VELOCITY_MODE)
 
     // Normal main() thread activity
@@ -190,30 +271,33 @@ int main(void) {
 
         // generate motor command to simulate a spring
 #if defined(LIMTOC_VELOCITY_MODE)
-        // update our state estimate
-        kalman_t::input_t u = kalman_t::input_t::Zero();
-        u << kistler_torque;
-        kalman_t::measurement_t z = kalman_t::measurement_t::Zero();
+        // update our encoder state estimate
+        static const KalmanEncoder::input_t u = KalmanEncoder::input_t::Zero();
+        KalmanEncoder::measurement_t z = KalmanEncoder::measurement_t::Zero();
         z << steer_angle;
-        observer.update_state(u, z);
+        kalman_encoder.update_state(u, z);
 
-        // we want to apply a spring like feedback torque, so predict what the
-        // velocity will be after applying this torque
-        const float applied_torque = get_torque_reference(observer.x()[0]);
-        constexpr float k_torque = 0.742f; // [Nm/Arms] motor torque constant
-        constexpr float k_p = 0.260f; // [Arms/(rad/s)] velocity loop proportional gain
-        const float feedforward_velocity = applied_torque / k_torque / k_p;
+        //constexpr float k_torque = 0.742f; // [Nm/Arms] motor torque constant
+        //constexpr float k_p = 0.396; // [Arms/(rad/s)] velocity loop proportional gain
+        //// we want to apply a spring like feedback torque, so predict what the
+        //// velocity will be after applying this torque
+        //const float applied_torque = get_torque_reference(kalman_encoder.x()[0]);
+        //const float feedback_reference = applied_torque / k_torque / k_p;
 
-        //const float feedback_reference = observer.x()[1] + feedforward_velocity;
-        const float feedback_reference = feedforward_velocity;
+        MassSpring::input_t u_ms = MassSpring::input_t::Zero();
+        const float inertia_torque = model.mass()*kalman_encoder.x()[2];
+        u_ms << kistler_torque + motor_torque + inertia_torque;
+        MassSpring::state_t x_next = model.update_state(kalman_encoder.x().head<MassSpring::n>(), u_ms);
+        const float feedback_reference = x_next[1];
 #else // defined(LIMTOC_VELOCITY_MODE)
         const float feedback_reference = get_torque_reference(steer_angle);
 #endif  // defined(LIMTOC_VELOCITY_MODE)
         set_handlebar_reference(feedback_reference);
 
 #if defined(LIMTOC_VELOCITY_MODE)
-        printf("[%u] kistler: %10.5f Nm\tkollmorgen: %10.5f Nm\tsteer: %10.5f rad\trate: %10.5f rad/s\r\n",
-               chSysGetRealtimeCounterX(), kistler_torque, motor_torque, observer.x()[0], observer.x()[1]);
+        printf("%u, %10.5f, %10.5f, %10.5f, %10.5f, %10.5f, %10.5f\r\n",
+               chSysGetRealtimeCounterX(), kistler_torque, motor_torque, feedback_reference,
+               kalman_encoder.x()[0], kalman_encoder.x()[1], kalman_encoder.x()[2]);
 #else // defined(LIMTOC_VELOCITY_MODE)
         printf("[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
                chSysGetRealtimeCounterX(), kistler_torque, motor_torque, steer_angle);
