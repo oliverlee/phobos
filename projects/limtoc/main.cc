@@ -200,6 +200,9 @@ namespace {
     sample_vector_t velocity_samples; // buffer containing velocity samples
                                       // x[0] in most recent
                                       // x[n - 1] is least recent
+    sample_vector_t reference_samples; // buffer containing reference samples
+                                       // x[0] in most recent
+                                       // x[n - 1] is least recent
     velocity_polynomial_coeff_t velocity_polynomial_coeffs;
     vandermonde_matrix_t polynomial_time_matrix;
     Eigen::LDLT<Eigen::Matrix<float,
@@ -329,12 +332,18 @@ int main(void) {
         MassSpring::state_t x_ms = MassSpring::state_t::Zero();
         x_ms << kalman_encoder.x()[0], polyfit_velocity;
 
+        // use mass spring model to determine next velocity
         MassSpring::input_t u_ms = MassSpring::input_t::Zero();
         const float inertia_torque = model.mass()*polyfit_acceleration;
         u_ms << kistler_torque + motor_torque + inertia_torque;
 
         MassSpring::state_t x_next = model.update_state(x_ms, u_ms);
-        const float feedback_reference = x_next[1];
+
+        // polyfit feedback reference to smooth it
+        reference_samples[0] = x_next[1];
+        velocity_polynomial_coeffs = velocity_pt_ldlt.solve(
+                polynomial_time_matrix.transpose() * velocity_samples);
+        const float feedback_reference = velocity_polynomial_coeffs.tail<1>()[0];
 #else // defined(LIMTOC_VELOCITY_MODE)
         const float feedback_reference = get_torque_reference(steer_angle);
 #endif  // defined(LIMTOC_VELOCITY_MODE)
@@ -349,6 +358,9 @@ int main(void) {
         std::memcpy(velocity_samples.data() + 1,
                     velocity_samples.data(),
                     sizeof(decltype(velocity_samples)::value_type) * (velocity_samples.size() - 1));
+        std::memcpy(reference_samples.data() + 1,
+                    reference_samples.data(),
+                    sizeof(decltype(reference_samples)::value_type) * (reference_samples.size() - 1));
 #else // defined(LIMTOC_VELOCITY_MODE)
         printf("[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
                chSysGetRealtimeCounterX(), kistler_torque, motor_torque, steer_angle);
