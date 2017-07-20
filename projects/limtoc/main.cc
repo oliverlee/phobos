@@ -191,18 +191,29 @@ namespace {
     };
     using KalmanEncoder = observer::Kalman<EncoderModel>;
 
-    constexpr size_t window_size = 35;
-    constexpr size_t polynomial_order = 3;
+    constexpr size_t window_size = 55;
+    constexpr size_t velocity_polynomial_order = 3;
+    constexpr size_t acceleration_polynomial_order = 2;
+    static_assert(acceleration_polynomial_order <= velocity_polynomial_order,
+            "acceleration polynomial order cannot be larger than velocity polynomial order");
     using sample_vector_t = Eigen::Matrix<float, window_size, 1>;
-    using polynomial_coeff_t = Eigen::Matrix<float, polynomial_order + 1, 1>;
-    using vandermonde_matrix_t = Eigen::Matrix<float, window_size, polynomial_order + 1>;
+    using velocity_polynomial_coeff_t = Eigen::Matrix<float, velocity_polynomial_order + 1, 1>;
+    using acceleration_polynomial_coeff_t = Eigen::Matrix<float, acceleration_polynomial_order + 1, 1>;
+    using vandermonde_matrix_t = Eigen::Matrix<float, window_size, velocity_polynomial_order + 1>;
 
     sample_vector_t velocity_samples; // buffer containing velocity samples
                                       // x[0] in most recent
                                       // x[n - 1] is least recent
-    polynomial_coeff_t polynomial_coeffs;
+    sample_vector_t acceleration_samples; // buffer containing acceleration samples
+                                          // x[0] in most recent
+                                          // x[n - 1] is least recent
+    velocity_polynomial_coeff_t velocity_polynomial_coeffs;
+    acceleration_polynomial_coeff_t acceleration_polynomial_coeffs;
     vandermonde_matrix_t polynomial_time_matrix;
-    Eigen::LDLT<Eigen::Matrix<float, polynomial_order + 1, polynomial_order + 1>> pt_ldlt;
+    Eigen::LDLT<Eigen::Matrix<float,
+        velocity_polynomial_order + 1, velocity_polynomial_order + 1>> velocity_pt_ldlt;
+    Eigen::LDLT<Eigen::Matrix<float,
+        acceleration_polynomial_order + 1, acceleration_polynomial_order + 1>> acceleration_pt_ldlt;
 
 #else // defined(LIMTOC_VELOCITY_MODE)
     float get_torque_reference(float angle) {
@@ -288,7 +299,10 @@ int main(void) {
     }
 
     // compute Cholesky decomposition
-    pt_ldlt.compute(polynomial_time_matrix.transpose() * polynomial_time_matrix);
+    velocity_pt_ldlt.compute(polynomial_time_matrix.transpose() * polynomial_time_matrix);
+    acceleration_pt_ldlt.compute(
+            polynomial_time_matrix.rightCols<acceleration_polynomial_order + 1>().transpose() *
+            polynomial_time_matrix.rightCols<acceleration_polynomial_order + 1>());
 #endif // defined(LIMTOC_VELOCITY_MODE)
 
     // Normal main() thread activity
@@ -319,9 +333,13 @@ int main(void) {
         //   x: polynomial_coeffs
         //   b: velocity_samples
         velocity_samples[0] = kalman_encoder.x()[1];
-        polynomial_coeffs = pt_ldlt.solve(polynomial_time_matrix.transpose() * velocity_samples);
-        const float polyfit_velocity = polynomial_coeffs.tail<1>()[0]; // evaluated at time 0
-        const float polyfit_acceleration = polynomial_coeffs.tail<2>()[0]; // evaluated at time 0
+        velocity_polynomial_coeffs = velocity_pt_ldlt.solve(
+                polynomial_time_matrix.transpose() * velocity_samples);
+        const float polyfit_velocity = velocity_polynomial_coeffs.tail<1>()[0]; // evaluated at time 0
+        acceleration_samples[0] = kalman_encoder.x()[2];
+        acceleration_polynomial_coeffs = acceleration_pt_ldlt.solve(
+                polynomial_time_matrix.rightCols<acceleration_polynomial_order + 1>().transpose() * acceleration_samples);
+        const float polyfit_acceleration = acceleration_polynomial_coeffs.tail<1>()[0]; // evaluated at time 0
 
         // predict next velocity with mass spring model and input torque
         MassSpring::state_t x_ms = MassSpring::state_t::Zero();
@@ -347,6 +365,9 @@ int main(void) {
         std::memcpy(velocity_samples.data() + 1,
                     velocity_samples.data(),
                     sizeof(decltype(velocity_samples)::value_type) * (velocity_samples.size() - 1));
+        std::memcpy(acceleration_samples.data() + 1,
+                    acceleration_samples.data(),
+                    sizeof(decltype(acceleration_samples)::value_type) * (acceleration_samples.size() - 1));
 #else // defined(LIMTOC_VELOCITY_MODE)
         printf("[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
                chSysGetRealtimeCounterX(), kistler_torque, motor_torque, steer_angle);
