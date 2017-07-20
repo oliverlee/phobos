@@ -30,6 +30,7 @@
 
 #include "discrete_linear.h"
 #include "kalman.h"
+#include <Eigen/Cholesky>
 #include <unsupported/Eigen/MatrixFunctions>
 
 namespace {
@@ -37,6 +38,8 @@ namespace {
     constexpr float dt = static_cast<float>(ST2MS(loop_period))/1000.0f; // seconds
     constexpr float k = 3.14f; // N-m/rad
     constexpr float m = 0.00592455; // kg-m^2
+    //constexpr float k_torque = 0.742f; // [Nm/Arms] motor torque constant
+    //constexpr float k_p = 0.396; // [Arms/(rad/s)] velocity loop proportional gain
 
     // sensors
     Analog analog;
@@ -187,6 +190,20 @@ namespace {
             const feedthrough_matrix_t m_Dd = feedthrough_matrix_t::Zero();
     };
     using KalmanEncoder = observer::Kalman<EncoderModel>;
+
+    constexpr size_t window_size = 35;
+    constexpr size_t polynomial_order = 3;
+    using sample_vector_t = Eigen::Matrix<float, window_size, 1>;
+    using polynomial_coeff_t = Eigen::Matrix<float, polynomial_order + 1, 1>;
+    using vandermonde_matrix_t = Eigen::Matrix<float, window_size, polynomial_order + 1>;
+
+    sample_vector_t velocity_samples; // buffer containing velocity samples
+                                      // x[0] in most recent
+                                      // x[n - 1] is least recent
+    polynomial_coeff_t polynomial_coeffs;
+    vandermonde_matrix_t polynomial_time_matrix;
+    Eigen::LDLT<Eigen::Matrix<float, polynomial_order + 1, polynomial_order + 1>> pt_ldlt;
+
 #else // defined(LIMTOC_VELOCITY_MODE)
     float get_torque_reference(float angle) {
         return -k*angle;
@@ -258,6 +275,20 @@ int main(void) {
                        dt*dt*dt/6.0f,       dt*dt/2.0f,            dt).finished() * q);
     kalman_encoder.set_R((KalmanEncoder::measurement_noise_covariance_t() <<
                 0.00001 * 0.00001).finished() * constants::as_radians*constants::as_radians);
+
+    // set last column
+    polynomial_time_matrix.rightCols<1>().setOnes();
+    // set penultimate column
+    polynomial_time_matrix.col(polynomial_time_matrix.cols() - 2).setLinSpaced(
+            0.0f, -dt*(polynomial_time_matrix.rows() - 1));
+    // set columns n-3 to 0
+    for (int32_t j = polynomial_time_matrix.cols() - 3; j >= 0; --j) {
+        polynomial_time_matrix.col(j) = polynomial_time_matrix.col(j + 1).cwiseProduct(
+                polynomial_time_matrix.col(polynomial_time_matrix.cols() - 2));
+    }
+
+    // compute Cholesky decomposition
+    pt_ldlt.compute(polynomial_time_matrix.transpose() * polynomial_time_matrix);
 #endif // defined(LIMTOC_VELOCITY_MODE)
 
     // Normal main() thread activity
@@ -277,17 +308,30 @@ int main(void) {
         z << steer_angle;
         kalman_encoder.update_state(u, z);
 
-        //constexpr float k_torque = 0.742f; // [Nm/Arms] motor torque constant
-        //constexpr float k_p = 0.396; // [Arms/(rad/s)] velocity loop proportional gain
-        //// we want to apply a spring like feedback torque, so predict what the
-        //// velocity will be after applying this torque
-        //const float applied_torque = get_torque_reference(kalman_encoder.x()[0]);
-        //const float feedback_reference = applied_torque / k_torque / k_p;
+        // update polynomial fit for velocity samples and calculate
+        // smoothed velocity and acceleration
+        // computing least squares solution of
+        //   Ax = b
+        // is equivalent to solving the normal equation
+        //   A'Ax = A'b
+        // where
+        //   A: polynomial_time_matrix
+        //   x: polynomial_coeffs
+        //   b: velocity_samples
+        velocity_samples[0] = kalman_encoder.x()[1];
+        polynomial_coeffs = pt_ldlt.solve(polynomial_time_matrix.transpose() * velocity_samples);
+        const float polyfit_velocity = polynomial_coeffs.tail<1>()[0]; // evaluated at time 0
+        const float polyfit_acceleration = polynomial_coeffs.tail<2>()[0]; // evaluated at time 0
+
+        // predict next velocity with mass spring model and input torque
+        MassSpring::state_t x_ms = MassSpring::state_t::Zero();
+        x_ms << kalman_encoder.x()[0], polyfit_velocity;
 
         MassSpring::input_t u_ms = MassSpring::input_t::Zero();
-        const float inertia_torque = model.mass()*kalman_encoder.x()[2];
+        const float inertia_torque = model.mass()*polyfit_acceleration;
         u_ms << kistler_torque + motor_torque + inertia_torque;
-        MassSpring::state_t x_next = model.update_state(kalman_encoder.x().head<MassSpring::n>(), u_ms);
+
+        MassSpring::state_t x_next = model.update_state(x_ms, u_ms);
         const float feedback_reference = x_next[1];
 #else // defined(LIMTOC_VELOCITY_MODE)
         const float feedback_reference = get_torque_reference(steer_angle);
@@ -297,7 +341,12 @@ int main(void) {
 #if defined(LIMTOC_VELOCITY_MODE)
         printf("%u, %10.5f, %10.5f, %10.5f, %10.5f, %10.5f, %10.5f\r\n",
                chSysGetRealtimeCounterX(), kistler_torque, motor_torque, feedback_reference,
-               kalman_encoder.x()[0], kalman_encoder.x()[1], kalman_encoder.x()[2]);
+               kalman_encoder.x()[0], polyfit_velocity, polyfit_acceleration);
+
+        // FIXME copy values for now and implement a circular buffer later
+        std::memcpy(velocity_samples.data() + 1,
+                    velocity_samples.data(),
+                    sizeof(decltype(velocity_samples)::value_type) * (velocity_samples.size() - 1));
 #else // defined(LIMTOC_VELOCITY_MODE)
         printf("[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
                chSysGetRealtimeCounterX(), kistler_torque, motor_torque, steer_angle);
