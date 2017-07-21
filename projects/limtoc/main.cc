@@ -355,12 +355,12 @@ int main(void) {
                kalman_encoder.x()[0], polyfit_velocity, polyfit_acceleration);
 
         // FIXME copy values for now and implement a circular buffer later
-        std::memcpy(velocity_samples.data() + 1,
-                    velocity_samples.data(),
-                    sizeof(decltype(velocity_samples)::value_type) * (velocity_samples.size() - 1));
-        std::memcpy(reference_samples.data() + 1,
-                    reference_samples.data(),
-                    sizeof(decltype(reference_samples)::value_type) * (reference_samples.size() - 1));
+        std::memmove(velocity_samples.data() + 1,
+                     velocity_samples.data(),
+                     sizeof(decltype(velocity_samples)::value_type) * (velocity_samples.size() - 1));
+        std::memmove(reference_samples.data() + 1,
+                     reference_samples.data(),
+                     sizeof(decltype(reference_samples)::value_type) * (reference_samples.size() - 1));
 #else // defined(LIMTOC_VELOCITY_MODE)
         printf("[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
                chSysGetRealtimeCounterX(), kistler_torque, motor_torque, steer_angle);
