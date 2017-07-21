@@ -87,7 +87,7 @@ namespace {
                 m_Bd = T.topRightCorner<n, m>();
 
                 m_Cd.setZero();
-                m_Cd << 1, 0;
+                m_Cd << 1, 1;
             }
             virtual state_t update_state(
                     const state_t& x,
@@ -189,6 +189,7 @@ namespace {
             output_matrix_t m_Cd;
             const feedthrough_matrix_t m_Dd = feedthrough_matrix_t::Zero();
     };
+    using KalmanMassSpring = observer::Kalman<MassSpring>;
     using KalmanEncoder = observer::Kalman<EncoderModel>;
 
     constexpr size_t window_size = 55;
@@ -269,16 +270,25 @@ int main(void) {
     palSetLine(LINE_TORQUE_MEAS_EN);
 
 #if defined(LIMTOC_VELOCITY_MODE)
+    constexpr float q = 1000;
+    constexpr float r = 0.00001 * 0.00001 * constants::as_radians * constants::as_radians;
+
     MassSpring model(m, k, dt);
+    KalmanMassSpring kalman_mass_spring(model);
+    kalman_mass_spring.set_Q((KalmanMassSpring::process_noise_covariance_t() <<
+                dt*dt*dt*dt/4, dt*dt*dt/2,
+                dt*dt*dt/2, dt*dt).finished() * q);
+    kalman_mass_spring.set_R((KalmanMassSpring::measurement_noise_covariance_t() <<
+                r).finished());
+
     EncoderModel encoder_model(dt);
     KalmanEncoder kalman_encoder(encoder_model);
-    constexpr float q = 1000;
     kalman_encoder.set_Q((KalmanEncoder::process_noise_covariance_t() <<
                 dt*dt*dt*dt*dt/20.0f, dt*dt*dt*dt/8.0f, dt*dt*dt/6.0f,
                     dt*dt*dt*dt/8.0f,    dt*dt*dt/3.0f,    dt*dt/2.0f,
                        dt*dt*dt/6.0f,       dt*dt/2.0f,            dt).finished() * q);
     kalman_encoder.set_R((KalmanEncoder::measurement_noise_covariance_t() <<
-                0.00001 * 0.00001).finished() * constants::as_radians*constants::as_radians);
+                r).finished());
 
     // set last column
     polynomial_time_matrix.rightCols<1>().setOnes();
@@ -307,10 +317,11 @@ int main(void) {
         // generate motor command to simulate a spring
 #if defined(LIMTOC_VELOCITY_MODE)
         // update our encoder state estimate
-        static const KalmanEncoder::input_t u = KalmanEncoder::input_t::Zero();
-        KalmanEncoder::measurement_t z = KalmanEncoder::measurement_t::Zero();
-        z << steer_angle;
-        kalman_encoder.update_state(u, z);
+        {
+            KalmanEncoder::measurement_t z = KalmanEncoder::measurement_t::Zero();
+            z << steer_angle;
+            kalman_encoder.update_state(KalmanEncoder::input_t::Zero(), z);
+        }
 
         // update polynomial fit for velocity samples and calculate
         // smoothed velocity and acceleration
@@ -327,20 +338,23 @@ int main(void) {
                 polynomial_time_matrix.transpose() * velocity_samples);
         const float polyfit_velocity = velocity_polynomial_coeffs.tail<1>()[0]; // evaluated at time 0
         const float polyfit_acceleration = velocity_polynomial_coeffs.tail<2>()[0]; // evaluated at time 0
-
-        // predict next velocity with mass spring model and input torque
-        MassSpring::state_t x_ms = MassSpring::state_t::Zero();
-        x_ms << kalman_encoder.x()[0], polyfit_velocity;
-
-        // use mass spring model to determine next velocity
-        MassSpring::input_t u_ms = MassSpring::input_t::Zero();
         const float inertia_torque = model.mass()*polyfit_acceleration;
-        u_ms << kistler_torque + motor_torque + inertia_torque;
 
-        MassSpring::state_t x_next = model.update_state(x_ms, u_ms);
+        // update mass spring estimate with 'measurement' and
+        // predict next velocity using steer torque
+        {
+            kalman_mass_spring.measurement_update(
+                    (KalmanMassSpring::measurement_t() <<
+                     kalman_encoder.x()[0], polyfit_velocity).finished());
+
+            const float steer_torque = kistler_torque + motor_torque + inertia_torque;
+            kalman_mass_spring.time_update(
+                    (KalmanMassSpring::input_t() <<
+                     steer_torque).finished());
+        }
 
         // polyfit feedback reference to smooth it
-        reference_samples[0] = x_next[1];
+        reference_samples[0] = kalman_mass_spring.x()[1];
         velocity_polynomial_coeffs = velocity_pt_ldlt.solve(
                 polynomial_time_matrix.transpose() * reference_samples);
         const float feedback_reference = velocity_polynomial_coeffs.tail<1>()[0];
