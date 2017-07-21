@@ -342,7 +342,7 @@ int main(void) {
         // polyfit feedback reference to smooth it
         reference_samples[0] = x_next[1];
         velocity_polynomial_coeffs = velocity_pt_ldlt.solve(
-                polynomial_time_matrix.transpose() * velocity_samples);
+                polynomial_time_matrix.transpose() * reference_samples);
         const float feedback_reference = velocity_polynomial_coeffs.tail<1>()[0];
 #else // defined(LIMTOC_VELOCITY_MODE)
         const float feedback_reference = get_torque_reference(steer_angle);
