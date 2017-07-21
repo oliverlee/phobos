@@ -191,7 +191,7 @@ namespace {
     };
     using KalmanEncoder = observer::Kalman<EncoderModel>;
 
-    constexpr size_t window_size = 100;
+    constexpr size_t window_size = 55;
     constexpr size_t velocity_polynomial_order = 3;
     using sample_vector_t = Eigen::Matrix<float, window_size, 1>;
     using velocity_polynomial_coeff_t = Eigen::Matrix<float, velocity_polynomial_order + 1, 1>;
