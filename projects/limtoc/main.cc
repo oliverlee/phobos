@@ -203,9 +203,9 @@ namespace {
     sample_vector_t velocity_samples; // buffer containing velocity samples
                                       // x[0] in most recent
                                       // x[n - 1] is least recent
-    sample_vector_t reference_samples; // buffer containing reference samples
-                                       // x[0] in most recent
-                                       // x[n - 1] is least recent
+    sample_vector_t inertia_torque_samples; // buffer containing reference samples
+                                            // x[0] in most recent
+                                            // x[n - 1] is least recent
     velocity_polynomial_coeff_t velocity_polynomial_coeffs;
     vandermonde_matrix_t polynomial_time_matrix;
     Eigen::LDLT<Eigen::Matrix<float,
@@ -342,7 +342,12 @@ int main(void) {
         const float polyfit_velocity = velocity_polynomial_coeffs.tail<1>()[0]; // evaluated at time 0
         const float polyfit_acceleration = velocity_polynomial_coeffs.tail<2>()[0]; // evaluated at time 0
         const float torque_measurement_acceleration = (-kistler_torque - motor_torque) / m_l;
-        const float inertia_torque = m_u * torque_measurement_acceleration;
+
+        // polyfit feedback reference to smooth it
+        inertia_torque_samples[0] = m_u * torque_measurement_acceleration;
+        velocity_polynomial_coeffs = velocity_pt_ldlt.solve(
+                polynomial_time_matrix.transpose() * inertia_torque_samples);
+        const float inertia_torque = velocity_polynomial_coeffs.tail<1>()[0];
 
         // update mass spring estimate with 'measurement' and
         // predict next velocity using steer torque
@@ -351,18 +356,12 @@ int main(void) {
                     (KalmanMassSpring::measurement_t() <<
                      kalman_encoder.x()[0], polyfit_velocity).finished());
 
-            //const float steer_torque = kistler_torque + motor_torque + inertia_torque;
             const float steer_torque = kistler_torque + inertia_torque;
             kalman_mass_spring.time_update(
                     (KalmanMassSpring::input_t() <<
                      steer_torque).finished());
         }
 
-        //// polyfit feedback reference to smooth it
-        //reference_samples[0] = kalman_mass_spring.x()[1];
-        //velocity_polynomial_coeffs = velocity_pt_ldlt.solve(
-        //        polynomial_time_matrix.transpose() * reference_samples);
-        //const float feedback_reference = velocity_polynomial_coeffs.tail<1>()[0];
         const float feedback_reference = kalman_mass_spring.x()[1];
 #else // defined(LIMTOC_VELOCITY_MODE)
         const float feedback_reference = get_torque_reference(steer_angle);
@@ -378,9 +377,9 @@ int main(void) {
         std::memmove(velocity_samples.data() + 1,
                      velocity_samples.data(),
                      sizeof(decltype(velocity_samples)::value_type) * (velocity_samples.size() - 1));
-        std::memmove(reference_samples.data() + 1,
-                     reference_samples.data(),
-                     sizeof(decltype(reference_samples)::value_type) * (reference_samples.size() - 1));
+        std::memmove(inertia_torque_samples.data() + 1,
+                     inertia_torque_samples.data(),
+                     sizeof(decltype(inertia_torque_samples)::value_type) * (inertia_torque_samples.size() - 1));
 #else // defined(LIMTOC_VELOCITY_MODE)
         printf("[%u] kistler: %8.3f Nm\tkollmorgen: %8.3f Nm\tsteer: %8.3f rad\r\n",
                chSysGetRealtimeCounterX(), kistler_torque, motor_torque, steer_angle);
