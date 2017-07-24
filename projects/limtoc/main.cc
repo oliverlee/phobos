@@ -37,7 +37,9 @@ namespace {
     constexpr systime_t loop_period = MS2ST(1);
     constexpr float dt = static_cast<float>(ST2MS(loop_period))/1000.0f; // seconds
     constexpr float k = 3.14f; // N-m/rad
-    constexpr float m = 0.00592455; // kg-m^2
+    constexpr float m_u = sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL; // kg-m^2
+    constexpr float m_l = 0.00592455; // kg-m^2
+    constexpr float m = 0.1; // kg-m^2
     //constexpr float k_torque = 0.742f; // [Nm/Arms] motor torque constant
     //constexpr float k_p = 0.396; // [Arms/(rad/s)] velocity loop proportional gain
 
@@ -277,9 +279,10 @@ int main(void) {
     KalmanMassSpring kalman_mass_spring(model);
     kalman_mass_spring.set_Q((KalmanMassSpring::process_noise_covariance_t() <<
                 dt*dt*dt*dt/4, dt*dt*dt/2,
-                dt*dt*dt/2, dt*dt).finished() * q);
+                   dt*dt*dt/2,      dt*dt).finished() * q * q);
     kalman_mass_spring.set_R((KalmanMassSpring::measurement_noise_covariance_t() <<
-                r).finished());
+                r,      0,
+                0, 1000000*r).finished());
 
     EncoderModel encoder_model(dt);
     KalmanEncoder kalman_encoder(encoder_model);
@@ -338,7 +341,8 @@ int main(void) {
                 polynomial_time_matrix.transpose() * velocity_samples);
         const float polyfit_velocity = velocity_polynomial_coeffs.tail<1>()[0]; // evaluated at time 0
         const float polyfit_acceleration = velocity_polynomial_coeffs.tail<2>()[0]; // evaluated at time 0
-        const float inertia_torque = model.mass()*polyfit_acceleration;
+        const float torque_measurement_acceleration = (-kistler_torque - motor_torque) / m_l;
+        const float inertia_torque = m_u * torque_measurement_acceleration;
 
         // update mass spring estimate with 'measurement' and
         // predict next velocity using steer torque
@@ -347,17 +351,19 @@ int main(void) {
                     (KalmanMassSpring::measurement_t() <<
                      kalman_encoder.x()[0], polyfit_velocity).finished());
 
-            const float steer_torque = kistler_torque + motor_torque + inertia_torque;
+            //const float steer_torque = kistler_torque + motor_torque + inertia_torque;
+            const float steer_torque = kistler_torque + inertia_torque;
             kalman_mass_spring.time_update(
                     (KalmanMassSpring::input_t() <<
                      steer_torque).finished());
         }
 
-        // polyfit feedback reference to smooth it
-        reference_samples[0] = kalman_mass_spring.x()[1];
-        velocity_polynomial_coeffs = velocity_pt_ldlt.solve(
-                polynomial_time_matrix.transpose() * reference_samples);
-        const float feedback_reference = velocity_polynomial_coeffs.tail<1>()[0];
+        //// polyfit feedback reference to smooth it
+        //reference_samples[0] = kalman_mass_spring.x()[1];
+        //velocity_polynomial_coeffs = velocity_pt_ldlt.solve(
+        //        polynomial_time_matrix.transpose() * reference_samples);
+        //const float feedback_reference = velocity_polynomial_coeffs.tail<1>()[0];
+        const float feedback_reference = kalman_mass_spring.x()[1];
 #else // defined(LIMTOC_VELOCITY_MODE)
         const float feedback_reference = get_torque_reference(steer_angle);
 #endif  // defined(LIMTOC_VELOCITY_MODE)
