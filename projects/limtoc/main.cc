@@ -36,9 +36,10 @@
 namespace {
     constexpr systime_t loop_period = MS2ST(1);
     constexpr float dt = static_cast<float>(ST2MS(loop_period))/1000.0f; // seconds
-    constexpr float k = 3.14f; // N-m/rad
+    constexpr float k = 31.4f; // N-m/rad
     constexpr float m_u = sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL; // kg-m^2
-    constexpr float m_l = 0.00592455; // kg-m^2
+    //constexpr float m_l = 0.00592455; // kg-m^2
+    constexpr float m_l = sa::FULL_ASSEMBLY_INERTIA_WITH_WEIGHT - m_u;
     constexpr float m = 0.1; // kg-m^2
     //constexpr float k_torque = 0.742f; // [Nm/Arms] motor torque constant
     //constexpr float k_p = 0.396; // [Arms/(rad/s)] velocity loop proportional gain
@@ -279,10 +280,10 @@ int main(void) {
     KalmanMassSpring kalman_mass_spring(model);
     kalman_mass_spring.set_Q((KalmanMassSpring::process_noise_covariance_t() <<
                 dt*dt*dt*dt/4, dt*dt*dt/2,
-                   dt*dt*dt/2,      dt*dt).finished() * q * q);
+                   dt*dt*dt/2,      dt*dt).finished() * q);
     kalman_mass_spring.set_R((KalmanMassSpring::measurement_noise_covariance_t() <<
                 r,      0,
-                0, 1000000*r).finished());
+                0, 1000*r).finished());
 
     EncoderModel encoder_model(dt);
     KalmanEncoder kalman_encoder(encoder_model);
@@ -341,7 +342,8 @@ int main(void) {
                 polynomial_time_matrix.transpose() * velocity_samples);
         const float polyfit_velocity = velocity_polynomial_coeffs.tail<1>()[0]; // evaluated at time 0
         const float polyfit_acceleration = velocity_polynomial_coeffs.tail<2>()[0]; // evaluated at time 0
-        const float torque_measurement_acceleration = (-kistler_torque - motor_torque) / m_l;
+        const float torque_measurement_acceleration =
+            (kistler_torque + motor_torque)/ m_l;
 
         // polyfit feedback reference to smooth it
         inertia_torque_samples[0] = m_u * torque_measurement_acceleration;
@@ -356,13 +358,16 @@ int main(void) {
                     (KalmanMassSpring::measurement_t() <<
                      kalman_encoder.x()[0], polyfit_velocity).finished());
 
-            const float steer_torque = kistler_torque + inertia_torque;
+            const float steer_torque = (-kistler_torque + inertia_torque);
             kalman_mass_spring.time_update(
                     (KalmanMassSpring::input_t() <<
                      steer_torque).finished());
         }
 
-        const float feedback_reference = kalman_mass_spring.x()[1];
+        //const float feedback_reference = kalman_mass_spring.x()[1];
+        const float feedback_reference = 0;
+        //const float feedback_reference = 1.0f * std::sin(
+        //        constants::two_pi * ST2S(static_cast<float>(chVTGetSystemTime())));
 #else // defined(LIMTOC_VELOCITY_MODE)
         const float feedback_reference = get_torque_reference(steer_angle);
 #endif  // defined(LIMTOC_VELOCITY_MODE)

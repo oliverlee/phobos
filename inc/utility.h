@@ -26,6 +26,11 @@ constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
     return std::min(std::max(v, lo), hi);
 }
 
+template <typename T>
+constexpr int signum(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
 /*
  * Get angle from encoder count (enccnt_t is uint32_t)
  * Convert angle from enccnt_t (unsigned) to corresponding signed type and use negative
