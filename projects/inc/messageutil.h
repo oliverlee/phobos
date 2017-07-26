@@ -5,6 +5,8 @@
 #include "simbicycle.h"
 
 namespace message {
+    void set_config_message(ConfigMessage* pb, EnumProjectType e);
+
     using bicycle_t = model::Bicycle;
     void set_bicycle_state(BicycleStateMessage* pb, const bicycle_t::state_t& x);
     void set_bicycle_auxiliary_state(BicycleAuxiliaryStateMessage* pb, const bicycle_t::auxiliary_state_t& x);
