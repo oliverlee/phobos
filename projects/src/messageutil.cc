@@ -93,7 +93,7 @@ void set_bicycle_discrete_time_state_space(BicycleModelMessage* pb, const bicycl
 }
 
 void set_simulation_gitsha1(SimulationMessage* pb) {
-    std::memcpy(pb->gitsha1.f, g_GITSHA1, sizeof(pb->gitsha1.f)*sizeof(pb->gitsha1.f[0]));
+    std::memcpy(pb->gitsha1.f, g_GIT_SHA1, sizeof(pb->gitsha1.f)*sizeof(pb->gitsha1.f[0]));
     pb->has_gitsha1 = true;
 }
 

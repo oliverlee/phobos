@@ -94,7 +94,7 @@ int main(void) {
     while (true) {
         /* get sensor measurements */
         printf("[%.7s] realtime counter: %u\tkistler: %u\tkollmorgen measured: %u\r\n",
-                g_GITSHA1, chSysGetRealtimeCounterX(), analog.get_adc12(), analog.get_adc13());
+                g_GIT_SHA1, chSysGetRealtimeCounterX(), analog.get_adc12(), analog.get_adc13());
         chThdSleepMilliseconds(dt_ms);
     }
 }
