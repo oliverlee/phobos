@@ -1,0 +1,35 @@
+syntax = "proto2";
+
+enum EnumHardwareSetupType {
+    UNSPECIFIED         = 0;
+    SIMULATOR           = 1;
+    STEERBYWIRE         = 2;
+}
+
+enum EnumProjectType {
+    UNSPECIFIED_PROJECT = 0;
+    CLUSTRIL            = 1;
+    FLIMNAP_AREND       = 2;
+    FLIMNAP_KINEMATIC   = 3;
+    FLIMNAP_WHIPPLE     = 4;
+    FLIMNAP_ZERO_INPUT  = 5;
+    // Add additional projects here!
+}
+
+message FirmwareVersion {
+    required bytes f = 1;
+}
+
+// Message type for stm32 -> Unity communications
+// This message is intended to be transmitted once per record
+message ConfigMessage {
+    optional EnumHardwareSetupType hwsetup  = 1;
+    optional EnumProjectType project        = 2;
+    optional FirmwareVersion git_sha1       = 3;
+    optional bool git_dirty                 = 4;
+    optional bool build_ndebug              = 5;
+    optional bool ch_st_resolution_16       = 6; // 16-bit if true
+    optional uint32 ch_st_frequency         = 7;
+    optional uint32 ch_rtc_frequency        = 8;
+    optional uint32 heartbeat_period        = 9;
+}
