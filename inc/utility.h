@@ -18,6 +18,21 @@ T wrap(T angle) {
     return angle;
 }
 
+/*
+ * Compute the relative position p of x between x_0 and x_1 and return y at
+ * the relative position p between y_0 and y_1. The relative position p
+ * can be < 0 or > 1.
+ */
+template <typename T>
+constexpr T numeric_map(T x, T x_0, T x_1, T y_0, T y_1) {
+    // This implementation works for integers as long as
+    // max(abs([ x, x_0, x_1 ])) * max(abs([ y_0, y_1 ])) fits in T.
+    // Guarantees that the output y can equal y_1 when using floats/doubles.
+    // This is equivalent to the standard form:
+    // y = y_0 + (x - x_0)*(y_1 - y_0)/(x_1 - x_0)
+    return (y_0*(x_1 - x) + y_1*(x - x_0))/(x_1 - x_0);
+}
+
 template <typename T>
 constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
     // TODO: Replace this with std::clamp once gcc-arm-none-eabi supports it.
