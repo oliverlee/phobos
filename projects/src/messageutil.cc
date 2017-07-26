@@ -128,11 +128,6 @@ void set_bicycle_discrete_time_state_space(BicycleModelMessage* pb, const bicycl
     pb->has_D = true;
 }
 
-void set_simulation_gitsha1(SimulationMessage* pb) {
-    std::memcpy(pb->gitsha1.f, g_GIT_SHA1, sizeof(pb->gitsha1.f)*sizeof(pb->gitsha1.f[0]));
-    pb->has_gitsha1 = true;
-}
-
 void set_simulation_sensors(SimulationMessage* pb,
         uint32_t measured_steer_torque, uint32_t measured_motor_torque,
         uint32_t steer_encoder_count, uint32_t rear_wheel_encoder_count) {
