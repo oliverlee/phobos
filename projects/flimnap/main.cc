@@ -99,12 +99,17 @@ namespace {
     }
 
     dacsample_t set_handlebar_reference(float reference) {
+        // Calculate channel value based on DAC device params
+        // regshift = 0 -> CH1 -> channel value 0
+        // regshift = 16 -> CH2 -> channel value 1
+        static const dacchannel_t channel = sa::KOLLM_DAC->params->regshift/16;
         constexpr float MAX_REF_VALUE = std::is_same<observer_t, std::nullptr_t>::value ?
             sa::MAX_KOLLMORGEN_TORQUE :
             sa::MAX_KOLLMORGEN_VELOCITY;
+
         const float saturated_reference = util::clamp(reference, -MAX_REF_VALUE, MAX_REF_VALUE);
         const dacsample_t aout = saturated_reference/MAX_REF_VALUE*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
-        dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
+        dacPutChannelX(sa::KOLLM_DAC, channel, aout);
         return aout;
     }
 
