@@ -26,8 +26,11 @@
 #include "saconfig.h"
 #include "utility.h"
 #include "sautility.h"
+#include "printf.h"
 
 #include "parameters.h"
+
+#include <cstdarg>
 
 namespace {
     constexpr systime_t dt = MS2ST(1); // milliseconds converted to system ticks
@@ -36,6 +39,18 @@ namespace {
     // sensors
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
+
+    int printfq(const char *fmt, ...) {
+        va_list ap;
+        int formatted_bytes;
+        static char serial_str[128];
+
+        va_start(ap, fmt);
+        formatted_bytes = chvsnprintf(serial_str, sizeof(serial_str)/sizeof(serial_str[0]), fmt, ap);
+        va_end(ap);
+
+        return usbTransmit(SDU1.config->usbp, SDU1.config->bulk_in, (const uint8_t*)serial_str, formatted_bytes);
+    }
 } // namespace
 
 /*
@@ -91,9 +106,14 @@ int main(void) {
     chThdSleepMilliseconds(1);
     palSetLine(LINE_TORQUE_MEAS_EN);
 
-    printf("running limtoc %.7s, k = %8.3f\r\n", g_GITSHA1, k);
-    printf("fields are:\n\r");
-    printf("realtime_counter, kistler_torque, motor_torque, steer_angle, feedback_torque\r\n");
+    // Block USB device until ready
+    while (!((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY))) {
+        chThdSleepMilliseconds(10);
+    }
+
+    printfq("running limtoc %.7s, k = %8.3f\r\n", g_GITSHA1, k);
+    printfq("fields are:\n\r");
+    printfq("realtime_counter, kistler_torque, motor_torque, steer_angle, feedback_torque\r\n");
     systime_t deadline = chVTGetSystemTime();
 
     // Normal main() thread activity
@@ -106,7 +126,7 @@ int main(void) {
         const float feedback_torque = -k*steer_angle;
         const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_torque(feedback_torque);
 
-        printf("%u, %10.5f, %10.5f, %10.5f, %10.5f\r\n",
+        printfq("%u, %10.5f, %10.5f, %10.5f, %10.5f\r\n",
                chSysGetRealtimeCounterX(),
                kistler_torque,
                motor_torque,

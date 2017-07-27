@@ -13,4 +13,7 @@ The main loop transmits the following at 1 kHz:
  - steer angle [rad]
 
 A virtual torsional spring with spring constant k = 3.14 N-m/rad is used to
-generate the kollmorgen commanded motor torque.
+generate the kollmorgen commanded motor torque. Values are transmitted over
+serial synchronously. The project will run only if data is being read from the
+serial port and if disconnected, the torque command will be held at the most
+recent value.
