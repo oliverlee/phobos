@@ -126,9 +126,9 @@ int main(void) {
                 (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
         dacPutChannelX(sa::KOLLM_DAC, 0, aout);
 
-        printf("[%.7s] torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\t",
-                g_GITSHA1, steer_torque, motor_torque);
-        printf("steer angle: %8.3f rad\trear wheel angle: %8.3f rad\tforward velocity: %8.3f\r\n m/s",
+        printf("[%.7s] torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\tgyro: %u\t",
+                g_GITSHA1, steer_torque, motor_torque, analog.get_adc11());
+        printf("steer angle: %8.3f rad\trear wheel angle: %8.3f rad\tforward velocity: %8.3f m/s\r\n",
                 steer_angle, roller_angle, forward_velocity);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));
     }
