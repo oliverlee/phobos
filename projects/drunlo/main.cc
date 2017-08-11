@@ -101,7 +101,7 @@ int main(void) {
      * The default line configuration is OUTPUT_OPENDRAIN_PULLUP  for SPI1_ENC1_NSS
      * and must be changed to use as analog output.
      */
-    palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
+    palSetLineMode(LINE_DAC0_REF, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
 
     /*
