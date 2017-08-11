@@ -54,7 +54,9 @@ namespace {
         0,                        /* CR1 */
         ADC_CR2_EXTEN_RISING | ADC_CR2_EXTSEL_SRC(14),        /* CR2 */
 #ifdef STATIC_SIMULATOR_CONFIG
-        ADC_SMPR1_SMP_AN13(ADC_SAMPLE_15) | ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15),
+        ADC_SMPR1_SMP_AN13(ADC_SAMPLE_15) |
+            ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
+            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_15),
 #else // STATIC_SIMULATOR_CONFIG
         ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
             ADC_SMPR1_SMP_AN11(ADC_SAMPLE_15) |
@@ -62,17 +64,22 @@ namespace {
 #endif // STATIC_SIMULATOR_CONFIG
         0,                        /* SMPR2 */
 #ifdef STATIC_SIMULATOR_CONFIG
-        ADC_SQR1_NUM_CH(Analog::buffer_size()),
-        ADC_SQR2_SQ10_N(ADC_CHANNEL_IN13) |
-            ADC_SQR2_SQ9_N(ADC_CHANNEL_IN12) |
-            ADC_SQR2_SQ8_N(ADC_CHANNEL_IN13) |
-            ADC_SQR2_SQ7_N(ADC_CHANNEL_IN12),
+        ADC_SQR1_NUM_CH(Analog::buffer_size()) |
+            ADC_SQR1_SQ15_N(ADC_CHANNEL_IN13) |
+            ADC_SQR1_SQ14_N(ADC_CHANNEL_IN12) |
+            ADC_SQR1_SQ13_N(ADC_CHANNEL_IN11),
+        ADC_SQR2_SQ12_N(ADC_CHANNEL_IN13) |
+            ADC_SQR2_SQ11_N(ADC_CHANNEL_IN12) |
+            ADC_SQR2_SQ10_N(ADC_CHANNEL_IN11) |
+            ADC_SQR2_SQ9_N(ADC_CHANNEL_IN13) |
+            ADC_SQR2_SQ8_N(ADC_CHANNEL_IN12) |
+            ADC_SQR2_SQ7_N(ADC_CHANNEL_IN11),
         ADC_SQR3_SQ6_N(ADC_CHANNEL_IN13) |
             ADC_SQR3_SQ5_N(ADC_CHANNEL_IN12) |
-            ADC_SQR3_SQ4_N(ADC_CHANNEL_IN13) |
-            ADC_SQR3_SQ3_N(ADC_CHANNEL_IN12) |
-            ADC_SQR3_SQ2_N(ADC_CHANNEL_IN13) |
-            ADC_SQR3_SQ1_N(ADC_CHANNEL_IN12)
+            ADC_SQR3_SQ4_N(ADC_CHANNEL_IN11) |
+            ADC_SQR3_SQ3_N(ADC_CHANNEL_IN13) |
+            ADC_SQR3_SQ2_N(ADC_CHANNEL_IN12) |
+            ADC_SQR3_SQ1_N(ADC_CHANNEL_IN11)
 #else // STATIC_SIMULATOR_CONFIG
         ADC_SQR1_NUM_CH(Analog::buffer_size()) |
             ADC_SQR1_SQ15_N(ADC_CHANNEL_IN12) |
@@ -101,7 +108,9 @@ namespace {
         0,                        /* CR1 */
         ADC_CR2_EXTEN_RISING | ADC_CR2_EXTSEL_SRC(14),        /* CR2 */
 #ifdef STATIC_SIMULATOR_CONFIG
-        ADC_SMPR1_SMP_AN13(ADC_SAMPLE_15) | ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15),
+        ADC_SMPR1_SMP_AN13(ADC_SAMPLE_15) |
+            ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
+            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_15),
 #else // STATIC_SIMULATOR_CONFIG
         ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
             ADC_SMPR1_SMP_AN11(ADC_SAMPLE_15) |
@@ -109,17 +118,22 @@ namespace {
 #endif // STATIC_SIMULATOR_CONFIG
         0,                        /* SMPR2 */
 #ifdef STATIC_SIMULATOR_CONFIG
-        ADC_SQR1_NUM_CH(Analog::buffer_size()),
-        ADC_SQR2_SQ10_N(ADC_CHANNEL_IN13) |
-            ADC_SQR2_SQ9_N(ADC_CHANNEL_IN12) |
-            ADC_SQR2_SQ8_N(ADC_CHANNEL_IN13) |
-            ADC_SQR2_SQ7_N(ADC_CHANNEL_IN12),
+        ADC_SQR1_NUM_CH(Analog::buffer_size()) |
+            ADC_SQR1_SQ15_N(ADC_CHANNEL_IN13) |
+            ADC_SQR1_SQ14_N(ADC_CHANNEL_IN12) |
+            ADC_SQR1_SQ13_N(ADC_CHANNEL_IN11),
+        ADC_SQR2_SQ12_N(ADC_CHANNEL_IN13) |
+            ADC_SQR2_SQ11_N(ADC_CHANNEL_IN12) |
+            ADC_SQR2_SQ10_N(ADC_CHANNEL_IN11) |
+            ADC_SQR2_SQ9_N(ADC_CHANNEL_IN13) |
+            ADC_SQR2_SQ8_N(ADC_CHANNEL_IN12) |
+            ADC_SQR2_SQ7_N(ADC_CHANNEL_IN11),
         ADC_SQR3_SQ6_N(ADC_CHANNEL_IN13) |
             ADC_SQR3_SQ5_N(ADC_CHANNEL_IN12) |
-            ADC_SQR3_SQ4_N(ADC_CHANNEL_IN13) |
-            ADC_SQR3_SQ3_N(ADC_CHANNEL_IN12) |
-            ADC_SQR3_SQ2_N(ADC_CHANNEL_IN13) |
-            ADC_SQR3_SQ1_N(ADC_CHANNEL_IN12)
+            ADC_SQR3_SQ4_N(ADC_CHANNEL_IN11) |
+            ADC_SQR3_SQ3_N(ADC_CHANNEL_IN13) |
+            ADC_SQR3_SQ2_N(ADC_CHANNEL_IN12) |
+            ADC_SQR3_SQ1_N(ADC_CHANNEL_IN11)
 #else // STATIC_SIMULATOR_CONFIG
         ADC_SQR1_NUM_CH(Analog::buffer_size()) |
             ADC_SQR1_SQ15_N(ADC_CHANNEL_IN12) |
@@ -191,7 +205,7 @@ void Analog::stop() {
 
 adcsample_t Analog::average_adc_conversion_value(sensor_t channel) const {
 #ifdef STATIC_SIMULATOR_CONFIG
-    channel = static_cast<sensor_t>(static_cast<std::underlying_type_t<sensor_t>>(channel) - 2);
+    channel = static_cast<sensor_t>(static_cast<std::underlying_type_t<sensor_t>>(channel) - 1);
 #endif // STATIC_SIMULATOR_CONFIG
     adcsample_t sum = m_adc_buffer[channel];
     for (unsigned int i = 1; i < m_adc_buffer_depth; ++i) {
@@ -211,11 +225,7 @@ adcsample_t Analog::get_adc10() const {
 
 adcsample_t Analog::get_adc11() const {
     //return m_adc_buffer[sensor_t::ADC11];
-#ifdef STATIC_SIMULATOR_CONFIG
-    return 0;
-#else // STATIC_SIMULATOR_CONFIG
     return average_adc_conversion_value(sensor_t::ADC11);
-#endif // STATIC_SIMULATOR_CONFIG
 }
 
 adcsample_t Analog::get_adc12() const {
