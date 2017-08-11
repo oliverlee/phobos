@@ -34,7 +34,12 @@
 
 namespace {
     constexpr systime_t dt = MS2ST(1); // milliseconds converted to system ticks
-    constexpr float k = 3.14f; // N-m/rad
+    constexpr float k = 3.14f; // N-m/rad, desired spring stiffness
+    constexpr float m_star = 1.0f; // kg-m^2, desired full assembly virtual inertia
+    constexpr float m_upper = 0.0413f; // kg-m^2, experimentally determined upper assembly inertia
+    constexpr float m_lower = 0.0415f; // kg-m^2, experimentally determined lower assembly inertia
+    constexpr float m_star_lower = m_star - m_upper; // kg-m^2, desired lower assembly virtual inertia
+    constexpr float K = m_lower/m_star_lower - 1.0f; // torque reference feedback gain
 
     // sensors
     Analog analog;
@@ -111,7 +116,7 @@ int main(void) {
         chThdSleepMilliseconds(10);
     }
 
-    printfq("running limtoc %.7s, k = %8.3f\r\n", g_GITSHA1, k);
+    printfq("running limtoc %.7s, k = %8.3f, m = %8.3f\r\n", g_GITSHA1, k, m_star);
     printfq("fields are:\n\r");
     printfq("realtime_counter, kistler_torque, motor_torque, steer_angle, feedback_torque\r\n");
     systime_t deadline = chVTGetSystemTime();
@@ -122,9 +127,11 @@ int main(void) {
         const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
         const float steer_angle = util::encoder_count<float>(encoder_steer);
 
-        // generate feedback torque to simulate a spring
-        const float feedback_torque = -k*steer_angle;
-        const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_torque(feedback_torque);
+        // generate motor torque to simulate a spring and virtual mass
+        const float torque_ref = -k*steer_angle; // also feedforward torque
+        const float torque_ref_feedback = K*(torque_ref - kistler_torque);
+        const float feedback_torque = torque_ref + torque_ref_feedback;
+        sa::set_kollmorgen_torque(feedback_torque);
 
         printfq("%u, %10.5f, %10.5f, %10.5f, %10.5f\r\n",
                chSysGetRealtimeCounterX(),
