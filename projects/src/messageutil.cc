@@ -1,8 +1,44 @@
 #include "messageutil.h"
 #include "gitsha1.h"
 #include <cstring>
+#include "ch.h"
+#include "hal.h"
 
 namespace message {
+void set_config_message(ConfigMessage* pb, EnumProjectType e) {
+#if defined(STATIC_SIMULATOR_CONFIG)
+    pb->hwsetup = EnumHardwareSetupType_SIMULATOR;
+#else
+    pb->hwsetup = EnumHardwareSetupType_STEERBYWIRE;
+#endif
+    pb->project = e;
+    std::memcpy(pb->git_sha1.f, g_GIT_SHA1,
+                sizeof(pb->git_sha1.f)*sizeof(pb->git_sha1.f[0]));
+    pb->git_dirty = g_GIT_DIRTY;
+#if defined(NDEBUG)
+    pb->build_ndebug = true;
+#else
+    pb->build_ndebug = false;
+#endif
+    pb->ch_st_resolution_16 = true ? CH_CFG_ST_RESOLUTION == 16 : false;
+    pb->ch_st_frequency = CH_CFG_ST_FREQUENCY;
+    pb->ch_rtc_frequency = STM32_SYSCLK;
+    // pb->heartbeat_period = 0; not yet implemented
+
+#if !defined(STM32_SYSCLK)
+#error "UNABLE TO SET 'ch_rtc_frequency'."
+#endif
+
+    pb->has_hwsetup                 = true;
+    pb->has_project                 = true;
+    pb->has_git_sha1                = true;
+    pb->has_git_dirty               = true;
+    pb->has_build_ndebug            = true;
+    pb->has_ch_st_resolution_16     = true;
+    pb->has_ch_st_frequency         = true;
+    pb->has_ch_rtc_frequency        = true;
+    pb->has_heartbeat_period        = false;
+}
 
 void set_bicycle_state(BicycleStateMessage* pb, const bicycle_t::state_t& x) {
     std::memcpy(pb->x, x.data(), sizeof(pb->x));
@@ -90,11 +126,6 @@ void set_bicycle_discrete_time_state_space(BicycleModelMessage* pb, const bicycl
     pb->has_B = true;
     pb->has_C = true;
     pb->has_D = true;
-}
-
-void set_simulation_gitsha1(SimulationMessage* pb) {
-    std::memcpy(pb->gitsha1.f, g_GITSHA1, sizeof(pb->gitsha1.f)*sizeof(pb->gitsha1.f[0]));
-    pb->has_gitsha1 = true;
 }
 
 void set_simulation_sensors(SimulationMessage* pb,

@@ -48,7 +48,8 @@ set(NANOPB_SRC_ROOT_FOLDER ${PROJECT_SOURCE_DIR}/external/nanopb)
 
 # get git sha1 https://stackoverflow.com/questions/1435953/how-can-i-pass-git-sha1-to-compiler-as-definition-using-cmake
 include(GetGitRevisionDescription)
-get_git_head_revision(GIT_REFSPEC GITSHA1)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+git_local_changes(GIT_DIRTY)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 

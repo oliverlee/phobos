@@ -71,12 +71,14 @@ namespace {
     // dynamics loop
     constexpr systime_t dynamics_loop_period = MS2ST(1); // 1 ms -> 1 kHz
 
+#if !defined(USE_BICYCLE_KINEMATIC_MODEL)
     // virtual roll and steer torque assistance enabled for
     constexpr float assistance_velocity_limit = 1.0f; // [m/s] values less than this
     // we gradually increase/decrease torque assistance over this period
     // after the velocity crosses the velocity limit
     constexpr systime_t assistance_fade_period = MS2ST(50)/dynamics_loop_period; // in iterations
     systime_t assistance_fade_counter = 0;
+#endif // !defined(USE_BICYCLE_KINEMATIC_MODEL)
 
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
@@ -265,11 +267,26 @@ int main(void) {
 
     // Initialize USB data transmission
     message::Transmitter transmitter;
-    {   // Transmit initial message containing gitsha1, model, and observer data.
+    {   // Transmit a single simulation message with config submessage, and model and observer data.
+        // TODO: This will be replaced by sending a config message followed by a simulation message in the future.
+        //       See https://github.com/oliverlee/phobos/issues/181#issuecomment-301825244
         SimulationMessage* msg = transmitter.alloc_simulation_message();
         *msg = SimulationMessage_init_zero;
         msg->timestamp = chVTGetSystemTime();
+
+        constexpr EnumProjectType e =
+#if defined(FLIMNAP_ZERO_INPUT)
+            EnumProjectType_FLIMNAP_ZERO_INPUT;
+#elif defined(USE_BICYCLE_KINEMATIC_MODEL)
+            EnumProjectType_FLIMNAP_KINEMATIC;
+#else
+            EnumProjectType_FLIMNAP_WHIPPLE;
+#endif
+        message::set_config_message(&msg->config, e);
+        msg->has_config = true;
+
         message::set_simulation_full_model_observer(msg, bicycle);
+
         transmitter.transmit(msg); // This blocks until USB data starts getting read
     }
     transmitter.start(NORMALPRIO + 1); // start transmission thread

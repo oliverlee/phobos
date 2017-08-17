@@ -4,6 +4,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(CHIBIOS_BUILD_WITH_FATFS ON)
 
 generate_protobuf_source(
+    ${PHOBOS_PROJECT_PROTO_DIR}/config.proto
     ${PHOBOS_PROJECT_PROTO_DIR}/pose.proto
     ${PHOBOS_PROJECT_PROTO_DIR}/simulation.proto)
 

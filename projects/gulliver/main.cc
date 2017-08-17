@@ -85,7 +85,7 @@ int main(void) {
     while (true) {
         /* get sensor measurements */
         printf("[%.7s] realtime counter: %u\tsteer encoder: %u\r\n",
-                g_GITSHA1, chSysGetRealtimeCounterX(), encoder_steer.count());
+                g_GIT_SHA1, chSysGetRealtimeCounterX(), encoder_steer.count());
         chThdSleepMilliseconds(dt_ms);
     }
 }

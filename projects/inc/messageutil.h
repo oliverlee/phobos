@@ -5,6 +5,8 @@
 #include "simbicycle.h"
 
 namespace message {
+    void set_config_message(ConfigMessage* pb, EnumProjectType e);
+
     using bicycle_t = model::Bicycle;
     void set_bicycle_state(BicycleStateMessage* pb, const bicycle_t::state_t& x);
     void set_bicycle_auxiliary_state(BicycleAuxiliaryStateMessage* pb, const bicycle_t::auxiliary_state_t& x);
@@ -51,7 +53,6 @@ namespace message {
     typename std::enable_if<!std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
     set_kalman_gain(BicycleKalmanMessage* pb, const observer_t& k);
 
-    void set_simulation_gitsha1(SimulationMessage* pb);
     void set_simulation_sensors(SimulationMessage* pb,
             uint32_t measured_steer_torque, uint32_t measured_motor_torque,
             uint32_t steer_encoder_count, uint32_t rear_wheel_encoder_count);
@@ -172,8 +173,6 @@ void set_simulation_pose(SimulationMessage* pb, const simbicycle_t& b) {
 
 template <typename simbicycle_t>
 void set_simulation_full_model(SimulationMessage* pb, const simbicycle_t& b) {
-    set_simulation_gitsha1(pb);
-
     set_simulation_state(pb, b);
     set_simulation_auxiliary_state(pb, b);
 
