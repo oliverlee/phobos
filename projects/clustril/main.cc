@@ -25,6 +25,7 @@
 #include "filesystem.h"
 #include "saconfig.h"
 #include "utility.h"
+#include "sautility.h"
 
 #include "packet/serialize.h"
 #include "simulation.pb.h"
@@ -52,15 +53,6 @@ namespace {
     SimulationMessage sample;
 
     std::array<uint8_t, SimulationMessage_size> encode_buffer;
-
-    dacsample_t set_handlebar_velocity(float velocity) {
-        // limit velocity to a maximum magnitude of 100 deg/s
-        // input is in units of rad/s
-        const float saturated_velocity = util::clamp(velocity, -sa::MAX_KOLLMORGEN_VELOCITY, sa::MAX_KOLLMORGEN_VELOCITY);
-        const dacsample_t aout = saturated_velocity/sa::MAX_KOLLMORGEN_VELOCITY*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
-        dacPutChannelX(sa::KOLLM_DAC, 0, aout); // TODO: don't hardcode zero but find the DAC channel constant
-        return aout;
-    }
 } // namespace
 
 /*
@@ -161,12 +153,8 @@ int main(void) {
         constexpr float roll_torque = 0;
 
         /* get torque measurements */
-        const float steer_torque = static_cast<float>(
-                analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/(sa::ADC_HALF_RANGE*2) -
-                sa::MAX_KISTLER_TORQUE);
-        const float motor_torque = static_cast<float>(
-                analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/(sa::ADC_HALF_RANGE*2) -
-                sa::MAX_KOLLMORGEN_TORQUE);
+        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
+        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
         (void)motor_torque; /* this isn't currently used */
 
         /* get angle measurements */
@@ -175,12 +163,12 @@ int main(void) {
         const float rear_wheel_angle = -util::encoder_count<float>(encoder_rear_wheel);
 
         /* observer time/measurement update (~80 us with real_t = float) */
-        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+        bicycle.update_dynamics(roll_torque, kistler_torque, yaw_angle, steer_angle, rear_wheel_angle);
         bicycle.update_kinematics();
 
         const float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
                 model_t::state_index_t::steer_rate);
-        const dacsample_t handlebar_velocity_dac = set_handlebar_velocity(desired_velocity);
+        const dacsample_t handlebar_velocity_dac = sa::set_kollmorgen_velocity(desired_velocity);
 
         sample = simulation_message_zero;
         sample.timestamp = chSysGetRealtimeCounterX();

@@ -48,6 +48,8 @@ constexpr float MAX_KOLLMORGEN_VELOCITY = 3*1.74533f; // max velocity of 300 deg
 constexpr float MAX_KOLLMORGEN_TORQUE = 10.78125f; // max torque at 1.50 Arms/V, N-m
 constexpr adcsample_t KOLLMORGEN_ADC_ZERO_OFFSET = 2026; // ADC value for zero torque, found experimentally
 
+constexpr dacsample_t KOLLMORGEN_DAC_ZERO_OFFSET = DAC_HALF_RANGE;
+
 constexpr float MAX_GYRO_RATE = 1*1.74533f; // max rate of 100 deg/s in rad/s
 constexpr adcsample_t GYRO_ADC_ZERO_OFFSET = 2028; // ADC value for zero angular rate, found experimentally
 
