@@ -41,6 +41,17 @@ namespace sa {
     }
 
     float get_kistler_sensor_torque(adcsample_t ain) {
-        return convert_adcsample(ain, KISTLER_ADC_ZERO_OFFSET, MAX_KISTLER_TORQUE);
+        // Note that sensor sign is reversed.
+        // Decreasing adcsample_t values result in _increasing_ torque.
+        // Different constants are used for positive and negative torque based
+        // on measured sensor behavior.
+        if (ain > KISTLER_ADC_ZERO_OFFSET_NEGATIVE) {
+            return convert_adcsample(
+                    ain, KISTLER_ADC_ZERO_OFFSET_NEGATIVE, MAX_KISTLER_TORQUE_NEGATIVE);
+        } else if (ain < KISTLER_ADC_ZERO_OFFSET_POSITIVE) {
+            return convert_adcsample(
+                    ain, KISTLER_ADC_ZERO_OFFSET_POSITIVE, MAX_KISTLER_TORQUE_POSITIVE);
+        } // else
+        return 0.0f;
     }
 } // sa namespace
