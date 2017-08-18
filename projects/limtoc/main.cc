@@ -19,6 +19,7 @@
 
 #include "analog.h"
 #include "encoder.h"
+#include "filter/movingaverage.h"
 
 #include "gitsha1.h"
 #include "blink.h"
@@ -34,8 +35,8 @@
 
 namespace {
     constexpr systime_t dt = MS2ST(1); // milliseconds converted to system ticks
-    constexpr float k = 3.14f; // N-m/rad, desired spring stiffness
-    constexpr float m_star = 1.0f; // kg-m^2, desired full assembly virtual inertia
+    constexpr float k = 3.0f; // N-m/rad, desired spring stiffness
+    constexpr float m_star = 0.07f; // kg-m^2, desired full assembly virtual inertia
     constexpr float m_upper = 0.0413f; // kg-m^2, experimentally determined upper assembly inertia
     constexpr float m_lower = 0.0415f; // kg-m^2, experimentally determined lower assembly inertia
     constexpr float m_star_lower = m_star - m_upper; // kg-m^2, desired lower assembly virtual inertia
@@ -44,6 +45,8 @@ namespace {
     // sensors
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
+
+    filter::MovingAverage<float, 8> kistler_average;
 
     int printfq(const char *fmt, ...) {
         va_list ap;
@@ -123,7 +126,8 @@ int main(void) {
 
     // Normal main() thread activity
     while (true) {
-        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
+        const float kistler_torque = kistler_average.output(
+                sa::get_kistler_sensor_torque(analog.get_adc12()));
         const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
         const float steer_angle = util::encoder_count<float>(encoder_steer);
 
