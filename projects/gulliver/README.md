@@ -8,4 +8,5 @@ The main loop transmits the following at 1 kHz:
  - short gitsha1
  - realtime counter [rtcnt_t]
  - steer encoder count
+
 The realtime clock runs at 168 MHz for the STM32F405.
