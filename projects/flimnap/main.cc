@@ -219,7 +219,7 @@ int main(void) {
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(0.0, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+    bicycle_t bicycle(5.0, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
     // Initialize handlebar object to calculate motor drive feedback torque
@@ -298,7 +298,8 @@ int main(void) {
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
         // simulate bicycle
-        bicycle.set_v(v);
+        //bicycle.set_v(v);
+        bicycle.set_v(5.0f);
         { // perform variant specific code for creating input/measurement
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
             bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
@@ -357,18 +358,24 @@ int main(void) {
                 msg->model.v = bicycle.v();
                 msg->model.has_v = true;
                 msg->has_model = true;
-                message::set_bicycle_input(&msg->input,
+                message::set_bicycle_input(
+                        &msg->input,
                         (model_t::input_t() << roll_torque, steer_torque).finished());
                 msg->has_input = true;
                 message::set_simulation_state(msg, bicycle);
                 message::set_simulation_auxiliary_state(msg, bicycle);
                 oi.set_message(bicycle, msg);
                 message::set_simulation_actuators(msg, handlebar_reference_dac);
-                message::set_simulation_sensors(msg,
-                        analog.get_adc12(), analog.get_adc13(),
-                        encoder_steer.count(), encoder_rear_wheel.count());
-                message::set_simulation_timing(msg,
-                        computation_time_measurement.last, transmission_time_measurement.last);
+                message::set_simulation_sensors(
+                        msg,
+                        analog.get_adc12(),
+                        analog.get_adc13(),
+                        encoder_steer.count(),
+                        encoder_rear_wheel.count());
+                message::set_simulation_timing(
+                        msg,
+                        computation_time_measurement.last,
+                        transmission_time_measurement.last);
                 if (transmitter.transmit_async(msg) != MSG_OK) {
                     // Discard simulation message if it cannot be processed quickly enough.
                     transmitter.free_message(msg);
