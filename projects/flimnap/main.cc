@@ -73,8 +73,6 @@ namespace {
                                               MS2ST(1),
                                               3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
-    filter::MovingAverage<float, 40> steer_rate_filter;
-    filter::MovingAverage<float, 8> motor_torque_filter;
 
     // virtual roll torque assistance enabled for
     constexpr float assistive_velocity_limit = 1.0f; // [m/s] values less than this
@@ -272,7 +270,6 @@ int main(void) {
 
     // Normal main() thread activity. This is the dynamics simulation loop.
     systime_t deadline = chVTGetSystemTime();
-    float prev_steer_angle = util::encoder_count<float>(encoder_steer);
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
@@ -307,10 +304,9 @@ int main(void) {
             bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 #elif defined(USE_BICYCLE_AREND_MODEL)
             // BicyleArend uses a different output/measurement vector definition
-            const float steer_rate = steer_rate_filter.output(
-                    (steer_angle - prev_steer_angle)/
-                    (static_cast<float>(ST2MS(dynamics_loop_period))/1000.0f));
-            prev_steer_angle = steer_angle;
+            const float steer_rate =
+                static_cast<float>(analog.get_adc11() - sa::GYRO_ADC_ZERO_OFFSET) *
+                sa::MAX_GYRO_RATE/sa::ADC_HALF_RANGE;
 
             model_t::input_t u = model_t::input_t::Zero();
             model_t::set_input_element(u, model_t::input_index_t::roll_torque, roll_torque);
