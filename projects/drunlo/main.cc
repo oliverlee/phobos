@@ -25,6 +25,7 @@
 #include "usbconfig.h"
 #include "saconfig.h"
 #include "utility.h"
+#include "sautility.h"
 
 #include "parameters.h"
 
@@ -110,11 +111,8 @@ int main(void) {
      */
     while (true) {
         /* get sensor measurements */
-        const float steer_torque = static_cast<float>(analog.get_adc12()*2.0f*sa::MAX_KISTLER_TORQUE/4096 -
-                sa::MAX_KISTLER_TORQUE);
-        const float motor_torque = static_cast<float>(
-                analog.get_adc13()*2.0f*sa::MAX_KOLLMORGEN_TORQUE/4096 -
-                sa::MAX_KOLLMORGEN_TORQUE);
+        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
+        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
         const float steer_rate = static_cast<float>(analog.get_adc11() - sa::GYRO_ADC_ZERO_OFFSET) *
             sa::MAX_GYRO_RATE/sa::ADC_HALF_RANGE;
         const float steer_angle = util::encoder_count<float>(encoder_steer);
@@ -122,14 +120,12 @@ int main(void) {
         const float forward_velocity = sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_roller))*sa::ROLLER_TO_REAR_WHEEL_RATIO;
 
         /* generate an example torque output for testing */
-        float feedback_torque = 10.0f * std::sin(
+        float feedback_torque = 1.0f * std::sin(
                 constants::two_pi * ST2S(static_cast<float>(chVTGetSystemTime())));
-        dacsample_t aout = static_cast<dacsample_t>(
-                (feedback_torque/21.0f * 2048) + 2048); /* reduce output to half of full range */
-        dacPutChannelX(sa::KOLLM_DAC, 0, aout);
+        sa::set_kollmorgen_torque(feedback_torque);
 
         printf("[%.7s] torque sensor: %8.3f Nm\tmotor torque: %8.3f Nm\tsteer rate: %8.3f rad/s\t",
-                g_GITSHA1, steer_torque, motor_torque, steer_rate);
+                g_GITSHA1, kistler_torque, motor_torque, steer_rate);
         printf("steer angle: %8.3f rad\trear wheel angle: %8.3f rad\tforward velocity: %8.3f m/s\r\n",
                 steer_angle, roller_angle, forward_velocity);
         chThdSleepMilliseconds(static_cast<systime_t>(1000*dt));

@@ -27,6 +27,7 @@
 #include "blink.h"
 #include "saconfig.h"
 #include "utility.h"
+#include "sautility.h"
 
 #include "parameters.h"
 
@@ -96,30 +97,6 @@ namespace {
         chSysUnlock();
 
         return next;
-    }
-
-    dacsample_t set_handlebar_reference(float reference) {
-        // Calculate channel value based on DAC device params
-        // regshift = 0 -> CH1 -> channel value 0
-        // regshift = 16 -> CH2 -> channel value 1
-        static const dacchannel_t channel = sa::KOLLM_DAC->params->regshift/16;
-        constexpr float MAX_REF_VALUE = std::is_same<observer_t, std::nullptr_t>::value ?
-            sa::MAX_KOLLMORGEN_TORQUE :
-            sa::MAX_KOLLMORGEN_VELOCITY;
-
-        const float saturated_reference = util::clamp(reference, -MAX_REF_VALUE, MAX_REF_VALUE);
-        const dacsample_t aout = saturated_reference/MAX_REF_VALUE*sa::DAC_HALF_RANGE + sa::DAC_HALF_RANGE;
-        dacPutChannelX(sa::KOLLM_DAC, channel, aout);
-        return aout;
-    }
-
-    constexpr float adc_to_nm(adcsample_t value, adcsample_t adc_zero, float magnitude) {
-        // Convert torque from ADC samples to Nm.
-        // ADC samples are 12 bits.
-        // It's not clear when scaling should be applied as data was never saved after the scale
-        // factors were determined.
-        const int16_t shifted_value = static_cast<int16_t>(value) - static_cast<int16_t>(adc_zero);
-        return static_cast<float>(shifted_value)*magnitude/static_cast<float>(sa::ADC_HALF_RANGE);
     }
 
     template <typename T>
@@ -227,7 +204,7 @@ int main(void) {
     // and must be changed to use as analog output.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-    set_handlebar_reference(0.0f);
+    sa::set_kollmorgen_reference(0.0f, 0.0f); // set torque/velocity to zero
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
@@ -287,10 +264,8 @@ int main(void) {
         float roll_torque = 0.0f;
 
         // get sensor measurements
-        const float kistler_torque = adc_to_nm(analog.get_adc12(),
-                sa::KISTLER_ADC_ZERO_OFFSET, sa::MAX_KISTLER_TORQUE);
-        const float motor_torque = adc_to_nm(analog.get_adc13(),
-                sa::KOLLMORGEN_ADC_ZERO_OFFSET, sa::MAX_KOLLMORGEN_TORQUE);
+        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
+        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float rear_wheel_angle = std::fmod(-util::encoder_count<float>(encoder_rear_wheel),
                                                  constants::two_pi);
@@ -334,12 +309,12 @@ int main(void) {
         // generate handlebar velocity or torque output
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float desired_torque = haptic_drive.torque(model_t::get_state_part(bicycle.full_state()));
-        const dacsample_t handlebar_reference_dac = set_handlebar_reference(desired_torque);
+        const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_torque(desired_torque);
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float desired_velocity =
             model_t::get_full_state_element(bicycle.full_state(),
                                             model_t::full_state_index_t::steer_rate);
-        const dacsample_t handlebar_reference_dac = set_handlebar_reference(desired_velocity);
+        const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_velocity(desired_velocity);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
 
         chTMStopMeasurementX(&computation_time_measurement);

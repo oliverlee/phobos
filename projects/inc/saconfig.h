@@ -41,12 +41,16 @@ constexpr EncoderConfig RLS_GTS35_ENC_CFG = {
  * The voltage output of the Kistler torque sensor is ±10V. With the 12-bit ADC,
  * resolution for LSB is 4.88 mV/bit or 12.2 mNm/bit.
  */
-constexpr float MAX_KISTLER_TORQUE = 50.0f; // maximum measured steer torque, N-m
-constexpr adcsample_t KISTLER_ADC_ZERO_OFFSET = 2047; // ADC value for zero torque, found experimentally
+constexpr float MAX_KISTLER_TORQUE_POSITIVE = -42.9314f; // maximum measured steer torque, N-m
+constexpr adcsample_t KISTLER_ADC_ZERO_OFFSET_POSITIVE = 2042; // ADC value for zero torque, found experimentally
+constexpr float MAX_KISTLER_TORQUE_NEGATIVE = -43.2969f; // maximum measured steer torque, N-m
+constexpr adcsample_t KISTLER_ADC_ZERO_OFFSET_NEGATIVE = 2046; // ADC value for zero torque, found experimentally
 
 constexpr float MAX_KOLLMORGEN_VELOCITY = 3*1.74533f; // max velocity of 300 deg/s in rad/s
 constexpr float MAX_KOLLMORGEN_TORQUE = 10.78125f; // max torque at 1.50 Arms/V, N-m
-constexpr adcsample_t KOLLMORGEN_ADC_ZERO_OFFSET = 2026; // ADC value for zero torque, found experimentally
+constexpr adcsample_t KOLLMORGEN_ADC_ZERO_OFFSET = 2052; // ADC value for zero torque, found experimentally
+
+constexpr dacsample_t KOLLMORGEN_DAC_ZERO_OFFSET = 1896; // DAC value for zero torque, found experimentally
 
 constexpr float MAX_GYRO_RATE = 1*1.74533f; // max rate of 100 deg/s in rad/s
 constexpr adcsample_t GYRO_ADC_ZERO_OFFSET = 2028; // ADC value for zero angular rate, found experimentally
