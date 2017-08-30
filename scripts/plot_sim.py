@@ -90,6 +90,7 @@ def plot_states(t, states, second_yaxis=False, to_degrees=True):
         else:
             a = 1
         l = ax.plot(t, a*states[:, i], label=label, color=color,
+                    alpha=0.8,
                     linewidth=linewidth)
         lines.extend(l)
 
@@ -196,19 +197,30 @@ if __name__ == '__main__':
              get_kollmorgen_applied_torque(
                  records.sensors.kollmorgen_actual_torque),
              label=SENSOR_LABELS[1],
+             alpha=0.8,
              color=STATE_COLOR[9])
     ax3.plot(t,
              get_kistler_sensor_torque(records.sensors.kistler_measured_torque),
              label=SENSOR_LABELS[0],
+             alpha=0.8,
              color=STATE_COLOR[5])
     ax3.plot(t,
              records.input[:, 1],
              label='steer torque',
+             alpha=0.8,
              color=STATE_COLOR[3])
     ax3.plot(t,
              inertia_torque,
              label='handlebar inertia torque',
+             alpha=0.8,
              color=STATE_COLOR[1])
+    ax3.plot(t,
+             get_kollmorgen_applied_torque(
+                 records.sensors.kollmorgen_actual_torque) -
+             get_kistler_sensor_torque(records.sensors.kistler_measured_torque),
+             label='applied torque - measured torque',
+             alpha=0.8,
+             color=STATE_COLOR[2])
     # FIXME The field sensors.kollmorgen_command_velocity contains the
     # kollmorgen drive reference. This is either interpreted as a torque or
     # velocity command depending on the drive settings and must be set correctly
@@ -218,6 +230,7 @@ if __name__ == '__main__':
              get_kollmorgen_command_torque(
                  records.actuators.kollmorgen_command_velocity),
              label='kollmorgen command torque',
+             alpha=0.8,
              color=STATE_COLOR[7])
     ax3.set_ylabel('torque [N-m]')
     ax3.set_xlabel('time [s]')
