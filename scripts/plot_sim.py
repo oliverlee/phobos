@@ -67,10 +67,6 @@ def handlebar_inertia_torque(records, A):
 
 
 def plot_states(t, states, second_yaxis=False, to_degrees=True):
-    # plot in degrees
-    if to_degrees:
-        states *= 180/np.pi
-
     fig, ax1 = plt.subplots()
     lines = []
     if second_yaxis:
@@ -89,18 +85,29 @@ def plot_states(t, states, second_yaxis=False, to_degrees=True):
             color = STATE_COLOR[color_order[i]]
             ax.yaxis.grid(False)
 
-        l = ax.plot(t, states[:, i], label=label, color=color,
+        if to_degrees:
+            a = 180/np.pi
+        else:
+            a = 1
+        l = ax.plot(t, a*states[:, i], label=label, color=color,
                     linewidth=linewidth)
         lines.extend(l)
 
     if second_yaxis:
-        ax1.set_ylabel('deg')
-        ax2.set_ylabel('deg/s')
+        if to_degrees:
+            ax1.set_ylabel('deg')
+            ax2.set_ylabel('deg/s')
+        else:
+            ax1.set_ylabel('rad')
+            ax2.set_ylabel('rad/s')
         ax1.set_xlabel('time [s]')
         ax1.legend(lines, [l.get_label() for l in lines])
         return fig, (ax1, ax2)
 
-    ax1.set_ylabel('deg, deg/s')
+    if to_degrees:
+        ax1.set_ylabel('deg, deg/s')
+    else:
+        ax1.set_ylabel('rad, rad/s')
     ax1.set_xlabel('time [s]')
     ax1.legend()
     return fig, ax1
@@ -154,13 +161,12 @@ if __name__ == '__main__':
     A = scipy.linalg.logm(Ad)/m.model.dt
     inertia_torque, steer_accel = handlebar_inertia_torque(records, A)
 
-    # plot in degrees
-    states = records.state[:, 1:] * 180/np.pi
+    states = records.state[:, 1:]
     fig1, ax1 = plot_states(t, states, second_yaxis=False, to_degrees=False)
 
     encoder_count = records.sensors.steer_encoder_count
-    encoder_angle = encoder_count / 152000 * 360
-    encoder_angle[np.where(encoder_angle > 180)[0]] -= 360
+    encoder_angle = encoder_count / 152000 * 2*np.pi
+    encoder_angle[np.where(encoder_angle > np.pi)[0]] -= 2*np.pi
 
     # calculate a simple numerical derivative of encoder_angle
     # timestamps units are system ticks, at 10 kHz
@@ -177,10 +183,11 @@ if __name__ == '__main__':
     index = STATE_LABELS.index('steer rate')
     ax2.plot(t, states[:, index], label=STATE_LABELS[index],
              color=STATE_COLOR[1 + 2*index])
-    ax2.plot(t, encoder_rate, label='encoder rate', color=STATE_COLOR[2*index])
+    ax2.plot(t, encoder_rate, label='encoder rate (from angle diff)',
+             color=STATE_COLOR[2*index])
     ax2.plot(t, steer_accel, label='estimated steer accel',
              color=STATE_COLOR[1])
-    ax2.set_ylabel('deg, deg/s')
+    ax2.set_ylabel('rad, rad/s, rad/s/s')
     ax2.set_xlabel('time [s]')
     ax2.legend()
 
