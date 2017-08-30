@@ -215,7 +215,11 @@ int main(void) {
     // and must be changed to use as analog output.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-    sa::set_kollmorgen_reference(0.0f, 0.0f); // set torque/velocity to zero
+#if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+    sa::set_kollmorgen_torque(0.0f);
+#else // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+    sa::set_kollmorgen_velocity(0.0f);
+#endif // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
@@ -342,12 +346,12 @@ int main(void) {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
         const float desired_torque = haptic_drive.torque(model_t::get_state_part(bicycle.full_state()));
         const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_torque(desired_torque);
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
+#else // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
         const float desired_velocity =
             model_t::get_full_state_element(bicycle.full_state(),
                                             model_t::full_state_index_t::steer_rate);
         const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_velocity(desired_velocity);
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
+#endif // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
         chTMStopMeasurementX(&computation_time_measurement);
 
         {   // prepare message for transmission
