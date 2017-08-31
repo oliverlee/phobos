@@ -5,30 +5,11 @@
 
 namespace haptic {
 
-null_t::null_t(model::Bicycle& bicycle) {
-    (void)bicycle;
-}
-
-null_t::null_t(model::Bicycle& bicycle, model::real_t moment_of_inertia) {
-    (void)bicycle;
-    (void)moment_of_inertia;
-}
-
-model::real_t null_t::torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
-    (void)x;
-    (void)u;
-    return 0;
-}
-
-HandlebarStatic::HandlebarStatic(model::Bicycle& bicycle) :
+Handlebar0::Handlebar0(model_t& bicycle) :
     m_bicycle(bicycle) { }
 
-HandlebarStatic::HandlebarStatic(model::Bicycle& bicycle, model::real_t moment_of_inertia) : HandlebarStatic(bicycle) {
-    (void)moment_of_inertia;
-}
-
 /*
- * Simplified equations of motion are used to simulate the bicycle dynamics.
+ * Simplified equations of motion are used to calculate the handlebar feedback torque.
  * Roll/steer rate and acceleration terms are ignored resulting in:
  *      (g*K0 + v^2*K2) [phi  ] = [T_phi  ]
  *                      [delta] = [T_delta]
@@ -47,16 +28,72 @@ HandlebarStatic::HandlebarStatic(model::Bicycle& bicycle, model::real_t moment_o
  * In this case, delta_dd is set to zero as well to simplify calculations resulting in:
  *      T_m = -T_delta
  */
-model::real_t HandlebarStatic::torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
+real_t Handlebar0::torque(const model_t::state_t& x, const model_t::input_t& u) const {
     (void)u;
-    const model::real_t v = m_bicycle.v();
-    const model::Bicycle::second_order_matrix_t K = constants::g*m_bicycle.K0() + v*v*m_bicycle.K2();
+    const real_t v = m_bicycle.v();
+    const model_t::second_order_matrix_t K = constants::g*m_bicycle.K0() + v*v*m_bicycle.K2();
 
     return -(K(1, 1) - K(0, 1)*K(1, 0)/K(0, 0))*
-        model::Bicycle::get_state_element(x, model::Bicycle::state_index_t::steer_angle);
+        model_t::get_state_element(x, model_t::state_index_t::steer_angle);
 }
 
-HandlebarDynamic::HandlebarDynamic(model::Bicycle& bicycle, model::real_t moment_of_inertia) :
+Handlebar1::Handlebar1(model_t& bicycle) :
+    m_bicycle(bicycle) { }
+
+/*
+ * Simplified equations of motion are used to calculate the handlebar feedback torque.
+ * Roll/steer acceleration terms.
+ *
+ * The equations of motion from the Whipple model are:
+ *      [M_00 M_01] [phi_ddot  ] + v*C1 [phi_dot  ] + (g*K0 + v^2*K2) [phi  ] = [T_phi  ]
+ *      [M_10 M_11] [delta_ddot]        [delta_dot]                   [delta] = [T_delta]
+ *
+ * We assume T_phi is zero, and set M_01 = M_10 to zero.
+ *      [M_00    0] [phi_ddot  ] + v*C1 [phi_dot  ] + (g*K0 + v^2*K2) [phi  ] = [      0]
+ *      [   0 M_11] [delta_ddot]        [delta_dot]                   [delta] = [T_delta]
+ *
+ * The equation of motion governing the *physical* steering assembly is:
+ *      I_delta * delta_dd = T_delta + T_m
+ *
+ * where I_delta is the moment of inertia of the physical steering assembly about the steer axis
+ *       delta_dd is the steer angular acceleration determined from the bicycle model
+ *       T_delta is the steer torque
+ *       T_m is the feedback torque
+ * and I_delta = M_11
+ *
+ * Taking the bicycle steer equation and physical steering assembly equations to be equal and
+ * setting the motor torque to encompass the remaining terms
+ *      -T_m = M_10*phi_ddot + C_10*phi_dot + C_11*delta_dot + K_10*phi + K_11*delta
+ *
+ * and with simplifying zeros
+ *      -T_m = C_10*phi_dot + C_11*delta_dot + K_10*phi + K_11*delta
+ *
+ * For more information, refer to: https://github.com/oliverlee/phobos/issues/161
+ */
+real_t Handlebar1::torque(const model_t::state_t& x, const model_t::input_t& u) const {
+    (void)u;
+    const real_t v = m_bicycle.v();
+    const model_t::second_order_matrix_t K = constants::g*m_bicycle.K0() + v*v*m_bicycle.K2();
+    const model_t::second_order_matrix_t C = v*m_bicycle.C1();
+    const model_t::second_order_matrix_t& M = m_bicycle.M();
+
+    const float roll_angle = model_t::get_state_element(x, model_t::state_index_t::roll_angle);
+    const float roll_rate = model_t::get_state_element(x, model_t::state_index_t::roll_rate);
+    const float steer_angle = model_t::get_state_element(x, model_t::state_index_t::steer_angle);
+    const float steer_rate = model_t::get_state_element(x, model_t::state_index_t::steer_rate);
+    const float roll_accel = -(C(0, 1)*steer_rate +
+                               K(0, 1)*steer_angle +
+                               C(0, 0)*roll_rate +
+                               K(0, 0)*roll_angle)/M(0, 0);
+
+    return -(M(1, 0)*roll_accel +
+             C(1, 0)*roll_rate +
+             C(1, 1)*steer_rate +
+             K(1, 0)*roll_angle +
+             K(1, 1)*steer_angle);
+}
+
+Handlebar2::Handlebar2(model_t& bicycle, real_t moment_of_inertia) :
     m_bicycle(bicycle),
     m_I_delta(moment_of_inertia) { }
 
@@ -90,16 +127,16 @@ HandlebarDynamic::HandlebarDynamic(model::Bicycle& bicycle, model::real_t moment
  * state or noise in the input. For use with equipment, it is suggested to
  * filter the returned value.
  */
-model::real_t HandlebarDynamic::torque(const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const {
+real_t Handlebar2::torque(const model_t::state_t& x, const model_t::input_t& u) const {
     static constexpr auto steer_rate_index =
-        static_cast<typename std::underlying_type<model::Bicycle::state_index_t>::type>(
-                model::Bicycle::state_index_t::steer_rate);
+        static_cast<typename std::underlying_type<model_t::state_index_t>::type>(
+                model_t::state_index_t::steer_rate);
 
-    model::real_t steer_acceleration = (m_bicycle.A().row(steer_rate_index)*x + m_bicycle.B().row(steer_rate_index)*u).value();
-    return steer_acceleration*m_I_delta - model::Bicycle::get_input_element(u, model::Bicycle::input_index_t::steer_torque);
+    real_t steer_acceleration = (m_bicycle.A().row(steer_rate_index)*x + m_bicycle.B().row(steer_rate_index)*u).value();
+    return steer_acceleration*m_I_delta - model_t::get_input_element(u, model_t::input_index_t::steer_torque);
 }
 
-model::real_t HandlebarDynamic::moment_of_inertia() const {
+real_t Handlebar2::moment_of_inertia() const {
     return m_I_delta;
 }
 } //namespace haptic

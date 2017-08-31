@@ -96,12 +96,20 @@ void Bicycle<Model, Observer>::update_dynamics(real_t roll_torque_input, real_t 
     //  kinematic  update and solely from bicycle velocity.
     (void)rear_wheel_angle_measurement;
 
-    m_input = input_t::Zero();
-    model_t::set_input_element(m_input, model_t::input_index_t::roll_torque, roll_torque_input);
-    model_t::set_input_element(m_input, model_t::input_index_t::steer_torque, steer_torque_input);
-    m_measurement = measurement_t::Zero();
-    model_t::set_output_element(m_measurement, model_t::output_index_t::yaw_angle, yaw_angle_measurement);
-    model_t::set_output_element(m_measurement, model_t::output_index_t::steer_angle, steer_angle_measurement);
+    input_t u = input_t::Zero();
+    model_t::set_input_element(u, model_t::input_index_t::roll_torque, roll_torque_input);
+    model_t::set_input_element(u, model_t::input_index_t::steer_torque, steer_torque_input);
+    measurement_t z = measurement_t::Zero();
+    model_t::set_output_element(z, model_t::output_index_t::yaw_angle, yaw_angle_measurement);
+    model_t::set_output_element(z, model_t::output_index_t::steer_angle, steer_angle_measurement);
+
+    update_dynamics(u, z);
+}
+
+template <typename Model, typename Observer>
+void Bicycle<Model, Observer>::update_dynamics(input_t u, measurement_t z) {
+    m_input = u;
+    m_measurement = z;
 
     // do full state update which is observer specific
     chBSemWait(&m_state_sem);

@@ -28,6 +28,7 @@ message(STATUS "Using CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 # bicycle setup
 set(BICYCLE_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/src)
 set(BICYCLE_SOURCE
+    ${BICYCLE_SOURCE_DIR}/bicycle/arend.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/bicycle.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/bicycle_solve_constraint_pitch.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/kinematic.cc

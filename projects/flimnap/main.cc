@@ -40,31 +40,42 @@
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
 #include "bicycle/kinematic.h" // simplified bicycle model
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
-#include "bicycle/whipple.h" // whipple bicycle model
-#include "kalman.h" // Kalman filter observer
+#elif defined(USE_BICYCLE_AREND_MODEL)
+#include "bicycle/arend.h" // simplified bicycle model
+#else // No Whipple model simplifications
+#include "bicycle/whipple.h"
+#include "kalman.h" // kalman filter observer
 #include "interpolated_lqr.h" // LQR controller
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
+#endif
 
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleKinematic;
     using observer_t = std::nullptr_t;
-    using haptic_drive_t = haptic::HandlebarStatic;
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
+    using haptic_drive_t = haptic::Handlebar0;
+#elif defined(USE_BICYCLE_AREND_MODEL)
+    using model_t = model::BicycleArend;
+    using observer_t = std::nullptr_t;
+    using haptic_drive_t = haptic::Handlebar1;
+#else
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
     using lqr_t = controller::InterpolatedLqr<model_t>;
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
+#endif
     using bicycle_t = sim::Bicycle<model_t, observer_t>;
 
     // sensors
     Analog analog;
+
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
     EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC,
                                               sa::RLS_GTS35_ENC_CFG,
-                                              MS2ST(1), 3.0f);
+                                              MS2ST(1),
+                                              3.0f);
     filter::MovingAverage<float, 5> velocity_filter;
+
+    // virtual roll torque assistance enabled for
+    constexpr float assistive_velocity_limit = 1.0f; // [m/s] values less than this
 
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
@@ -204,16 +215,28 @@ int main(void) {
     // and must be changed to use as analog output.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-    sa::set_kollmorgen_reference(0.0f, 0.0f); // set torque/velocity to zero
+#if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+    sa::set_kollmorgen_torque(0.0f);
+#else // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+    sa::set_kollmorgen_velocity(0.0f);
+#endif // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(0.0, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+    bicycle_t bicycle(
+#if defined(USE_BICYCLE_AREND_MODEL)
+            5.0f,
+#else
+            0.0f,
+#endif
+            static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
-#if defined(USE_BICYCLE_KINEMATIC_MODEL)
+#if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+    // Initialize handlebar object to calculate motor drive feedback torque
     haptic_drive_t haptic_drive(bicycle.model());
 #else
-    // At low speed, we add an assistive roll torque to stabilize the bicycle.
+    // Otherwise we need a controller to generate feedback gains to stabilize
+    // the bicycle at low speed.
     // Gains calculated with script calculate_lqr_gain.py.
     lqr_t controller(
             (lqr_t::feedback_gain_t() << // v = 0
@@ -225,10 +248,9 @@ int main(void) {
     );
 #endif
 
-    // Initialize HandlebarDynamic object to estimate torque due to handlebar inertia.
-    // TODO: naming here is poor
 #if !defined(FLIMNAP_ZERO_INPUT)
-    haptic::HandlebarDynamic handlebar_model(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL);
+    // Initialize handlebar object to estimate torque due to handlebar inertia.
+    haptic::Handlebar2 handlebar_inertia(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL);
 #endif  // !defined(FLIMNAP_ZERO_INPUT)
 
     observer_initializer<observer_t> oi;
@@ -281,42 +303,66 @@ int main(void) {
         float steer_torque = 0.0f;
         (void)kistler_torque;
 #else // defined(FLIMNAP_ZERO_INPUT)
-        const float inertia_torque = -handlebar_model.torque(model_t::get_state_part(bicycle.full_state()));
+        const float inertia_torque = -handlebar_inertia.torque(model_t::get_state_part(bicycle.full_state()));
         float steer_torque = kistler_torque - inertia_torque;
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
         // simulate bicycle
-        bicycle.set_v(v);
-#if !defined(USE_BICYCLE_KINEMATIC_MODEL)
-        if (bicycle.v() < assistance_velocity_limit) {
-            const float interp = bicycle.v() / assistance_velocity_limit;
-            const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), interp);
-            if (assistance_fade_counter < assistance_fade_period) {
-                ++assistance_fade_counter;
-            }
-            const float fade = static_cast<float>(assistance_fade_counter)/assistance_fade_period;
-            roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
-            steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
-        } else if (assistance_fade_counter != 0) {
-            const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), 1.0f);
-            const float fade = static_cast<float>(assistance_fade_counter--)/assistance_fade_period;
-            roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
-            steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
-        }
+        bicycle.set_v(
+#if defined(USE_BICYCLE_AREND_MODEL)
+                5.0f
+#else
+                v
 #endif
-        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
-
-        // generate handlebar velocity or torque output
+                );
+        { // perform variant specific code for creating input/measurement
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
+            bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+#elif defined(USE_BICYCLE_AREND_MODEL)
+            // BicyleArend uses a different output/measurement vector definition
+            const float steer_rate =
+                static_cast<float>(analog.get_adc11() - sa::GYRO_ADC_ZERO_OFFSET) *
+                sa::MAX_GYRO_RATE/sa::ADC_HALF_RANGE;
+
+            model_t::input_t u = model_t::input_t::Zero();
+            model_t::set_input_element(u, model_t::input_index_t::roll_torque, roll_torque);
+            model_t::set_input_element(u, model_t::input_index_t::steer_torque, steer_torque);
+
+            model_t::measurement_t z = model_t::measurement_t::Zero();
+            bicycle.model().set_output_element(z, bicycle.model().output_index_t::steer_angle, steer_angle);
+            bicycle.model().set_output_element(z, bicycle.model().output_index_t::steer_rate, steer_rate);
+
+            bicycle.update_dynamics(u, z);
+#else
+            if (bicycle.v() < assistance_velocity_limit) {
+                const float interp = bicycle.v() / assistance_velocity_limit;
+                const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), interp);
+                if (assistance_fade_counter < assistance_fade_period) {
+                    ++assistance_fade_counter;
+                }
+                const float fade = static_cast<float>(assistance_fade_counter)/assistance_fade_period;
+                roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+                steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
+            } else if (assistance_fade_counter != 0) {
+                const model_t::input_t u = controller.control_calculate(bicycle.observer().state(), 1.0f);
+                const float fade = static_cast<float>(assistance_fade_counter--)/assistance_fade_period;
+                roll_torque += fade * model_t::get_input_element(u, model_t::input_index_t::roll_torque);
+                steer_torque += fade * model_t::get_input_element(u, model_t::input_index_t::steer_torque);
+            }
+            bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
+#endif
+        }
+
+        // generate handlebar torque or velocity reference
+#if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
         const float desired_torque = haptic_drive.torque(model_t::get_state_part(bicycle.full_state()));
         const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_torque(desired_torque);
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
+#else // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
         const float desired_velocity =
             model_t::get_full_state_element(bicycle.full_state(),
                                             model_t::full_state_index_t::steer_rate);
         const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_velocity(desired_velocity);
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
-
+#endif // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
         chTMStopMeasurementX(&computation_time_measurement);
 
         {   // prepare message for transmission
@@ -327,18 +373,24 @@ int main(void) {
                 msg->model.v = bicycle.v();
                 msg->model.has_v = true;
                 msg->has_model = true;
-                message::set_bicycle_input(&msg->input,
+                message::set_bicycle_input(
+                        &msg->input,
                         (model_t::input_t() << roll_torque, steer_torque).finished());
                 msg->has_input = true;
                 message::set_simulation_state(msg, bicycle);
                 message::set_simulation_auxiliary_state(msg, bicycle);
                 oi.set_message(bicycle, msg);
                 message::set_simulation_actuators(msg, handlebar_reference_dac);
-                message::set_simulation_sensors(msg,
-                        analog.get_adc12(), analog.get_adc13(),
-                        encoder_steer.count(), encoder_rear_wheel.count());
-                message::set_simulation_timing(msg,
-                        computation_time_measurement.last, transmission_time_measurement.last);
+                message::set_simulation_sensors(
+                        msg,
+                        analog.get_adc12(),
+                        analog.get_adc13(),
+                        encoder_steer.count(),
+                        encoder_rear_wheel.count());
+                message::set_simulation_timing(
+                        msg,
+                        computation_time_measurement.last,
+                        transmission_time_measurement.last);
                 if (transmitter.transmit_async(msg) != MSG_OK) {
                     // Discard simulation message if it cannot be processed quickly enough.
                     transmitter.free_message(msg);

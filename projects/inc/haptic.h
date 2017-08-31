@@ -10,56 +10,71 @@
  */
 namespace haptic {
 
+using real_t = model::real_t;
+using model_t = model::Bicycle;
+
 class HandlebarBase {
     public:
-        virtual model::real_t torque(
-                const model::Bicycle::state_t& x, const model::Bicycle::input_t& u) const = 0;
+        virtual real_t torque(
+                const model_t::state_t& x, const model_t::input_t& u) const = 0;
 
     protected:
         ~HandlebarBase() { }
-};
-
-class null_t final : public HandlebarBase {
-    public:
-        null_t(model::Bicycle& bicycle);
-        null_t(model::Bicycle& bicycle, model::real_t moment_of_inertia);
-        virtual model::real_t torque(
-                const model::Bicycle::state_t& x,
-                const model::Bicycle::input_t& u = model::Bicycle::input_t::Zero()) const override;
 };
 
 /*
  * This class calculates handlebar feedback torque using a simplified static
  * equation of motion for the physical handlebars and ignoring the torque sensor
  * measurement.
+ *
+ * The class feedback torque calculation ignores input torque,
+ * roll acceleration, steer acceleration, roll rate, steer rate.
  */
-class HandlebarStatic final : public HandlebarBase {
+class Handlebar0 final : public HandlebarBase {
     public:
-        HandlebarStatic(model::Bicycle& bicycle);
-        HandlebarStatic(model::Bicycle& bicycle, model::real_t moment_of_inertia);
-        virtual model::real_t torque(
-                const model::Bicycle::state_t& x,
-                const model::Bicycle::input_t& u = model::Bicycle::input_t::Zero()) const override;
+        Handlebar0(model_t& bicycle);
+        virtual real_t torque(
+                const model_t::state_t& x,
+                const model_t::input_t& u = model_t::input_t::Zero()) const override;
 
     private:
-        model::Bicycle& m_bicycle;
+        model_t& m_bicycle;
+};
+
+/*
+ * This class calculates handlebar feedback torque using a simplified
+ * equation of motion for the physical handlebars and ignoring the torque sensor
+ * measurement.
+ *
+ * The class feedback torque calculation ignores input torque,
+ * roll acceleration, steer acceleration.
+ */
+class Handlebar1 final : public HandlebarBase {
+    public:
+        Handlebar1(model_t& bicycle);
+        virtual real_t torque(
+                const model_t::state_t& x,
+                const model_t::input_t& u = model_t::input_t::Zero()) const override;
+
+    private:
+        model_t& m_bicycle;
 };
 
 /*
  * This class calculates handlebar feedback torque using the bicycle state
  * transition equation and physical moment of inertia of the steering assembly.
  */
-class HandlebarDynamic final : public HandlebarBase {
+class Handlebar2 final : public HandlebarBase {
     public:
-        HandlebarDynamic(model::Bicycle& bicycle, model::real_t moment_of_inertia);
-        virtual model::real_t torque(
-                const model::Bicycle::state_t& x,
-                const model::Bicycle::input_t& u = model::Bicycle::input_t::Zero()) const override;
-        model::real_t moment_of_inertia() const;
+        Handlebar2(model_t& bicycle, real_t moment_of_inertia);
+        virtual real_t torque(
+                const model_t::state_t& x,
+                const model_t::input_t& u = model_t::input_t::Zero()) const override;
+        real_t moment_of_inertia() const;
 
     private:
-        model::Bicycle& m_bicycle;
-        model::real_t m_I_delta;
+        model_t& m_bicycle;
+        real_t m_I_delta;
 };
 
 } // namespace  // namespace haptic

@@ -36,7 +36,7 @@ constexpr T numeric_map(T x, T x_0, T x_1, T y_0, T y_1) {
 template <typename T>
 constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
     // TODO: Replace this with std::clamp once gcc-arm-none-eabi supports it.
-    debug_assert(hi > lo, "hi must be greater than lo");
+    debug_assert(hi >= lo, "hi must be greater than lo");
     return std::min(std::max(v, lo), hi);
 }
 
