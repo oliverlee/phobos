@@ -223,12 +223,18 @@ int main(void) {
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
-    bicycle_t bicycle(5.0, static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+    bicycle_t bicycle(
+#if defined(USE_BICYCLE_AREND_MODEL)
+            5.0f,
+#else
+            0.0f,
+#endif
+            static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
     // Initialize handlebar object to calculate motor drive feedback torque
     haptic_drive_t haptic_drive(bicycle.model());
-# else
+#else
     // Otherwise we need a controller to generate feedback gains to stabilize
     // the bicycle at low speed.
     // Gains calculated with script calculate_lqr_gain.py.
@@ -302,8 +308,13 @@ int main(void) {
 #endif // defined(FLIMNAP_ZERO_INPUT)
 
         // simulate bicycle
-        //bicycle.set_v(v);
-        bicycle.set_v(5.0f);
+        bicycle.set_v(
+#if defined(USE_BICYCLE_AREND_MODEL)
+                5.0f
+#else
+                v
+#endif
+                );
         { // perform variant specific code for creating input/measurement
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
             bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
