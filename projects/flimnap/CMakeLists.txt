@@ -27,6 +27,7 @@ set(FLIMNAP_COMMON_SRC
     usbconfig.c # add USB config file without input/output buffer queues
     ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
+    ${PHOBOS_PROJECT_SOURCE_DIR}/simsteerassembly.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/transmitter.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc

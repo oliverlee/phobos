@@ -5,7 +5,7 @@
 namespace imp {
     class SteerAssemblyModel final : public model::DiscreteLinear<2, 1, 2, 0> {
         public:
-            SteerAssemblyModel(model::real_t inertia, model::real_t dt, model::real_t q = 200) :
+            SteerAssemblyModel(model::real_t inertia, model::real_t dt) :
                 m_m(inertia),
                 m_dt(dt),
                 m_Ad((state_matrix_t() << 1, dt,
@@ -72,7 +72,9 @@ namespace sim {
             static constexpr model::real_t
                 steer_rate_measurement_noise_variance = 0.02604;
 
-            SteerAssembly(model::real_t inertia, model::real_t dt);
+            SteerAssembly(model::real_t inertia,
+                          model::real_t dt,
+                          model::real_t q = 200);
             const imp::SteerAssemblyModel& model() const;
             kalman_t& observer();
             const kalman_t& observer() const;

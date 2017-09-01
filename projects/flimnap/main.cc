@@ -42,6 +42,7 @@
 #include "bicycle/kinematic.h" // simplified bicycle model
 #elif defined(USE_BICYCLE_AREND_MODEL)
 #include "bicycle/arend.h" // simplified bicycle model
+#include "simsteerassembly.h"
 #else // No Whipple model simplifications
 #include "bicycle/whipple.h"
 #include "kalman.h" // kalman filter observer
@@ -231,6 +232,13 @@ int main(void) {
 #endif
             static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
+#if defined(USE_BICYCLE_AREND_MODEL)
+    // Instantiate Kalman filter object for velocity estimation
+    sim::SteerAssembly steer_assembly(
+            sa::FULL_ASSEMBLY_INERTIA_WITHOUT_WEIGHT - sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL,
+            bicycle.dt());
+#endif
+
 #if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
     // Initialize handlebar object to calculate motor drive feedback torque
     haptic_drive_t haptic_drive(bicycle.model());
@@ -320,17 +328,24 @@ int main(void) {
             bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 #elif defined(USE_BICYCLE_AREND_MODEL)
             // BicyleArend uses a different output/measurement vector definition
-            const float steer_rate =
+            const float steer_rate_measurement =
                 static_cast<float>(analog.get_adc11() - sa::GYRO_ADC_ZERO_OFFSET) *
                 sa::MAX_GYRO_RATE/sa::ADC_HALF_RANGE;
+            steer_assembly.update_state_estimate(
+                    motor_torque - kistler_torque,
+                    steer_angle,
+                    steer_rate_measurement);
+            const float steer_rate_estimate = steer_assembly.velocity();
 
             model_t::input_t u = model_t::input_t::Zero();
             model_t::set_input_element(u, model_t::input_index_t::roll_torque, roll_torque);
             model_t::set_input_element(u, model_t::input_index_t::steer_torque, steer_torque);
 
             model_t::measurement_t z = model_t::measurement_t::Zero();
-            bicycle.model().set_output_element(z, bicycle.model().output_index_t::steer_angle, steer_angle);
-            bicycle.model().set_output_element(z, bicycle.model().output_index_t::steer_rate, steer_rate);
+            bicycle.model().set_output_element(
+                    z, bicycle.model().output_index_t::steer_angle, steer_angle);
+            bicycle.model().set_output_element(
+                    z, bicycle.model().output_index_t::steer_rate, steer_rate_estimate);
 
             bicycle.update_dynamics(u, z);
 #else
