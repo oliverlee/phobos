@@ -1,3 +1,4 @@
+import gzip
 import os
 import numpy as np
 from phobos import cobs
@@ -43,7 +44,11 @@ def cobs_framed_log(filename, packet_decode_callback=None,
     packets = []
     datums = []
 
-    with open(filename, 'rb') as f:
+    if filename.endswith('.gz'):
+        openf = lambda x: gzip.open(x, 'rb')
+    else:
+        openf = lambda x: open(x, 'rb')
+    with openf(filename) as f:
         bytedata = f.read()
     mv = memoryview(bytedata)
 
