@@ -55,28 +55,48 @@ def load_log(filename):
     return data
 
 
-def plot_log(record, show_plot=True):
+def plot_log(record, show_plot=True, show_roi=True):
     colors = sns.color_palette('Paired', 10)
-    fig, ax = plt.subplots(2, 1, figsize=(14, 7), sharex=True)
+    fig, ax = plt.subplots(2, 1, figsize=(11, 6), sharex=True)
 
-    ax[0].plot(record.time, record.steer_angle, color=colors[1], label='steer angle')
-    ax[0].plot(record.time, 0*record.time, color='black', linewidth=1, zorder=1)
+    if show_roi:
+        i = np.squeeze(np.argwhere(
+            np.abs(record.steer_angle) > 0.5*record.steer_angle.std()))
+        i0, i1 = i[0], i[-1]
+        i2 = np.squeeze(np.argwhere(
+            record.time > record.time[i0] + 1))[0]
+        assert i2 < i1, 'record does not show oscillation for 1 second'
+        i1 = i2
+        ax[0].plot([record.time[i0], record.time[i1]],
+                   [record.steer_angle[i0], record.steer_angle[i1]],
+                   color=colors[1], linestyle=' ', marker='X', markersize=10,
+                   label='roi start/end')
+    else:
+        i0 = 0
+        i1 = -1
+
+    ax[0].plot(record.time[i0:i1], record.steer_angle[i0:i1], color=colors[1], label='steer angle')
+    ax[0].plot(record.time[i0:i1], 0*record.time[i0:i1], color='black', linewidth=1, zorder=1)
+
     ax[0].legend()
     ax[0].set_xlabel('time [s]')
     ax[0].set_ylabel('[rad]')
 
-    ax[1].plot(record.time, record.kistler_torque, color=colors[3],
+    ax[1].plot(record.time[i0:i1], record.kistler_torque[i0:i1], color=colors[3],
                alpha=0.8, label='sensor torque')
-    ax[1].plot(record.time, record.motor_torque, color=colors[5],
+    ax[1].plot(record.time[i0:i1], record.motor_torque[i0:i1], color=colors[5],
                alpha=0.8, label='motor torque')
-    ax[1].plot(record.time, record.feedback_torque, color=colors[7],
+    ax[1].plot(record.time[i0:i1], record.feedback_torque[i0:i1], color=colors[7],
                alpha=0.8, label='feedback torque command')
     ax[1].legend()
     ax[1].set_xlabel('time [s]')
     ax[1].set_ylabel('torque [N-m]')
-    ax[1].plot(record.time, 0*record.time, color='black', linewidth=1, zorder=1)
+    ax[1].plot(record.time[i0:i1], 0*record.time[i0:i1], color='black', linewidth=1, zorder=1)
     if show_plot:
         plt.show()
+
+    if show_roi:
+        return fig, ax, (i0, i1)
     return fig, ax
 
 
@@ -122,14 +142,26 @@ def calculate_fit(record):
     #   x = (a + bt)*exp(c*t)*sin(2*pi*e*t + d)
     fit = []
 
+    z = np.where(np.diff(np.sign(record.steer_angle)))[0]
+    dt = record.time[-1] - record.time[0]
+    freq = len(z)/dt/2
+    amp0 = np.max(np.abs(
+        record.steer_angle[z[0]:z[1]]))
+    amp1 = np.max(np.abs(
+        record.steer_angle[z[-2]:z[-1]]))
+    sign = np.sign(record.steer_angle[0])
+    T = 2*(record.time[z[1]] - record.time[z[0]])
+    delay = ((T - (record.time[z[1]] - record.time[0])) /
+             (2*T)) * 2*np.pi
+
     n = 'exponential'
     f = lambda a, b, c, d, e: lambda t: a*np.exp(c*t)*np.sin(2*np.pi*e*t + d)
-    p0 = (0, 0, -0.1, 0, 1.5)
+    p0 = (amp0, 0, np.log(amp1/amp0)/dt, delay, freq)
     fit.append([n, f, p0])
 
     n = 'linear'
     f = lambda a, b, c, d, e: lambda t: (a + b*t)*np.sin(2*np.pi*e*t + d)
-    p0 = (0, -2, 0, 0, 1.5)
+    p0 = (amp0, (amp1 - amp0)/dt, 0, delay, freq)
     fit.append([n, f, p0])
 
     g = lambda record, f: lambda p: f(*p)(record.time) - record.steer_angle
