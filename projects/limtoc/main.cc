@@ -35,7 +35,7 @@
 
 namespace {
     constexpr systime_t dt = MS2ST(1); // milliseconds converted to system ticks
-    constexpr float k = 270.4f; // N-m/rad, desired spring stiffness
+    constexpr float k = 8.0f; // N-m/rad, desired spring stiffness
     //constexpr float m_star = 0.07f; // kg-m^2, desired full assembly virtual inertia
     constexpr float m_upper = 0.0413f; // kg-m^2, experimentally determined upper assembly inertia
     constexpr float m_lower = 0.0415f; // kg-m^2, experimentally determined lower assembly inertia
