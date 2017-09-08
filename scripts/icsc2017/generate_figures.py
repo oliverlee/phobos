@@ -39,6 +39,10 @@ if __name__ == '__main__':
                          # time to converge
         sim_time = 3
         stride = 10 # don't plot all the points
+    if len(sys.argv) > 5:
+        plot_fit = True
+    else:
+        plot_fit = False
 
     records = records[start_index::stride]
     t = get_time_vector(records)
@@ -49,12 +53,14 @@ if __name__ == '__main__':
     fig1, ax1 = plot_states(t, states, second_yaxis=True,
                             to_degrees=True)
 
-    colors = sns.color_palette('Paired', 10)
-    p, f = calculate_weave_frequency(t, states[:, 2])
-    c1, c2, c3, c4, d, w = p
-    print('simulator record, eigenfrequency: {} + i{}'.format(d, w))
-    ax1[1].plot(t, f(t) * 180/np.pi, label='roll rate sinusoid fit',
-                color=colors[3], alpha=0.8, linewidth=0.9, linestyle='--')
+    if plot_fit:
+        colors = sns.color_palette('Paired', 10)
+        p, f = calculate_weave_frequency(t, states[:, 2])
+        c1, c2, c3, c4, d, w = p
+        print('simulator record, eigenfrequency: {} + i{}'.format(d, w))
+        ax1[1].plot(t, f(t) * 180/np.pi,
+                label='roll rate fit, {:0.3f} ± i{:0.3f}'.format(d, w),
+                    color=colors[3], alpha=0.8, linewidth=1, linestyle='--')
 
     m = messages[0]
     v = m.model.v
@@ -66,12 +72,13 @@ if __name__ == '__main__':
     y = np.hstack((x0, x)).T
     fig2, ax2 = plot_states(t, y, second_yaxis=True,
                             to_degrees=True)
-    p, f = calculate_weave_frequency(t, y[:, 2])
-    c1, c2, c3, c4, d, w = p
-    print('whipple simulation, eigenfrequency: {} + i{}'.format(d, w))
-    ax2[1].plot(t, f(t) * 180/np.pi, label='roll rate sinusoid fit',
-                color=colors[3], alpha=0.8, linewidth=0.9, linestyle='--')
-    ax2[1].legend()
+    if plot_fit:
+        p, f = calculate_weave_frequency(t, y[:, 2])
+        c1, c2, c3, c4, d, w = p
+        print('whipple simulation, eigenfrequency: {} + i{}'.format(d, w))
+        ax2[1].plot(t, f(t) * 180/np.pi,
+                label='roll rate fit, {:0.3f} ± i{:0.3f}'.format(d, w),
+                    color=colors[3], alpha=0.8, linewidth=1, linestyle='--')
 
     # set the axes x limits to be the same
     ax1[0].set_xlim([0, sim_time])
@@ -106,16 +113,27 @@ if __name__ == '__main__':
     # enable legend frame, seaborn turns this off
     def redefine_legend_entries(ax):
         handles1, _ = ax[0].get_legend_handles_labels()
-        handles2, _ = ax[1].get_legend_handles_labels()
+        handles2, labels2 = ax[1].get_legend_handles_labels()
         for axis in ax:
             try:
                 axis.legend_.remove()
             except AttributeError:
                 pass
-        ax[0].legend(handles1 + handles2,
-                     [r'$\phi$', r'$\delta$',
-                      r'$\dot{\phi}$', r'$\dot{\delta}$'],
-                     frameon=True, ncol=2, loc='lower right')
+
+        handles = handles1 + handles2
+        labels = [r'$\phi$', r'$\delta$',
+                  r'$\dot{\phi}$', r'$\dot{\delta}$']
+        if plot_fit:
+            l = labels2[-1]
+            ll = r'$\dot{{\phi}}_{{fit}},\enspace \lambda={}$'.format(
+                    l[len('roll rate fit, '):]) # get last part of label
+            labels.append(ll)
+            ncol = 1
+            loc = 'upper right'
+        else:
+            ncol = 2
+            loc = 'lower right'
+        ax[0].legend(handles, labels, frameon=True, ncol=ncol, loc=loc)
     redefine_legend_entries(ax1)
     redefine_legend_entries(ax2)
     # tikz_save doesn't support multiple y axes so the tex file still needs to
@@ -123,6 +141,8 @@ if __name__ == '__main__':
     # second y axis =/
 
     # set figure size and save
+    fig1.set_size_inches(4, 4)
+    fig2.set_size_inches(4, 4)
     fig1.tight_layout()
     fig2.tight_layout()
     #fh = '4cm'
