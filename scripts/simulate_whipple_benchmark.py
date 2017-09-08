@@ -5,6 +5,46 @@ import scipy
 from dtk.bicycle import benchmark_state_space_vs_speed, benchmark_matrices
 
 
+def calculate_weave_frequency(t, x):
+    """fit roll rate to equation of the form:
+    x = c1 + exp(d*t)*[c2*cos(w*t + c4) + c3*sin(w*t + c4)]
+    """
+    t = np.reshape(t, (-1,))
+    x = np.reshape(x, (-1,))
+    ## fit equation
+    #f = lambda c1, c2, c3, c4, d, w: lambda t: c1 + np.exp(d*t)*[c2*np.cos(w*t + c4) + c3*np.sin(w*t + c4)]
+    def f(c1, c2, c3, c4, d, w):
+        def g(t):
+            return np.squeeze(
+                    c1 +
+                    np.exp(d*t)*[c2*np.cos(w*t + c4) + c3*np.sin(w*t + c4)])
+        return g
+
+
+    # error function
+    # params, p = (c1, c2, c3, c4, d, w)
+    e = lambda p: f(*p)(t) - x
+
+    # assumes this function oscillates about a mean
+    dt = t[-1] - t[0]
+    mean = np.mean(x)
+    y = x - mean
+    z = np.where(np.diff(np.sign(y)))[0]
+    amp0 = np.max(np.abs(y[z[0]:z[1]])) # first hump
+    amp1 = np.max(np.abs(y[z[-2]:z[-1]])) # last hump
+    decay = np.log(amp1/amp0)/dt
+    freq = 2*np.pi*len(z)/dt/2
+
+    p0 = (mean, # c1
+          amp0 - np.abs(mean), # c2
+          amp0 - np.abs(mean), # c3
+          0, # c4
+          decay, #d
+          freq) # w
+    p = scipy.optimize.leastsq(e, p0)[0]
+    return p, f(*p)
+
+
 def simulate(v, x0, dt, n, u=None):
     _, A, B = benchmark_state_space_vs_speed(*benchmark_matrices(), [v])
     A = np.squeeze(A)

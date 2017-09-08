@@ -13,7 +13,7 @@ file_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(os.path.join(file_dir, os.pardir)))
 from plot_sim import plot_states
 from load_sim import load_messages, get_records_from_messages, get_time_vector
-from simulate_whipple_benchmark import simulate
+from simulate_whipple_benchmark import simulate, calculate_weave_frequency
 
 
 if __name__ == '__main__':
@@ -49,6 +49,13 @@ if __name__ == '__main__':
     fig1, ax1 = plot_states(t, states, second_yaxis=True,
                             to_degrees=True)
 
+    colors = sns.color_palette('Paired', 10)
+    p, f = calculate_weave_frequency(t, states[:, 2])
+    c1, c2, c3, c4, d, w = p
+    print('simulator record, eigenfrequency: {} + i{}'.format(d, w))
+    ax1[1].plot(t, f(t) * 180/np.pi, label='roll rate sinusoid fit',
+                color=colors[3], alpha=0.8, linewidth=0.9, linestyle='--')
+
     m = messages[0]
     v = m.model.v
     dt = m.model.dt * stride
@@ -59,6 +66,12 @@ if __name__ == '__main__':
     y = np.hstack((x0, x)).T
     fig2, ax2 = plot_states(t, y, second_yaxis=True,
                             to_degrees=True)
+    p, f = calculate_weave_frequency(t, y[:, 2])
+    c1, c2, c3, c4, d, w = p
+    print('whipple simulation, eigenfrequency: {} + i{}'.format(d, w))
+    ax2[1].plot(t, f(t) * 180/np.pi, label='roll rate sinusoid fit',
+                color=colors[3], alpha=0.8, linewidth=0.9, linestyle='--')
+    ax2[1].legend()
 
     # set the axes x limits to be the same
     ax1[0].set_xlim([0, sim_time])
@@ -75,19 +88,19 @@ if __name__ == '__main__':
 
     # redefine label names, this requires the latex package siunitx
     if len(sys.argv) > 1:
+        ax1[0].set_ylabel(r'angle [$\degree$]')
+        ax2[0].set_ylabel(r'angle [$\degree$]')
+        ax1[1].set_ylabel(r'angular rate [$\degree$/s]')
+        ax2[1].set_ylabel(r'angular rate [$\degree$/s]')
+        ax1[0].set_xlabel(r'time [s]')
+        ax2[0].set_xlabel(r'time [s]')
+    else:
         ax1[0].set_ylabel(r'\si{\degree}')
         ax2[0].set_ylabel(r'\si{\degree}')
         ax1[1].set_ylabel(r'\si{\degree\per\second}')
         ax2[1].set_ylabel(r'\si{\degree\per\second}')
         ax1[0].set_xlabel(r'time [\si{\second}]')
         ax2[0].set_xlabel(r'time [\si{\second}]')
-    else:
-        ax1[0].set_ylabel(r'$\degree$')
-        ax2[0].set_ylabel(r'$\degree$')
-        ax1[1].set_ylabel(r'$\degree$ / s')
-        ax2[1].set_ylabel(r'$\degree$ / s')
-        ax1[0].set_xlabel(r'time [s]')
-        ax2[0].set_xlabel(r'time [s]')
 
     # redefine legend entries, this requires the latex package siunitx
     # enable legend frame, seaborn turns this off
