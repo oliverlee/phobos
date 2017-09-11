@@ -70,7 +70,12 @@ namespace {
                                               sa::RLS_GTS35_ENC_CFG,
                                               MS2ST(1),
                                               3.0f);
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
     filter::MovingAverage<float, 5> velocity_filter;
+#else
+    constexpr float fixed_v = 5.0f; // fixed bicycle velocity
+#endif
+
 
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
@@ -212,10 +217,10 @@ int main(void) {
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
     bicycle_t bicycle(
-#if defined(USE_BICYCLE_AREND_MODEL)
-            5.0f,
-#else
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
             0.0f,
+#else
+            fixed_v,
 #endif
             static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
@@ -265,8 +270,12 @@ int main(void) {
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float rear_wheel_angle = std::fmod(-util::encoder_count<float>(encoder_rear_wheel),
                                                  constants::two_pi);
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_rear_wheel)));
+#else
+        constexpr float v = fixed_v;
+#endif
         (void)motor_torque; // not currently used
 
         // yaw angle, just use previous state value
@@ -277,13 +286,8 @@ int main(void) {
         const float steer_torque = kistler_torque - inertia_torque;
 
         // simulate bicycle
-        bicycle.set_v(
-#if defined(USE_BICYCLE_AREND_MODEL)
-                5.0f
-#else
-                v
-#endif
-                );
+        bicycle.set_v(v);
+
         { // perform variant specific code for creating input/measurement
 #if defined(USE_BICYCLE_AREND_MODEL)
             // BicyleArend uses a different output/measurement vector definition
