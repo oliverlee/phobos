@@ -113,7 +113,7 @@ namespace {
             typename S::observer_t& observer = bicycle.observer();
             observer.set_Q(parameters::defaultvalue::kalman::Q(observer.dt()));
             // Reduce steer measurement noise covariance
-            observer.set_R(parameters::defaultvalue::kalman::R/1000);
+            observer.set_R(parameters::defaultvalue::kalman::R);
 
             // prime the Kalman gain matrix
             bicycle.prime_observer();
