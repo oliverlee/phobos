@@ -48,8 +48,3 @@ add_phobos_executable(flimnap_arend ${FLIMNAP_COMMON_SRC})
 target_compile_definitions(flimnap_arend
     PRIVATE USE_BICYCLE_AREND_MODEL)
 endif()
-if(PHOBOS_BUILD_PROJECT_FLIMNAP_ZERO_INPUT)
-add_phobos_executable(flimnap_zero_input ${FLIMNAP_COMMON_SRC})
-target_compile_definitions(flimnap_zero_input
-    PRIVATE FLIMNAP_ZERO_INPUT)
-endif()
