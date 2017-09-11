@@ -76,6 +76,8 @@ namespace {
     constexpr float fixed_v = 5.0f; // fixed bicycle velocity
 #endif
 
+    constexpr float mass_upper = sa::FULL_ASSEMBLY_INERTIA_WITHOUT_WEIGHT;
+    constexpr float mass_lower = sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL;
 
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
@@ -276,14 +278,12 @@ int main(void) {
 #else
         constexpr float v = fixed_v;
 #endif
-        (void)motor_torque; // not currently used
 
         // yaw angle, just use previous state value
         const float yaw_angle = util::wrap(bicycle.pose().yaw);
 
         // calculate rider applied torque
-        const float inertia_torque = -handlebar_inertia.torque(model_t::get_state_part(bicycle.full_state()));
-        const float steer_torque = kistler_torque - inertia_torque;
+        const float steer_torque = kistler_torque + mass_upper/mass_lower*(kistler_torque - motor_torque);
 
         // simulate bicycle
         bicycle.set_v(v);
