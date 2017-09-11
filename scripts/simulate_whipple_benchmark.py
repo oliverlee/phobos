@@ -30,8 +30,12 @@ def calculate_weave_frequency(t, x):
     mean = np.mean(x)
     y = x - mean
     z = np.where(np.diff(np.sign(y)))[0]
-    amp0 = np.max(np.abs(y[z[0]:z[1]])) # first hump
-    amp1 = np.max(np.abs(y[z[-2]:z[-1]])) # last hump
+    try:
+        amp0 = np.max(np.abs(y[z[0]:z[1]])) # first hump
+        amp1 = np.max(np.abs(y[z[-2]:z[-1]])) # last hump
+    except IndexError:
+        amp0 = np.max(np.abs(y[:10]))
+        amp1 = np.max(np.abs(y[-10:]))
     decay = np.log(amp1/amp0)/dt
     freq = 2*np.pi*len(z)/dt/2
 
