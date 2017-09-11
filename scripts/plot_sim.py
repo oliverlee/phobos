@@ -89,8 +89,11 @@ def plot_states(t, states, second_yaxis=False, to_degrees=True):
             a = 180/np.pi
         else:
             a = 1
+        zorder = 1
+        if label == 'roll rate':
+            zorder = 2
         l = ax.plot(t, a*states[:, i], label=label, color=color,
-                    alpha=0.8,
+                    alpha=0.8, zorder=zorder,
                     linewidth=linewidth)
         lines.extend(l)
 
