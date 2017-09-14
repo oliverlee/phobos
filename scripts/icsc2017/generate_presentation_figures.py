@@ -92,7 +92,10 @@ if __name__ == '__main__':
 
     # reduced timeseries + simulation plot
     v = messages[0].model.v
-    dt = messages[0].model.dt
+    if messages[0].model.HasField('dt'):
+        dt = messages[0].model.dt
+    else:
+        dt = 0.001 # phoviz not writing first message
     n = int((stop - start)/dt)
     x0 = np.array(state[start_index, :]).reshape((4, 1))
     x = simulate(v, x0, dt, n)
