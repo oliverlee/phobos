@@ -16,22 +16,14 @@ from simulate_whipple_benchmark import simulate
 
 
 if __name__ == '__main__':
-    messages = load_messages(sys.argv[1])
+    filename = sys.argv[1]
+    messages = load_messages(filename)
 
     # ignore first sample as it is transmitted before the simulation loop
     records = get_records_from_messages(messages[1:])
     t = get_time_vector(records)
     t -= t[0]
 
-    if len(sys.argv) > 2:
-        zero_time = float(sys.argv[2]) # new zero time
-        start = float(sys.argv[3]) # offset from new zero time
-        stop = float(sys.argv[4]) # offset from new zero time
-
-        new_zero_time_index = np.squeeze(np.argwhere(t >= zero_time))[0]
-        t -= t[new_zero_time_index]
-        start_index = np.squeeze(np.argwhere(t >= start))[0]
-        stop_index = np.squeeze(np.argwhere(t >= stop))[0]
     state = records.state[:, 1:] # skip yaw angle
 
     colors = np.roll(sns.color_palette('Paired', 10), 2, axis=0)
@@ -52,7 +44,7 @@ if __name__ == '__main__':
     linewidth = 2
     labelpad = 20
     stride = 10
-    legend_loc = 'lower right'
+    legend_loc = 'upper right'
     legend_alpha = 0.5
     legend_fc = 'white'
     legend_ec = 'white'
@@ -68,8 +60,21 @@ if __name__ == '__main__':
                   facecolor=legend_fc, edgecolor=legend_ec)
         ax.yaxis.set_major_locator(ticker.MaxNLocator(5))
     ax1[-1].set_xlabel('time [s]')
-    #ax1[0].set_title('record {}'.format(sys.argv[1]))
+    #ax1[0].set_title('record {}'.format(filename))
     ax1[0].set_xlim(0, max(t))
+
+    if len(sys.argv) <= 2:
+        plt.show()
+        sys.exit()
+
+    zero_time = float(sys.argv[2]) # new zero time
+    start = float(sys.argv[3]) # offset from new zero time
+    stop = float(sys.argv[4]) # offset from new zero time
+
+    new_zero_time_index = np.squeeze(np.argwhere(t >= zero_time))[0]
+    t -= t[new_zero_time_index]
+    start_index = np.squeeze(np.argwhere(t >= start))[0]
+    stop_index = np.squeeze(np.argwhere(t >= stop))[0]
 
     # reduced timeseries plot
     fig2, ax2 = plt.subplots(4, 1, sharex=True, figsize=figsize)
@@ -113,6 +118,6 @@ if __name__ == '__main__':
     output_type = 'pdf'
     for i, fig in enumerate([fig1, fig2, fig3], 1):
         fig.tight_layout()
-        fig.savefig('plot{}.{}'.format(i, output_type),
+        fig.savefig('{} plot{}.{}'.format(filename, i, output_type),
                     format=output_type, dpi=dpi)
     plt.show()
