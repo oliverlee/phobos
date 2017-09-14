@@ -9,8 +9,13 @@ def calculate_weave_frequency(t, x):
     """fit roll rate to equation of the form:
     x = c1 + exp(d*t)*[c2*cos(w*t + c4) + c3*sin(w*t + c4)]
     """
+    t = np.copy(t)
     t = np.reshape(t, (-1,))
     x = np.reshape(x, (-1,))
+    t0 = t[0]
+    t -= t0
+    print('t range', np.min(t), np.max(t))
+    print('x range', np.min(x), np.max(x))
     ## fit equation
     #f = lambda c1, c2, c3, c4, d, w: lambda t: c1 + np.exp(d*t)*[c2*np.cos(w*t + c4) + c3*np.sin(w*t + c4)]
     def f(c1, c2, c3, c4, d, w):
@@ -30,6 +35,8 @@ def calculate_weave_frequency(t, x):
     mean = np.mean(x)
     y = x - mean
     z = np.where(np.diff(np.sign(y)))[0]
+    print('z', z)
+    print('dt', dt)
     try:
         amp0 = np.max(np.abs(y[z[0]:z[1]])) # first hump
         amp1 = np.max(np.abs(y[z[-2]:z[-1]])) # last hump
@@ -38,15 +45,19 @@ def calculate_weave_frequency(t, x):
         amp1 = np.max(np.abs(y[-10:]))
     decay = np.log(amp1/amp0)/dt
     freq = 2*np.pi*len(z)/dt/2
+    delay = (z[1] - z[0] - z[0])/(z[1] - z[0]) * np.pi
 
     p0 = (mean, # c1
           amp0 - np.abs(mean), # c2
           amp0 - np.abs(mean), # c3
-          0, # c4
-          decay, #d
+          delay, # c4
+          decay, # d
           freq) # w
+    print(p0)
     p = scipy.optimize.leastsq(e, p0)[0]
-    return p, f(*p)
+
+    g = lambda t: f(*p)(t + t0)
+    return p, g
 
 
 def simulate(v, x0, dt, n, u=None):

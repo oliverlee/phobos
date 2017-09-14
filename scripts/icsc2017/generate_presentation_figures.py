@@ -12,7 +12,7 @@ sns.set_context('talk')
 file_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(os.path.join(file_dir, os.pardir)))
 from load_sim import load_messages, get_records_from_messages, get_time_vector
-from simulate_whipple_benchmark import simulate
+from simulate_whipple_benchmark import simulate, calculate_weave_frequency
 
 
 if __name__ == '__main__':
@@ -40,14 +40,27 @@ if __name__ == '__main__':
         r'[$\degree$/s]',
     ]
 
-    figsize = (14, 8)
+    figsize = (14, 7.5)
+    dpi = 1000
     linewidth = 2
     labelpad = 20
     stride = 10
-    legend_loc = 'upper right'
+    legend_loc = 'lower right'
     legend_alpha = 0.5
     legend_fc = 'white'
     legend_ec = 'white'
+
+    try:
+        endtime = float(sys.argv[2]) # new end time
+    except IndexError:
+        endtime = -1
+
+    if endtime <= 0:
+        endtime_index = -1
+    else:
+        endtime_index = np.squeeze(np.argwhere(t >= endtime))[0]
+    t = t[:endtime_index]
+    state = state[:endtime_index]
 
     # full timeseries plot
     fig1, ax1 = plt.subplots(4, 1, sharex=True, figsize=figsize)
@@ -60,19 +73,15 @@ if __name__ == '__main__':
                   facecolor=legend_fc, edgecolor=legend_ec)
         ax.yaxis.set_major_locator(ticker.MaxNLocator(5))
     ax1[-1].set_xlabel('time [s]')
-    #ax1[0].set_title('record {}'.format(filename))
     ax1[0].set_xlim(0, max(t))
 
-    if len(sys.argv) <= 2:
+    if len(sys.argv) <= 3:
         plt.show()
         sys.exit()
 
-    zero_time = float(sys.argv[2]) # new zero time
-    start = float(sys.argv[3]) # offset from new zero time
-    stop = float(sys.argv[4]) # offset from new zero time
+    start = float(sys.argv[3]) # reduced time start
+    stop = float(sys.argv[4]) # reduced time end
 
-    new_zero_time_index = np.squeeze(np.argwhere(t >= zero_time))[0]
-    t -= t[new_zero_time_index]
     start_index = np.squeeze(np.argwhere(t >= start))[0]
     stop_index = np.squeeze(np.argwhere(t >= stop))[0]
 
@@ -117,7 +126,8 @@ if __name__ == '__main__':
     ax3[-1].set_xlabel('time [s]')
     ax3[0].set_xlim(start, stop)
 
-    dpi = 600
+    plt.show()
+
     output_type = 'pdf'
     for i, fig in enumerate([fig1, fig2, fig3], 1):
         fig.tight_layout()
