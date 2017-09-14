@@ -121,6 +121,7 @@ if __name__ == '__main__':
     output_type = 'pdf'
     for i, fig in enumerate([fig1, fig2, fig3], 1):
         fig.tight_layout()
-        fig.savefig('{} plot{}.{}'.format(filename, i, output_type),
+        j = filename.find('.pb.cobs')
+        fig.savefig('{}_plot{}.{}'.format(filename[:j], i, output_type),
                     format=output_type, dpi=dpi)
     plt.show()
