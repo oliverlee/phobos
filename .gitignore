@@ -11,3 +11,6 @@
 
 # osx folder attributes
 .DS_store
+
+# jupyter notebook checkpoints
+.ipynb_checkpoints/
