@@ -250,6 +250,7 @@ int main(void) {
         *msg = SimulationMessage_init_zero;
         msg->timestamp = chVTGetSystemTime();
         message::set_simulation_full_model_observer(msg, bicycle);
+        message::set_simulation_timing(msg, 0, 0);
         transmitter.transmit(msg); // This blocks until USB data starts getting read
     }
     transmitter.start(NORMALPRIO + 1); // start transmission thread
@@ -261,6 +262,7 @@ int main(void) {
 
     // Normal main() thread activity. This is the dynamics simulation loop.
     systime_t deadline = chVTGetSystemTime();
+    unsigned int message_counter = 0;
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
@@ -346,7 +348,7 @@ int main(void) {
                 message::set_simulation_timing(
                         msg,
                         computation_time_measurement.last,
-                        transmission_time_measurement.last);
+                        ++message_counter);
                 if (transmitter.transmit_async(msg) != MSG_OK) {
                     // Discard simulation message if it cannot be processed quickly enough.
                     transmitter.free_message(msg);
