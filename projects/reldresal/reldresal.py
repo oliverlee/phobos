@@ -60,10 +60,10 @@ def plot_log(record, show_plot=True):
     colors = sns.color_palette('Paired', 10)
     fig, ax = plt.subplots(2, 1, figsize=(11, 6), sharex=True)
 
-    steer_angle = record.steer_angle * 180/np.pi
+    steer_angle = record.steer_angle
     rescaled_voltage = record.steer_angle_voltage*20/2**12 - 10 # 12-bit ADC to ±12V
     KOLLM_DEG_PER_VOLT = 4.5
-    steer_angle_kollm = rescaled_voltage*KOLLM_DEG_PER_VOLT
+    steer_angle_kollm = rescaled_voltage*KOLLM_DEG_PER_VOLT*np.pi/180
     offset = steer_angle_kollm[0] - steer_angle[0]
 
     A = np.vstack([steer_angle_kollm, np.ones(len(steer_angle))]).T
@@ -71,7 +71,7 @@ def plot_log(record, show_plot=True):
     print(m, c)
     steer_angle_kollm_lq = m*steer_angle_kollm + c
 
-    ax[0].plot(record.time, record.steer_angle * 180/np.pi,
+    ax[0].plot(record.time, steer_angle,
                color=colors[1], label='steer angle')
     ax[0].plot(record.time, steer_angle_kollm,
                color=colors[0], label='steer angle voltage (converted)')
@@ -82,7 +82,7 @@ def plot_log(record, show_plot=True):
                color='black', linewidth=1, zorder=1)
     ax[0].legend()
     ax[0].set_xlabel('time [s]')
-    ax[0].set_ylabel('[deg]')
+    ax[0].set_ylabel('[rad]')
 
     ax[1].plot(record.time, record.kistler_torque, color=colors[3],
                alpha=0.8, label='sensor torque')
