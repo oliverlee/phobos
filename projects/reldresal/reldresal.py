@@ -65,6 +65,7 @@ def plot_log(record, show_plot=True):
     KOLLM_DEG_PER_VOLT = 4.5
     steer_angle_kollm = rescaled_voltage*KOLLM_DEG_PER_VOLT*np.pi/180
     offset = steer_angle_kollm[0] - steer_angle[0]
+    steer_angle_kollm_oc = steer_angle_kollm - offset
 
     A = np.vstack([steer_angle_kollm, np.ones(len(steer_angle))]).T
     m, c = np.linalg.lstsq(A, steer_angle)[0]
@@ -75,6 +76,9 @@ def plot_log(record, show_plot=True):
                color=colors[1], label='steer angle')
     ax[0].plot(record.time, steer_angle_kollm,
                color=colors[0], label='steer angle voltage (converted)')
+    ax[0].plot(record.time, steer_angle_kollm_oc,
+               color=colors[9],
+               label='steer angle voltage (converted, offset corrected')
     ax[0].plot(record.time, steer_angle_kollm_lq,
                color=colors[8],
                label='steer angle voltage (converted, least squares fit)')
