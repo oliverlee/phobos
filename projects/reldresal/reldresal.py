@@ -69,19 +69,18 @@ def plot_log(record, show_plot=True):
 
     A = np.vstack([steer_angle_kollm, np.ones(len(steer_angle))]).T
     m, c = np.linalg.lstsq(A, steer_angle)[0]
-    print(m, c)
     steer_angle_kollm_lq = m*steer_angle_kollm + c
 
     ax[0].plot(record.time, steer_angle,
-               color=colors[1], label='steer angle')
+               color=colors[1], label='steer angle encoder')
     ax[0].plot(record.time, steer_angle_kollm,
-               color=colors[0], label='steer angle voltage (converted)')
+               color=colors[0], label='steer angle drive (converted)')
     ax[0].plot(record.time, steer_angle_kollm_oc,
                color=colors[9],
-               label='steer angle voltage (converted, offset corrected')
+               label='steer angle drive (converted, offset corrected')
     ax[0].plot(record.time, steer_angle_kollm_lq,
                color=colors[8],
-               label='steer angle voltage (converted, least squares fit)')
+               label='steer angle drive (converted, least squares fit)')
     ax[0].plot(record.time, 0*record.time,
                color='black', linewidth=1, zorder=1)
     ax[0].legend()
@@ -94,6 +93,70 @@ def plot_log(record, show_plot=True):
     ax[1].set_xlabel('time [s]')
     ax[1].set_ylabel('torque [N-m]')
     ax[1].plot(record.time, 0*record.time, color='black', linewidth=1, zorder=1)
+    if show_plot:
+        plt.show()
+    return fig, ax
+
+
+def plot_integrated_torque(record, m1, show_plot=True):
+    colors = sns.color_palette('Paired', 10)
+    fig, ax = plt.subplots(1, 1, figsize=(11, 6))
+
+    steer_angle = record.steer_angle
+    rescaled_voltage = record.steer_angle_voltage*20/2**12 - 10 # 12-bit ADC to ±12V
+    KOLLM_DEG_PER_VOLT = 4.5
+    steer_angle_kollm = rescaled_voltage*KOLLM_DEG_PER_VOLT*np.pi/180
+    offset = steer_angle_kollm[0] - steer_angle[0]
+    steer_angle_kollm_oc = steer_angle_kollm - offset
+
+    a = -record.kistler_torque/m1
+    v = np.zeros(record.time.shape)
+    x = np.zeros(record.time.shape)
+    dt = np.diff(record.time)
+    for i in range(1, len(record.time)):
+        v[i] = a[i]*dt[i - 1] + v[i - 1]
+        x[i] = v[i]*dt[i - 1] + x[i - 1]
+    steer_angle_kollm_int = x
+
+    ax.plot(record.time, steer_angle,
+            color=colors[1], label='steer angle encoder')
+    ax.plot(record.time, steer_angle_kollm_oc,
+            color=colors[9],
+            label='steer angle drive (converted, offset corrected')
+    ax.plot(record.time, steer_angle_kollm_int,
+            color=colors[5],
+            label='steer angle estimate (torque integrated)')
+    ax.plot(record.time, 0*record.time,
+            color='black', linewidth=1, zorder=1)
+    ax.legend()
+    ax.set_xlabel('time [s]')
+    ax.set_ylabel('[rad]')
+
+    if show_plot:
+        plt.show()
+    return fig, ax
+
+
+def plot_differentiated_position(record, m1, show_plot=True):
+    colors = sns.color_palette('Paired', 10)
+    fig, ax = plt.subplots(1, 1, figsize=(11, 6))
+
+    steer_angle = record.steer_angle
+
+    steer_accel_sg = scipy.signal.savgol_filter(
+            steer_angle, 111, 5,
+            delta=np.mean(np.diff(record.time)[:-1]),
+            mode='nearest')
+
+    ax.plot(record.time, record.kistler_torque, color=colors[3],
+            alpha=0.8, label='sensor torque')
+    ax.plot(record.time, -steer_accel_sg*m1, color=colors[5],
+            alpha=0.8, label='sensor torque (encoder differentiated)')
+    ax.legend()
+    ax.set_xlabel('time [s]')
+    ax.set_ylabel('torque [N-m]')
+    ax.plot(record.time, 0*record.time, color='black', linewidth=1, zorder=1)
+
     if show_plot:
         plt.show()
     return fig, ax
