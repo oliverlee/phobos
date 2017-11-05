@@ -145,6 +145,7 @@ def plot_differentiated_position(record, m1, show_plot=True):
 
     steer_accel_sg = scipy.signal.savgol_filter(
             steer_angle, 111, 5,
+            deriv=2,
             delta=np.mean(np.diff(record.time)[:-1]),
             mode='nearest')
 
