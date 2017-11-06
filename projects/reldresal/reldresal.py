@@ -137,14 +137,16 @@ def plot_integrated_torque(record, m1, show_plot=True):
     return fig, ax
 
 
-def plot_differentiated_position(record, m1, show_plot=True):
+def plot_differentiated_position(record, m1,
+                                 savgol_width, savgol_polyorder,
+                                 show_plot=True):
     colors = sns.color_palette('Paired', 10)
     fig, ax = plt.subplots(1, 1, figsize=(11, 6))
 
     steer_angle = record.steer_angle
 
     steer_accel_sg = scipy.signal.savgol_filter(
-            steer_angle, 111, 5,
+            steer_angle, savgol_width, savgol_polyorder,
             deriv=2,
             delta=np.mean(np.diff(record.time)[:-1]),
             mode='nearest')
@@ -157,6 +159,50 @@ def plot_differentiated_position(record, m1, show_plot=True):
     ax.set_xlabel('time [s]')
     ax.set_ylabel('torque [N-m]')
     ax.plot(record.time, 0*record.time, color='black', linewidth=1, zorder=1)
+
+    if show_plot:
+        plt.show()
+    return fig, ax
+
+
+def plot_savgol_derivatives(record, savgol_width, savgol_polyorder,
+                            show_plot=True):
+    colors = sns.color_palette('Paired', 10)
+    fig, ax = plt.subplots(3, 1, figsize=(11, 6), sharex=True)
+
+    x = record.steer_angle
+    dt = np.mean(np.diff(record.time)[:-1])
+
+    x0 = scipy.signal.savgol_filter(
+            x, savgol_width, savgol_polyorder,
+            deriv=0,
+            mode='nearest')
+    x1 = scipy.signal.savgol_filter(
+            x, savgol_width, savgol_polyorder,
+            deriv=1, delta=dt,
+            mode='nearest')
+    x2 = scipy.signal.savgol_filter(
+            x, savgol_width, savgol_polyorder,
+            deriv=2, delta=dt,
+            mode='nearest')
+
+    ax[0].plot(record.time, x0, color=colors[1], label='filtered position')
+    ax[0].legend()
+    ax[0].set_xlabel('time [s]')
+    ax[0].set_ylabel('position')
+    ax[0].plot(record.time, 0*record.time, color='black', linewidth=1, zorder=1)
+
+    ax[1].plot(record.time, x1, color=colors[3], label='filtered velocity')
+    ax[1].legend()
+    ax[1].set_xlabel('time [s]')
+    ax[1].set_ylabel('velocity')
+    ax[1].plot(record.time, 0*record.time, color='black', linewidth=1, zorder=1)
+
+    ax[2].plot(record.time, x2, color=colors[5], label='filtered acceleration')
+    ax[2].legend()
+    ax[2].set_xlabel('time [s]')
+    ax[2].set_ylabel('acceleation')
+    ax[2].plot(record.time, 0*record.time, color='black', linewidth=1, zorder=1)
 
     if show_plot:
         plt.show()
