@@ -61,7 +61,7 @@ def plot_log(record, show_plot=True):
     fig, ax = plt.subplots(2, 1, figsize=(11, 6), sharex=True)
 
     steer_angle = record.steer_angle
-    rescaled_voltage = record.steer_angle_voltage*20/2**12 - 10 # 12-bit ADC to ±12V
+    rescaled_voltage = record.steer_angle_voltage*20/2**14 - 10 # 14-bit ADC to ±12V
     KOLLM_DEG_PER_VOLT = 4.5
     steer_angle_kollm = rescaled_voltage*KOLLM_DEG_PER_VOLT*np.pi/180
     offset = steer_angle_kollm[0] - steer_angle[0]
