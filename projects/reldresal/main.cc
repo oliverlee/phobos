@@ -113,20 +113,18 @@ int main(void) {
 
     printfq("running reldresal %.7s");
     printfq("fields are:\n\r");
-    printfq("realtime_counter, kistler_torque, steer_angle, steer_angle_voltage\r\n");
+    printfq("realtime_counter, steer_angle, kistler_torque_adc\r\n");
     systime_t deadline = chVTGetSystemTime();
 
     // Normal main() thread activity
     while (true) {
-        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
-        const uint16_t steer_angle_voltage = analog.get_adc13();
+        const uint16_t kistler_torque_adc = analog.get_adc12(); // kistler torque voltage
         const float steer_angle = util::encoder_count<float>(encoder_steer);
 
-        printfq("%u, %10.5f, %10.5f, %u\r\n",
+        printfq("%u, %10.5f, %u\r\n",
                chSysGetRealtimeCounterX(),
-               kistler_torque,
                steer_angle,
-               steer_angle_voltage);
+               kistler_torque_adc);
         deadline = chThdSleepUntilWindowed(deadline, deadline + dt);
     }
 }
