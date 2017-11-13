@@ -98,3 +98,8 @@ option(PHOBOS_BUILD_PROJECT_LIMTOC "Build Limtoc (static simulator) demo" TRUE)
 if(PHOBOS_BUILD_PROJECT_LIMTOC)
     add_subdirectory(limtoc)
 endif()
+
+option(PHOBOS_BUILD_PROJECT_RELDRESAL "Build Reldresal (static simulator) demo" TRUE)
+if(PHOBOS_BUILD_PROJECT_RELDRESAL)
+    add_subdirectory(reldresal)
+endif()
