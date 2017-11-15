@@ -19,7 +19,6 @@
 
 #include "analog.h"
 #include "encoder.h"
-#include "filter/movingaverage.h"
 
 #include "gitsha1.h"
 #include "blink.h"
@@ -35,19 +34,28 @@
 
 namespace {
     constexpr systime_t dt = MS2ST(1); // milliseconds converted to system ticks
-    constexpr float k = 8.0f; // N-m/rad, desired spring stiffness
-    //constexpr float m_star = 0.07f; // kg-m^2, desired full assembly virtual inertia
-    constexpr float m_upper = 0.0413f; // kg-m^2, experimentally determined upper assembly inertia
-    constexpr float m_lower = 0.0415f; // kg-m^2, experimentally determined lower assembly inertia
-    constexpr float m_star = m_upper + m_lower; // kg-m^2, desired full assembly virtual inertia
+    // actual EOM
+    //             m_l*x_dd + b_l*x_d = -T_s + T_a
+    // desired EOM
+    //  m*_l*x_dd + b*_l*x_d + k*_l*x = -T_s
+    //
+    // T_s negated due to sign convention
+    // upper assembly damping is neglected as inertia dominates
+    // m*_l = m* - m_u
+    // b*_l = b*
+    // k*_l = k*
+    constexpr float m_upper = 0.03294f; // kg-m^2, experimentally determined least squares estimate
+    constexpr float m_lower = 0.002202f; // kg-m^2, experimentally determined least squares estimate
+    constexpr float b_lower = 0.09902f; // N-m/(m/s), experimentally determined least squares estimate
+
+    constexpr float k_star = 0.0f; // N-m/rad, desired spring stiffness
+    constexpr float b_star = 0.0f; // N-m/(m/s), desired damping coefficient
+    constexpr float m_star = 0.07; // kg-m^2, desired full assembly virtual inertia
     constexpr float m_star_lower = m_star - m_upper; // kg-m^2, desired lower assembly virtual inertia
-    constexpr float K = m_lower/m_star_lower - 1.0f; // torque reference feedback gain
 
     // sensors
     Analog analog;
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
-
-    filter::MovingAverage<float, 8> kistler_average;
 
     int printfq(const char *fmt, ...) {
         va_list ap;
@@ -120,30 +128,32 @@ int main(void) {
         chThdSleepMilliseconds(10);
     }
 
-    printfq("running limtoc %.7s, k = %8.3f, m = %8.3f\r\n", g_GITSHA1, k, m_star);
+    printfq("running limtoc %.7s, m* = %8.3f, b* = %8.3f, k* = %8.3f\r\n",
+            g_GITSHA1, m_star, b_star, k_star);
     printfq("fields are:\n\r");
     printfq("realtime_counter, kistler_torque, motor_torque, steer_angle, feedback_torque\r\n");
     systime_t deadline = chVTGetSystemTime();
 
     // Normal main() thread activity
     while (true) {
-        const float kistler_torque = kistler_average.output(
-                sa::get_kistler_sensor_torque(analog.get_adc12()));
+        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
         const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
         const float steer_angle = util::encoder_count<float>(encoder_steer);
+        const float steer_velocity = 0; // TODO: implement velocity estimation
 
-        // generate motor torque to simulate a spring and virtual mass
-        const float torque_ref = -k*steer_angle; // also feedforward torque
-        const float torque_ref_feedback = K*(torque_ref - kistler_torque);
-        const float feedback_torque = torque_ref + torque_ref_feedback;
-        sa::set_kollmorgen_torque(feedback_torque);
+        // calculate actuator torque for virtual mass/damping/spring
+        constexpr float m = m_lower/m_star_lower - 1;
+        constexpr float b = -b_star*m_lower/m_star_lower + b_lower;
+        constexpr float k = -k_star*m_lower/m_star_lower;
+        const float torque_actuator = m*-kistler_torque + b*steer_velocity + k*steer_angle;
+        sa::set_kollmorgen_torque(torque_actuator);
 
         printfq("%u, %10.5f, %10.5f, %10.5f, %10.5f\r\n",
                chSysGetRealtimeCounterX(),
-               kistler_torque,
-               motor_torque,
-               steer_angle,
-               feedback_torque);
+               kistler_torque,      // measurement
+               motor_torque,        // measurement
+               steer_angle,         // measurement
+               torque_actuator);    // command
         deadline = chThdSleepUntilWindowed(deadline, deadline + dt);
     }
 }
