@@ -30,6 +30,8 @@
 
 #include "parameters.h"
 
+#include "simsteerassembly.h"
+
 #include <cstdarg>
 
 namespace {
@@ -50,8 +52,10 @@ namespace {
 
     constexpr float k_star = 0.0f; // N-m/rad, desired spring stiffness
     constexpr float b_star = 0.0f; // N-m/(m/s), desired damping coefficient
-    constexpr float m_star = 0.07; // kg-m^2, desired full assembly virtual inertia
+    constexpr float m_star = 0.07f; // kg-m^2, desired full assembly virtual inertia
     constexpr float m_star_lower = m_star - m_upper; // kg-m^2, desired lower assembly virtual inertia
+
+    sim::SteerAssembly steer_assembly(dt, m_lower, b_lower, (178122.0f + 146647.0f)/2); // FIXME which parameters to use?
 
     // sensors
     Analog analog;
@@ -139,7 +143,10 @@ int main(void) {
         const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
         const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
         const float steer_angle = util::encoder_count<float>(encoder_steer);
-        const float steer_velocity = 0; // TODO: implement velocity estimation
+        steer_assembly.update_state_estimate(
+                motor_torque - kistler_torque,
+                steer_angle);
+        const float steer_velocity = steer_assembly.velocity();
 
         // calculate actuator torque for virtual mass/damping/spring
         constexpr float m = m_lower/m_star_lower - 1;
