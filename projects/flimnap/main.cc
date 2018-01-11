@@ -133,7 +133,7 @@ namespace {
         palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
         encoder_steer.start();
         encoder_rear_wheel.start();
-        analog.start(8000); // trigger ADC conversion at 8 kHz
+        analog.start();
 
         //Set torque measurement enable line low.
         //The output of the Kistler torque sensor is not valid until after a falling edge
@@ -217,8 +217,8 @@ int main(void) {
         constexpr float roll_torque = 0.0f;
 
         // get torque measurements
-        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
-        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
+        const float kistler_torque = sa::get_kistler_sensor_torque(analog.getf_adc12());
+        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.getf_adc13());
 
         // calculate rider applied torque
         const float steer_torque = kistler_torque +
@@ -265,8 +265,12 @@ int main(void) {
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float error = desired_position - steer_angle;
         constexpr float k_p = 10.0;
+        const float feedback_torque = k_p*error;
+
+        const float feedforward_torque = 0;
+
         const dacsample_t handlebar_reference_dac =
-            sa::set_kollmorgen_torque(k_p*error);
+            sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
         chTMStopMeasurementX(&computation_time_measurement);
 

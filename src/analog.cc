@@ -127,7 +127,8 @@ namespace {
 
 Analog::Analog() : m_adc_buffer() { }
 
-void Analog::start(gptcnt_t sample_rate, bool use_events) {
+//void Analog::start(gptcnt_t sample_rate, bool use_events) {
+void Analog::start(bool use_events) {
 #ifdef STATIC_SIMULATOR_CONFIG
     /*
      * We manually toggle the Kistler torque sensor measurement line
@@ -147,6 +148,8 @@ void Analog::start(gptcnt_t sample_rate, bool use_events) {
         adcStartConversion(&ADCD1, &adcgrpcfg,
                 m_adc_buffer.data(), m_adc_buffer_depth);
     }
+
+    constexpr gptcnt_t sample_rate = 8000; // 8 kHz
     gptStartContinuous(&GPTD8, gpt8cfg1.frequency/sample_rate);
 }
 
@@ -166,6 +169,17 @@ adcsample_t Analog::average_adc_conversion_value(sensor_t channel) const {
         sum += m_adc_buffer[channel + i*m_adc_num_channels];
     }
     return sum / m_adc_buffer_depth;
+}
+
+float Analog::average_float_adc_conversion_value(sensor_t channel) const {
+#ifdef STATIC_SIMULATOR_CONFIG
+    channel = static_cast<sensor_t>(static_cast<std::underlying_type_t<sensor_t>>(channel) - 1);
+#endif // STATIC_SIMULATOR_CONFIG
+    adcsample_t sum = m_adc_buffer[channel];
+    for (unsigned int i = 1; i < m_adc_buffer_depth; ++i) {
+        sum += m_adc_buffer[channel + i*m_adc_num_channels];
+    }
+    return static_cast<float>(sum) / m_adc_buffer_depth;
 }
 
 adcsample_t Analog::get_adc10() const {
@@ -191,6 +205,34 @@ adcsample_t Analog::get_adc13() const {
     //return m_adc_buffer[sensor_t::ADC13];
 #ifdef STATIC_SIMULATOR_CONFIG
     return average_adc_conversion_value(sensor_t::ADC13);
+#else // STATIC_SIMULATOR_CONFIG
+    return 0;
+#endif // STATIC_SIMULATOR_CONFIG
+}
+
+float Analog::getf_adc10() const {
+    //return m_adc_buffer[sensor_t::ADC10];
+#ifdef STATIC_SIMULATOR_CONFIG
+    return 0;
+#else // STATIC_SIMULATOR_CONFIG
+    return average_float_adc_conversion_value(sensor_t::ADC10);
+#endif // STATIC_SIMULATOR_CONFIG
+}
+
+float Analog::getf_adc11() const {
+    //return m_adc_buffer[sensor_t::ADC11];
+    return average_float_adc_conversion_value(sensor_t::ADC11);
+}
+
+float Analog::getf_adc12() const {
+    //return m_adc_buffer[sensor_t::ADC12];
+    return average_float_adc_conversion_value(sensor_t::ADC12);
+}
+
+float Analog::getf_adc13() const {
+    //return m_adc_buffer[sensor_t::ADC13];
+#ifdef STATIC_SIMULATOR_CONFIG
+    return average_float_adc_conversion_value(sensor_t::ADC13);
 #else // STATIC_SIMULATOR_CONFIG
     return 0;
 #endif // STATIC_SIMULATOR_CONFIG
