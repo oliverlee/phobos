@@ -264,7 +264,7 @@ int main(void) {
 
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float error = desired_position - steer_angle;
-        constexpr float k_p = 15.0;
+        constexpr float k_p = 10.0;
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(k_p*error);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
