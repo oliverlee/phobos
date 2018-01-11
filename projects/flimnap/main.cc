@@ -148,11 +148,7 @@ namespace {
         // and must be changed to use as analog output.
         palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
         dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-#if defined(USE_BICYCLE_KINEMATIC_MODEL)
         sa::set_kollmorgen_torque(0.0f);
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
-        sa::set_kollmorgen_position(0.0f);
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
     }
 
 } // namespace
@@ -265,8 +261,12 @@ int main(void) {
         const float desired_position = model_t::get_full_state_element(
                 bicycle.full_state(),
                 model_t::full_state_index_t::steer_angle);
+
+        const float steer_angle = util::encoder_count<float>(encoder_steer);
+        const float error = desired_position - steer_angle;
+        constexpr float k_p = 15.0;
         const dacsample_t handlebar_reference_dac =
-            sa::set_kollmorgen_position(desired_position);
+            sa::set_kollmorgen_torque(k_p*error);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
         chTMStopMeasurementX(&computation_time_measurement);
 
