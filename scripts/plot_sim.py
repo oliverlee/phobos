@@ -156,14 +156,14 @@ if __name__ == '__main__':
     records = get_records_from_messages(messages)[1:]
     t = get_time_vector(records)
 
-    # current logs all use a constant speed so model is only written in the
-    # first message
-    m = messages[0]
-    Ad_data = m.model.A.m
-    Ad_size = int(np.sqrt(len(Ad_data)))
-    Ad = np.array(Ad_data).reshape(2*(Ad_size,), order='F')
-    A = scipy.linalg.logm(Ad)/m.model.dt
-    inertia_torque, steer_accel = handlebar_inertia_torque(records, A)
+    ## current logs all use a constant speed so model is only written in the
+    ## first message
+    #m = messages[0]
+    #Ad_data = m.model.A.m
+    #Ad_size = int(np.sqrt(len(Ad_data)))
+    #Ad = np.array(Ad_data).reshape(2*(Ad_size,), order='F')
+    #A = scipy.linalg.logm(Ad)/m.model.dt
+    #inertia_torque, steer_accel = handlebar_inertia_torque(records, A)
 
     states = records.state[:, 1:]
     fig1, ax1 = plot_states(t, states, second_yaxis=False, to_degrees=False)
@@ -180,17 +180,21 @@ if __name__ == '__main__':
     fig2, ax2 = plt.subplots()
     index = STATE_LABELS.index('steer angle')
     ax2.plot(t, states[:, index], label=STATE_LABELS[index],
+             alpha=0.8,
              color=STATE_COLOR[1 + 2*index])
     ax2.plot(t, encoder_angle, label='encoder angle',
+             alpha=0.8,
              color=STATE_COLOR[2*index])
 
     index = STATE_LABELS.index('steer rate')
     ax2.plot(t, states[:, index], label=STATE_LABELS[index],
+             alpha=0.8,
              color=STATE_COLOR[1 + 2*index])
     ax2.plot(t, encoder_rate, label='encoder rate (from angle diff)',
+             alpha=0.8,
              color=STATE_COLOR[2*index])
-    ax2.plot(t, steer_accel, label='estimated steer accel',
-             color=STATE_COLOR[1])
+    #ax2.plot(t, steer_accel, label='estimated steer accel',
+    #         color=STATE_COLOR[1])
     ax2.set_ylabel('rad, rad/s, rad/s/s')
     ax2.set_xlabel('time [s]')
     ax2.legend()
@@ -212,11 +216,11 @@ if __name__ == '__main__':
              label='steer torque',
              alpha=0.8,
              color=STATE_COLOR[3])
-    ax3.plot(t,
-             inertia_torque,
-             label='handlebar inertia torque',
-             alpha=0.8,
-             color=STATE_COLOR[1])
+    #ax3.plot(t,
+    #         inertia_torque,
+    #         label='handlebar inertia torque',
+    #         alpha=0.8,
+    #         color=STATE_COLOR[1])
     ax3.plot(t,
              get_kollmorgen_applied_torque(
                  records.sensors.kollmorgen_actual_torque) -
@@ -238,8 +242,6 @@ if __name__ == '__main__':
     ax3.set_ylabel('torque [N-m]')
     ax3.set_xlabel('time [s]')
     ax3.legend()
-
-    fig4, ax4 = plot_kalman_gain_entries(t, records.kalman)
 
     plt.show()
 
