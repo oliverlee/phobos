@@ -46,6 +46,7 @@ constexpr adcsample_t KISTLER_ADC_ZERO_OFFSET_POSITIVE = 2042; // ADC value for 
 constexpr float MAX_KISTLER_TORQUE_NEGATIVE = -43.2969f; // maximum measured steer torque, N-m
 constexpr adcsample_t KISTLER_ADC_ZERO_OFFSET_NEGATIVE = 2046; // ADC value for zero torque, found experimentally
 
+constexpr float MAX_KOLLMORGEN_POSITION = 40*1.74533f/100; // max position of 40 deg in rad
 constexpr float MAX_KOLLMORGEN_VELOCITY = 3*1.74533f; // max velocity of 300 deg/s in rad/s
 constexpr float MAX_KOLLMORGEN_TORQUE = 10.78125f; // max torque at 1.50 Arms/V, N-m
 constexpr adcsample_t KOLLMORGEN_ADC_ZERO_OFFSET = 2052; // ADC value for zero torque, found experimentally

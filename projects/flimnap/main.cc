@@ -151,7 +151,7 @@ namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
         sa::set_kollmorgen_torque(0.0f);
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
-        sa::set_kollmorgen_velocity(0.0f);
+        sa::set_kollmorgen_position(0.0f);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
     }
 
@@ -262,11 +262,11 @@ int main(void) {
                 0,  // measurement ignored
                 0); // measurement ignored
 
-        const float desired_velocity = model_t::get_full_state_element(
+        const float desired_position = model_t::get_full_state_element(
                 bicycle.full_state(),
-                model_t::full_state_index_t::steer_rate);
+                model_t::full_state_index_t::steer_angle);
         const dacsample_t handlebar_reference_dac =
-            sa::set_kollmorgen_velocity(desired_velocity);
+            sa::set_kollmorgen_position(desired_position);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
         chTMStopMeasurementX(&computation_time_measurement);
 
