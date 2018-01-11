@@ -16,8 +16,8 @@
 
 /*
  * ADC conversion group.
- * Mode:        Continuous, 15(10) samples of 3(2) channels, HW triggered by GPT8-TRGO.
- * Channels:    IN10, IN11, IN12 (IN12, IN13).
+ * Mode:        Continuous, 8 samples of 3 channels, HW triggered by GPT8-TRGO.
+ * Channels:    IN10, IN11, IN12.
  *
  * The GPT clock frequency is set to 1 MHz and the sample frequency will be set
  * using an integer prescaler and may not match the input frequency.
@@ -48,53 +48,29 @@ namespace {
 
     const ADCConversionGroup adcgrpcfg_events = {
         true,                     /* circular */
-        Analog::buffer_size(),    /* num channels */
+        Analog::num_channels(),   /* num channels */
         adccallback,              /* end callback */
         adcerrorcallback,         /* error callback */
         0,                        /* CR1 */
         ADC_CR2_EXTEN_RISING | ADC_CR2_EXTSEL_SRC(14),        /* CR2 */
 #ifdef STATIC_SIMULATOR_CONFIG
-        ADC_SMPR1_SMP_AN13(ADC_SAMPLE_15) |
-            ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
-            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_15),
+        ADC_SMPR1_SMP_AN13(ADC_SAMPLE_144) |
+            ADC_SMPR1_SMP_AN12(ADC_SAMPLE_144) |
+            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_144),
 #else // STATIC_SIMULATOR_CONFIG
-        ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
-            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_15) |
-            ADC_SMPR1_SMP_AN10(ADC_SAMPLE_15),
+        ADC_SMPR1_SMP_AN12(ADC_SAMPLE_144) |
+            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_144) |
+            ADC_SMPR1_SMP_AN10(ADC_SAMPLE_144),
 #endif // STATIC_SIMULATOR_CONFIG
         0,                        /* SMPR2 */
+        ADC_SQR1_NUM_CH(Analog::num_channels()),
+        0, /* SQR2 */
 #ifdef STATIC_SIMULATOR_CONFIG
-        ADC_SQR1_NUM_CH(Analog::buffer_size()) |
-            ADC_SQR1_SQ15_N(ADC_CHANNEL_IN13) |
-            ADC_SQR1_SQ14_N(ADC_CHANNEL_IN12) |
-            ADC_SQR1_SQ13_N(ADC_CHANNEL_IN11),
-        ADC_SQR2_SQ12_N(ADC_CHANNEL_IN13) |
-            ADC_SQR2_SQ11_N(ADC_CHANNEL_IN12) |
-            ADC_SQR2_SQ10_N(ADC_CHANNEL_IN11) |
-            ADC_SQR2_SQ9_N(ADC_CHANNEL_IN13) |
-            ADC_SQR2_SQ8_N(ADC_CHANNEL_IN12) |
-            ADC_SQR2_SQ7_N(ADC_CHANNEL_IN11),
-        ADC_SQR3_SQ6_N(ADC_CHANNEL_IN13) |
-            ADC_SQR3_SQ5_N(ADC_CHANNEL_IN12) |
-            ADC_SQR3_SQ4_N(ADC_CHANNEL_IN11) |
-            ADC_SQR3_SQ3_N(ADC_CHANNEL_IN13) |
+        ADC_SQR3_SQ3_N(ADC_CHANNEL_IN13) |
             ADC_SQR3_SQ2_N(ADC_CHANNEL_IN12) |
             ADC_SQR3_SQ1_N(ADC_CHANNEL_IN11)
 #else // STATIC_SIMULATOR_CONFIG
-        ADC_SQR1_NUM_CH(Analog::buffer_size()) |
-            ADC_SQR1_SQ15_N(ADC_CHANNEL_IN12) |
-            ADC_SQR1_SQ14_N(ADC_CHANNEL_IN11) |
-            ADC_SQR1_SQ13_N(ADC_CHANNEL_IN10),
-        ADC_SQR2_SQ12_N(ADC_CHANNEL_IN12) |
-            ADC_SQR2_SQ11_N(ADC_CHANNEL_IN11) |
-            ADC_SQR2_SQ10_N(ADC_CHANNEL_IN10) |
-            ADC_SQR2_SQ9_N(ADC_CHANNEL_IN12) |
-            ADC_SQR2_SQ8_N(ADC_CHANNEL_IN11) |
-            ADC_SQR2_SQ7_N(ADC_CHANNEL_IN10),
-        ADC_SQR3_SQ6_N(ADC_CHANNEL_IN12) |
-            ADC_SQR3_SQ5_N(ADC_CHANNEL_IN11) |
-            ADC_SQR3_SQ4_N(ADC_CHANNEL_IN10) |
-            ADC_SQR3_SQ3_N(ADC_CHANNEL_IN12) |
+        ADC_SQR3_SQ3_N(ADC_CHANNEL_IN12) |
             ADC_SQR3_SQ2_N(ADC_CHANNEL_IN11) |
             ADC_SQR3_SQ1_N(ADC_CHANNEL_IN10)
 #endif // STATIC_SIMULATOR_CONFIG
@@ -102,63 +78,39 @@ namespace {
 
     const ADCConversionGroup adcgrpcfg = {
         true,                     /* circular */
-        Analog::buffer_size(),    /* num channels */
+        Analog::num_channels(),   /* num channels */
         nullptr,                  /* end callback */
         nullptr,                  /* error callback */
         0,                        /* CR1 */
         ADC_CR2_EXTEN_RISING | ADC_CR2_EXTSEL_SRC(14),        /* CR2 */
 #ifdef STATIC_SIMULATOR_CONFIG
-        ADC_SMPR1_SMP_AN13(ADC_SAMPLE_15) |
-            ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
-            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_15),
+        ADC_SMPR1_SMP_AN13(ADC_SAMPLE_144) |
+            ADC_SMPR1_SMP_AN12(ADC_SAMPLE_144) |
+            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_144),
 #else // STATIC_SIMULATOR_CONFIG
-        ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
-            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_15) |
-            ADC_SMPR1_SMP_AN10(ADC_SAMPLE_15),
+        ADC_SMPR1_SMP_AN12(ADC_SAMPLE_144) |
+            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_144) |
+            ADC_SMPR1_SMP_AN10(ADC_SAMPLE_144),
 #endif // STATIC_SIMULATOR_CONFIG
         0,                        /* SMPR2 */
+        ADC_SQR1_NUM_CH(Analog::num_channels()),
+        0, /* SQR2 */
 #ifdef STATIC_SIMULATOR_CONFIG
-        ADC_SQR1_NUM_CH(Analog::buffer_size()) |
-            ADC_SQR1_SQ15_N(ADC_CHANNEL_IN13) |
-            ADC_SQR1_SQ14_N(ADC_CHANNEL_IN12) |
-            ADC_SQR1_SQ13_N(ADC_CHANNEL_IN11),
-        ADC_SQR2_SQ12_N(ADC_CHANNEL_IN13) |
-            ADC_SQR2_SQ11_N(ADC_CHANNEL_IN12) |
-            ADC_SQR2_SQ10_N(ADC_CHANNEL_IN11) |
-            ADC_SQR2_SQ9_N(ADC_CHANNEL_IN13) |
-            ADC_SQR2_SQ8_N(ADC_CHANNEL_IN12) |
-            ADC_SQR2_SQ7_N(ADC_CHANNEL_IN11),
-        ADC_SQR3_SQ6_N(ADC_CHANNEL_IN13) |
-            ADC_SQR3_SQ5_N(ADC_CHANNEL_IN12) |
-            ADC_SQR3_SQ4_N(ADC_CHANNEL_IN11) |
-            ADC_SQR3_SQ3_N(ADC_CHANNEL_IN13) |
+        ADC_SQR3_SQ3_N(ADC_CHANNEL_IN13) |
             ADC_SQR3_SQ2_N(ADC_CHANNEL_IN12) |
             ADC_SQR3_SQ1_N(ADC_CHANNEL_IN11)
 #else // STATIC_SIMULATOR_CONFIG
-        ADC_SQR1_NUM_CH(Analog::buffer_size()) |
-            ADC_SQR1_SQ15_N(ADC_CHANNEL_IN12) |
-            ADC_SQR1_SQ14_N(ADC_CHANNEL_IN11) |
-            ADC_SQR1_SQ13_N(ADC_CHANNEL_IN10),
-        ADC_SQR2_SQ12_N(ADC_CHANNEL_IN12) |
-            ADC_SQR2_SQ11_N(ADC_CHANNEL_IN11) |
-            ADC_SQR2_SQ10_N(ADC_CHANNEL_IN10) |
-            ADC_SQR2_SQ9_N(ADC_CHANNEL_IN12) |
-            ADC_SQR2_SQ8_N(ADC_CHANNEL_IN11) |
-            ADC_SQR2_SQ7_N(ADC_CHANNEL_IN10),
-        ADC_SQR3_SQ6_N(ADC_CHANNEL_IN12) |
-            ADC_SQR3_SQ5_N(ADC_CHANNEL_IN11) |
-            ADC_SQR3_SQ4_N(ADC_CHANNEL_IN10) |
-            ADC_SQR3_SQ3_N(ADC_CHANNEL_IN12) |
+        ADC_SQR3_SQ3_N(ADC_CHANNEL_IN12) |
             ADC_SQR3_SQ2_N(ADC_CHANNEL_IN11) |
             ADC_SQR3_SQ1_N(ADC_CHANNEL_IN10)
 #endif // STATIC_SIMULATOR_CONFIG
     };
 
     /*
-     * Conversion of 15 samples takes
-     * (15 conversions)*((15 + 12) ADC clock cycles/conversion) + 15 clock cycles
-     * = 420 clocks
-     * With STM32_ADCCLK_MAX = 36 MHz, this takes 11.67 us.
+     * Conversion of 3 samples takes
+     * (3 conversions)*((144 + 12) ADC clock cycles/conversion)
+     * = 468 clocks
+     * With STM32_ADCCLK_MAX = 36 MHz, this takes 13 us.
      */
 
     /*
@@ -189,9 +141,11 @@ void Analog::start(gptcnt_t sample_rate, bool use_events) {
     gptStart(&GPTD8, &gpt8cfg1);
     adcStart(&ADCD1, nullptr);
     if (use_events) {
-        adcStartConversion(&ADCD1, &adcgrpcfg_events, m_adc_buffer.data(), 1);
+        adcStartConversion(&ADCD1, &adcgrpcfg_events,
+                m_adc_buffer.data(), m_adc_buffer_depth);
     } else {
-        adcStartConversion(&ADCD1, &adcgrpcfg, m_adc_buffer.data(), 1);
+        adcStartConversion(&ADCD1, &adcgrpcfg,
+                m_adc_buffer.data(), m_adc_buffer_depth);
     }
     gptStartContinuous(&GPTD8, gpt8cfg1.frequency/sample_rate);
 }
@@ -244,4 +198,8 @@ adcsample_t Analog::get_adc13() const {
 
 adc_channels_num_t Analog::buffer_size() {
     return m_adc_buffer_size;
+}
+
+adc_channels_num_t Analog::num_channels() {
+    return m_adc_num_channels;
 }

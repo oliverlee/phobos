@@ -133,7 +133,7 @@ namespace {
         palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
         encoder_steer.start();
         encoder_rear_wheel.start();
-        analog.start(10000); // trigger ADC conversion at 10 kHz
+        analog.start(8000); // trigger ADC conversion at 8 kHz
 
         //Set torque measurement enable line low.
         //The output of the Kistler torque sensor is not valid until after a falling edge
