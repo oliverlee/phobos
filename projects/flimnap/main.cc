@@ -221,8 +221,21 @@ int main(void) {
         const float motor_torque = sa::get_kollmorgen_motor_torque(analog.getf_adc13());
 
         // calculate rider applied torque
-        const float steer_torque = kistler_torque +
-            mass_upper/mass_lower*(kistler_torque - motor_torque);
+        // positive motor torque will rotate the steering shaft clockwise
+        // positive kistler torque equal to positive motor torque will stop
+        // rotation
+        // m1 * xdd = T_delta + T_s
+        // m2 * xdd = -T_s + T_a
+        // m1: upper mass
+        // m2: lower mass
+        // T_delta: rider applied steer torque
+        // T_s: kistler torque (sensor measurement)
+        // T_a: motor torque (actuator command)
+        //
+        // m1/m2*(-T_s + T_a) = T_delta + T_s
+        // T_delta = -T_s + m1/m2*(-T_s + T_a)
+        const float steer_torque = -kistler_torque +
+            mass_upper/mass_lower*(-kistler_torque + motor_torque);
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
         // get velocity and update bicycle parameter
