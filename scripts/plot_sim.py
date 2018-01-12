@@ -221,13 +221,13 @@ if __name__ == '__main__':
     #         label='handlebar inertia torque',
     #         alpha=0.8,
     #         color=STATE_COLOR[1])
-    ax3.plot(t,
-             get_kollmorgen_applied_torque(
-                 records.sensors.kollmorgen_actual_torque) -
-             get_kistler_sensor_torque(records.sensors.kistler_measured_torque),
-             label='applied torque - measured torque',
-             alpha=0.8,
-             color=STATE_COLOR[2])
+    #ax3.plot(t,
+    #         get_kollmorgen_applied_torque(
+    #             records.sensors.kollmorgen_actual_torque) -
+    #         get_kistler_sensor_torque(records.sensors.kistler_measured_torque),
+    #         label='applied torque - measured torque',
+    #         alpha=0.8,
+    #         color=STATE_COLOR[2])
     # FIXME The field sensors.kollmorgen_command_velocity contains the
     # kollmorgen drive reference. This is either interpreted as a torque or
     # velocity command depending on the drive settings and must be set correctly
