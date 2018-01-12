@@ -67,6 +67,7 @@ namespace {
 #else
     constexpr float fixed_v = 5.0f; // fixed bicycle velocity
 #endif
+    filter::MovingAverage<float, 5> steer_torque_filter;
 
     constexpr float mass_upper = sa::FULL_ASSEMBLY_INERTIA_WITHOUT_WEIGHT;
     constexpr float mass_lower = sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL;
@@ -234,8 +235,9 @@ int main(void) {
         //
         // m1/m2*(-T_s + T_a) = T_delta + T_s
         // T_delta = -T_s + m1/m2*(-T_s + T_a)
-        const float steer_torque = -kistler_torque +
-            mass_upper/mass_lower*(-kistler_torque + motor_torque);
+        const float steer_torque = steer_torque_filter.output(
+                -kistler_torque +
+                mass_upper/mass_lower*(-kistler_torque + motor_torque));
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
         // get velocity and update bicycle parameter
