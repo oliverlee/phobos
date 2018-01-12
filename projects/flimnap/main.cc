@@ -280,7 +280,14 @@ int main(void) {
         constexpr float k_p = 175.0;
         const float feedback_torque = k_p*error;
 
-        const float feedforward_torque = 0;
+        const model_t model = bicycle.model();
+        const model_t::state_t state_deriv =
+            model.A()*model_t::get_state_part(bicycle.full_state()) +
+            model.B()*bicycle.input();
+        const float steer_accel = model_t::get_state_element(
+                state_deriv,
+                model_t::state_index_t::steer_rate);
+        const float feedforward_torque = (mass_upper + mass_lower)*steer_accel;
 
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
