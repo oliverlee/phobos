@@ -277,7 +277,7 @@ int main(void) {
 
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float error = desired_position - steer_angle;
-        constexpr float k_p = 175.0;
+        constexpr float k_p = 150.0;
         const float feedback_torque = k_p*error;
 
         const model_t model = bicycle.model();
