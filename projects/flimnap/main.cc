@@ -40,8 +40,6 @@
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
 #include "bicycle/kinematic.h" // simplified bicycle model
-#elif defined(USE_BICYCLE_AREND_MODEL)
-#include "bicycle/arend.h" // simplified bicycle model
 #else // No Whipple model simplifications
 #include "bicycle/whipple.h"
 #include "kalman.h" // kalman filter observer
@@ -52,10 +50,6 @@ namespace {
     using model_t = model::BicycleKinematic;
     using observer_t = std::nullptr_t;
     using haptic_drive_t = haptic::Handlebar0;
-#elif defined(USE_BICYCLE_AREND_MODEL)
-    using model_t = model::BicycleArend;
-    using observer_t = std::nullptr_t;
-    using haptic_drive_t = haptic::Handlebar1;
 #else
     using model_t = model::BicycleWhipple;
     using observer_t = observer::Kalman<model_t>;
@@ -210,11 +204,11 @@ int main(void) {
     // and must be changed to use as analog output.
     palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
     dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-#if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
     sa::set_kollmorgen_torque(0.0f);
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
     sa::set_kollmorgen_velocity(0.0f);
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
@@ -226,7 +220,7 @@ int main(void) {
 #endif
             static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
-#if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
     // Initialize handlebar object to calculate motor drive feedback torque
     haptic_drive_t haptic_drive(bicycle.model());
 #endif
@@ -288,37 +282,18 @@ int main(void) {
         // simulate bicycle
         bicycle.set_v(v);
 
-        { // perform variant specific code for creating input/measurement
-#if defined(USE_BICYCLE_AREND_MODEL)
-            // BicyleArend uses a different output/measurement vector definition
-            const float steer_rate =
-                static_cast<float>(analog.get_adc11() - sa::GYRO_ADC_ZERO_OFFSET) *
-                sa::MAX_GYRO_RATE/sa::ADC_HALF_RANGE;
-
-            model_t::input_t u = model_t::input_t::Zero();
-            model_t::set_input_element(u, model_t::input_index_t::roll_torque, roll_torque);
-            model_t::set_input_element(u, model_t::input_index_t::steer_torque, steer_torque);
-
-            model_t::measurement_t z = model_t::measurement_t::Zero();
-            bicycle.model().set_output_element(z, bicycle.model().output_index_t::steer_angle, steer_angle);
-            bicycle.model().set_output_element(z, bicycle.model().output_index_t::steer_rate, steer_rate);
-
-            bicycle.update_dynamics(u, z);
-#else
-            bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
-#endif
-        }
+        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
 
         // generate handlebar torque or velocity reference
-#if defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float desired_torque = haptic_drive.torque(model_t::get_state_part(bicycle.full_state()));
         const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_torque(desired_torque);
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float desired_velocity =
             model_t::get_full_state_element(bicycle.full_state(),
                                             model_t::full_state_index_t::steer_rate);
         const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_velocity(desired_velocity);
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL) || defined(USE_BICYCLE_AREND_MODEL)
+#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
         chTMStopMeasurementX(&computation_time_measurement);
 
         {   // prepare message for transmission
