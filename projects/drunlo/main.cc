@@ -33,7 +33,7 @@ namespace {
     const float dt = 0.05f; /* ms */
 
     /* sensors */
-    Analog analog;
+    Analog<1> analog; // per channel buffer depth of 1
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
     EncoderFoaw<float, 16> encoder_roller(sa::RLS_GTS35_ENC,
                                               sa::RLS_GTS35_ENC_CFG,

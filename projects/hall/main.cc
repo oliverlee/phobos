@@ -30,7 +30,7 @@ namespace {
     const uint32_t dt_ms = 1; /* ms */
 
     /* sensors */
-    Analog analog;
+    Analog<8> analog; // per channel buffer depth of 8
 } // namespace
 
 /*

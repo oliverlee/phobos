@@ -4,5 +4,4 @@ add_phobos_executable(hall
     chconf.h
     halconf.h
     mcuconf.h
-    main.cc
-    ${PHOBOS_SOURCE_DIR}/src/analog.cc)
+    main.cc)

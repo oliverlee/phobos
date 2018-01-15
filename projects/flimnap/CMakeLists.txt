@@ -28,7 +28,6 @@ set(FLIMNAP_COMMON_SRC
     ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/transmitter.cc
-    ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc
     ${PHOBOS_SOURCE_DIR}/src/cobs.cc

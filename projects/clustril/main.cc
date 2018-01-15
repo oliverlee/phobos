@@ -45,7 +45,7 @@ namespace {
     using bicycle_t = sim::Bicycle<model_t, observer_t>;
 
     /* sensors */
-    Analog analog;
+    Analog<10> analog; // per channel buffer depth of 10
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
     EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC, sa::RLS_GTS35_ENC_CFG, MS2ST(1), 3.0f);
 
@@ -81,7 +81,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder_steer.start();
     encoder_rear_wheel.start();
-    analog.start(1000); /* trigger ADC conversion at 1 kHz */
+    analog.start(10000); /* trigger ADC conversion at 10 kHz */
 
     /*
      * Set torque measurement enable line low.

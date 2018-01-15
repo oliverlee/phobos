@@ -57,7 +57,7 @@ namespace {
     using bicycle_t = sim::Bicycle<model_t, observer_t>;
 
     // sensors
-    Analog analog;
+    Analog<10> analog; // per channel buffer depth of 10
 
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
     EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC,
