@@ -10,6 +10,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
 
+import os
+import sys
+file_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.abspath(os.path.join(
+    file_dir, os.pardir, os.pardir, 'scripts')))
+
 
 def load_log(filename):
     """Load data from logs generated from reldresal. Returns

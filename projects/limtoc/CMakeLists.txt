@@ -12,6 +12,7 @@ add_phobos_executable(limtoc
     mcuconf.h
     main.cc
     usbconfig.c # add USB config file without input/output buffer queues
+    ${PHOBOS_PROJECT_SOURCE_DIR}/simsteerassembly.cc
     ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc)
