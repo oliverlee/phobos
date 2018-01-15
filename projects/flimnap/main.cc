@@ -147,11 +147,7 @@ namespace {
         // and must be changed to use as analog output.
         palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
         dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-#if defined(USE_BICYCLE_KINEMATIC_MODEL)
         sa::set_kollmorgen_torque(0.0f);
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
-        sa::set_kollmorgen_velocity(0.0f);
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
     }
 } // namespace
 
@@ -169,7 +165,6 @@ int main(void) {
     chBlinkThreadCreateStatic();
 
     initialize_sensors_actuators();
-
 
     // Initialize bicycle.
     bicycle_t bicycle(
@@ -270,11 +265,27 @@ int main(void) {
                 0,  // measurement ignored
                 0); // measurement ignored
 
-        const float desired_velocity = model_t::get_full_state_element(
+        const float desired_position = model_t::get_full_state_element(
                 bicycle.full_state(),
-                model_t::full_state_index_t::steer_rate);
+                model_t::full_state_index_t::steer_angle);
+
+        const float steer_angle = util::encoder_count<float>(encoder_steer);
+        const float error = desired_position - steer_angle;
+        constexpr float k_p = 25.0f;
+        const float feedback_torque = k_p*error;
+
+        const model_t& model = bicycle.model();
+        const model_t::state_t state_deriv =
+            model.A()*model_t::get_state_part(bicycle.full_state()) +
+            model.B()*bicycle.input();
+        const float steer_accel = model_t::get_state_element(
+                state_deriv,
+                model_t::state_index_t::steer_rate);
+        //const float feedforward_torque = (mass_upper + mass_lower)*steer_accel;
+        constexpr float feedforward_torque = 0.0f;
+
         const dacsample_t handlebar_reference_dac =
-            sa::set_kollmorgen_velocity(desired_velocity);
+            sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
         chTMStopMeasurementX(&computation_time_measurement);
 
