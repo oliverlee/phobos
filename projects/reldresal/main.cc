@@ -37,7 +37,7 @@ namespace {
     constexpr systime_t dt = MS2ST(1); // milliseconds converted to system ticks
 
     // sensors
-    Analog analog;
+    Analog<10> analog; // per channel buffer depth of 10
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
 
     int printfq(const char *fmt, ...) {

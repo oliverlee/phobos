@@ -44,7 +44,7 @@ namespace {
     constexpr float K = m_lower/m_star_lower - 1.0f; // torque reference feedback gain
 
     // sensors
-    Analog analog;
+    Analog<10> analog; // per channel buffer depth of 10
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
 
     filter::MovingAverage<float, 8> kistler_average;

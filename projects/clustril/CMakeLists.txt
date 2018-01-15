@@ -26,7 +26,6 @@ add_phobos_executable(clustril
     ${PHOBOS_PROJECT_SOURCE_DIR}/filesystem.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
-    ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc
     ${PROTOBUF_GENERATED_SOURCE}

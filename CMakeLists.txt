@@ -76,13 +76,6 @@ macro(add_phobos_executable target_name)
             math(EXPR source_file_properties_modified
                 "${source_file_properties_modified} + 1")
         endif()
-        # Disable narrowing warning ('int' to 'uint32_t') as the original datatype for
-        # input to ADC_SQR1_NUM_CH() macro is 'uint16_t' and is cast to 'int'.
-        if(src_name STREQUAL "analog.cc")
-            set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-narrowing")
-            math(EXPR source_file_properties_modified
-                "${source_file_properties_modified} + 1")
-        endif()
         # Determine if bicycle sources are included in this project
         set(USE_BICYCLE_SOURCE FALSE)
         if(src_name STREQUAL "bicycle.cc")

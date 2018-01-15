@@ -10,6 +10,5 @@ add_phobos_executable(drunlo
     halconf.h
     mcuconf.h
     main.cc
-    ${PHOBOS_SOURCE_DIR}/src/analog.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc)
