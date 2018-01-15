@@ -51,8 +51,7 @@ namespace {
 #else
     using model_t = model::BicycleWhipple;
 #endif
-    using observer_t = std::nullptr_t;
-    using bicycle_t = sim::Bicycle<model_t, observer_t>;
+    using bicycle_t = sim::Bicycle<model_t>;
 
     // sensors
     Analog<10> analog; // per channel buffer depth of 10
@@ -192,11 +191,11 @@ int main(void) {
 
     // Initialize USB data transmission
     message::Transmitter transmitter;
-    {   // Transmit initial message containing gitsha1, model, and observer data.
+    {   // Transmit initial message containing gitsha1 and model data.
         SimulationMessage* msg = transmitter.alloc_simulation_message();
         *msg = SimulationMessage_init_zero;
         msg->timestamp = chVTGetSystemTime();
-        message::set_simulation_full_model_observer(msg, bicycle);
+        message::set_simulation_full_model(msg, bicycle);
         transmitter.transmit(msg); // This blocks until USB data starts getting read
     }
     transmitter.start(NORMALPRIO + 1); // start transmission thread

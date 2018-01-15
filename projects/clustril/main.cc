@@ -36,13 +36,11 @@
 #include <array>
 
 #include "bicycle/whipple.h" /* whipple bicycle model */
-#include "kalman.h" /* kalman observer */
 #include "simbicycle.h"
 
 namespace {
     using model_t = model::BicycleWhipple;
-    using observer_t = observer::Kalman<model_t>;
-    using bicycle_t = sim::Bicycle<model_t, observer_t>;
+    using bicycle_t = sim::Bicycle<model_t>;
 
     /* sensors */
     Analog<10> analog; // per channel buffer depth of 10
@@ -110,7 +108,6 @@ int main(void) {
 
     sample = simulation_message_zero;
     sample.timestamp = bicycle_simulation_time;
-    message::set_simulation_full_model_observer(&sample, bicycle);
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -162,12 +159,13 @@ int main(void) {
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float rear_wheel_angle = -util::encoder_count<float>(encoder_rear_wheel);
 
-        /* observer time/measurement update (~80 us with real_t = float) */
+        /* time/measurement update (~80 us with real_t = float) */
         bicycle.update_dynamics(roll_torque, kistler_torque, yaw_angle, steer_angle, rear_wheel_angle);
         bicycle.update_kinematics();
 
-        const float desired_velocity = model_t::get_state_element(bicycle.observer().state(),
-                model_t::state_index_t::steer_rate);
+        const float desired_velocity = model_t::get_full_state_element(
+                bicycle.full_state(),
+                model_t::full_state_index_t::steer_rate);
         const dacsample_t handlebar_velocity_dac = sa::set_kollmorgen_velocity(desired_velocity);
 
         sample = simulation_message_zero;

@@ -1,7 +1,6 @@
 #pragma once
 #include "simulation.pb.h"
 #include "bicycle/bicycle.h"
-#include "kalman.h"
 #include "simbicycle.h"
 
 namespace message {
@@ -17,39 +16,6 @@ namespace message {
     void set_symmetric_state_matrix(SymmetricStateMatrixMessage* pb, const bicycle_t::state_matrix_t& m);
     void set_bicycle_canonical(BicycleModelMessage* pb, const bicycle_t& b);
     void set_bicycle_discrete_time_state_space(BicycleModelMessage* pb, const bicycle_t& b);
-
-    /* functions for different observer variants */
-    template <typename observer_t>
-    typename std::enable_if<std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-    set_symmetric_output_matrix(SymmetricOutputMatrixMessage* pb, const typename observer_t::measurement_noise_covariance_t& m);
-
-    template <typename observer_t>
-    typename std::enable_if<!std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-    set_symmetric_output_matrix(SymmetricOutputMatrixMessage* pb, const typename observer_t::measurement_noise_covariance_t& m);
-
-    template <typename observer_t>
-    typename std::enable_if<std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-    set_observer_gain_matrix(KalmanGainMatrixMessage* pb, const typename observer_t::kalman_gain_t& m);
-
-    template <typename observer_t>
-    typename std::enable_if<!std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-    set_observer_gain_matrix(KalmanGainMatrixMessage* pb, const typename observer_t::kalman_gain_t& m);
-
-    template <typename observer_t>
-    typename std::enable_if<std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-    set_kalman_noise_covariances(BicycleKalmanMessage* pb, const observer_t& k);
-
-    template <typename observer_t>
-    typename std::enable_if<!std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-    set_kalman_noise_covariances(BicycleKalmanMessage* pb, const observer_t& k);
-
-    template <typename observer_t>
-    typename std::enable_if<std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-    set_kalman_gain(BicycleKalmanMessage* pb, const observer_t& k);
-
-    template <typename observer_t>
-    typename std::enable_if<!std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-    set_kalman_gain(BicycleKalmanMessage* pb, const observer_t& k);
 
     void set_simulation_gitsha1(SimulationMessage* pb);
     void set_simulation_sensors(SimulationMessage* pb,
@@ -69,88 +35,9 @@ namespace message {
 
     template <typename simbicycle_t>
     void set_simulation_full_model(SimulationMessage* pb, const simbicycle_t& b);
-
-    /* functions for different observer variants */
-    template <typename simbicycle_t>
-    typename std::enable_if<std::is_same<typename simbicycle_t::observer_t, typename observer::Kalman<typename simbicycle_t::model_t>>::value, void>::type
-    set_simulation_full_model_observer(SimulationMessage* pb, const simbicycle_t& b);
-
-    template <typename simbicycle_t>
-    typename std::enable_if<!std::is_same<typename simbicycle_t::observer_t, typename observer::Kalman<typename simbicycle_t::model_t>>::value, void>::type
-    set_simulation_full_model_observer(SimulationMessage* pb, const simbicycle_t& b);
 } // namespace message
 
 namespace message {
-
-template <typename observer_t>
-typename std::enable_if<std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-set_symmetric_output_matrix(SymmetricOutputMatrixMessage* pb, const typename observer_t::measurement_noise_covariance_t& m) {
-    // TODO: autogenerate in case state size changes in the future
-    auto p = pb->m;
-    auto d = m.data();
-    std::memcpy(p, d, 2*sizeof(pb->m[0]));
-    p += 2;
-    d += 2 + 1;
-    std::memcpy(p, d, 1*sizeof(pb->m[0]));
-    pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
-}
-
-template <typename observer_t>
-typename std::enable_if<!std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-set_symmetric_output_matrix(SymmetricOutputMatrixMessage* pb, const typename observer_t::measurement_noise_covariance_t& m) {
-    // no-op
-    (void)pb;
-    (void)m;
-}
-
-template <typename observer_t>
-typename std::enable_if<std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-set_observer_gain_matrix(KalmanGainMatrixMessage* pb, const typename observer_t::kalman_gain_t& m) {
-    std::memcpy(pb->m, m.data(), sizeof(pb->m));
-    pb->m_count = sizeof(pb->m)/sizeof(pb->m[0]);
-}
-
-template <typename observer_t>
-typename std::enable_if<!std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-set_observer_gain_matrix(KalmanGainMatrixMessage* pb, const typename observer_t::kalman_gain_t& m) {
-    // no-op
-    (void)pb;
-    (void)m;
-}
-
-template <typename observer_t>
-typename std::enable_if<std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-set_kalman_noise_covariances(BicycleKalmanMessage* pb, const observer_t& k) {
-    set_symmetric_state_matrix(&pb->process_noise_covariance, k.Q());
-    set_symmetric_output_matrix<observer_t>(&pb->measurement_noise_covariance, k.R());
-    pb->has_process_noise_covariance = true;
-    pb->has_measurement_noise_covariance = true;
-}
-
-template <typename observer_t>
-typename std::enable_if<!std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-set_kalman_noise_covariances(BicycleKalmanMessage* pb, const observer_t& k) {
-    // no-op
-    (void)pb;
-    (void)k;
-}
-
-template <typename observer_t>
-typename std::enable_if<std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-set_kalman_gain(BicycleKalmanMessage* pb, const observer_t& k) {
-    set_symmetric_state_matrix(&pb->error_covariance, k.P());
-    set_observer_gain_matrix<observer_t>(&pb->kalman_gain, k.K());
-    pb->has_error_covariance = true;
-    pb->has_kalman_gain = true;
-}
-
-template <typename observer_t>
-typename std::enable_if<!std::is_same<observer_t, typename observer::Kalman<typename observer_t::model_t>>::value, void>::type
-set_kalman_gain(BicycleKalmanMessage* pb, const observer_t& k) {
-    // no-op
-    (void)pb;
-    (void)k;
-}
 
 template <typename simbicycle_t>
 void set_simulation_state(SimulationMessage* pb, const simbicycle_t& b) {
@@ -180,23 +67,6 @@ void set_simulation_full_model(SimulationMessage* pb, const simbicycle_t& b) {
     set_bicycle_canonical(&pb->model, b.model());
     set_bicycle_discrete_time_state_space(&pb->model, b.model());
     pb->has_model = true;
-}
-
-template <typename simbicycle_t>
-typename std::enable_if<std::is_same<typename simbicycle_t::observer_t, typename observer::Kalman<typename simbicycle_t::model_t>>::value, void>::type
-set_simulation_full_model_observer(SimulationMessage* pb, const simbicycle_t& b) {
-    set_simulation_full_model(pb, b);
-
-    // TODO: this assumes observer is kalman type
-    set_kalman_noise_covariances<typename simbicycle_t::observer_t>(&pb->kalman, b.observer());
-    set_kalman_gain<typename simbicycle_t::observer_t>(&pb->kalman, b.observer());
-    pb->has_kalman = true;
-}
-
-template <typename simbicycle_t>
-typename std::enable_if<!std::is_same<typename simbicycle_t::observer_t, typename observer::Kalman<typename simbicycle_t::model_t>>::value, void>::type
-set_simulation_full_model_observer(SimulationMessage* pb, const simbicycle_t& b) {
-    set_simulation_full_model(pb, b);
 }
 
 } // namespace message

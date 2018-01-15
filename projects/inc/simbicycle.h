@@ -5,7 +5,6 @@
 #include "haptic.h"
 // bicycle submodule imports
 #include "bicycle/bicycle.h"
-#include "observer.h"
 #include "constants.h" // rad/deg constants, real_t
 #include "parameters.h"
 
@@ -14,32 +13,19 @@
 
 namespace sim {
 
-#define OBSERVER_FUNCTION_DECL(return_type) \
-    template <typename T = Observer> \
-    typename std::enable_if<std::is_base_of<observer::ObserverBase, T>::value, return_type>::type
-#define NULL_OBSERVER_FUNCTION_DECL(return_type) \
-    template <typename T = Observer> \
-    typename std::enable_if<!std::is_base_of<observer::ObserverBase, T>::value, return_type>::type
-
 /*
- * This template class simulates a bicycle model (template argument Model)
- * with an observer type (template argument Observer).
+ * This template class simulates a bicycle model (template argument Model).
  *  - incorporates fields necessary for visualization, such as wheel angle
  *  - provides a single interface for using different bicycle models
  *  - allows simulation of dynamics and kinematics separately
  */
-template <typename Model, typename Observer>
+template <typename Model>
 class Bicycle {
     static_assert(std::is_base_of<model::Bicycle, Model>::value,
             "Invalid template parameter type for sim::Bicycle");
-    static_assert((std::is_base_of<observer::ObserverBase, Observer>::value) ||
-                  (std::is_same<std::nullptr_t, Observer>::value),
-            "Invalid template parameter type for sim::Bicycle. "
-            "Observer type must be derived from observer::ObserverBase or std::nullptr_t.");
 
     public:
         using model_t = Model;
-        using observer_t = Observer;
         using real_t = model::real_t;
         using second_order_matrix_t = typename model_t::second_order_matrix_t;
         using state_t = typename model_t::state_t;
@@ -55,17 +41,11 @@ class Bicycle {
         static constexpr real_t default_v = 5.0; // forward speed, m/s
         static constexpr real_t v_quantization_resolution = 0.1; // m/s
 
-        template <typename T = Observer>
-            Bicycle(typename std::enable_if<std::is_base_of<observer::ObserverBase, T>::value, real_t>::type
-                v = default_v, real_t dt = default_dt);
-        template <typename T = Observer>
-            Bicycle(typename std::enable_if<!std::is_base_of<observer::ObserverBase, T>::value, real_t>::type
-                v = default_v, real_t dt = default_dt);
+        Bicycle(real_t v = default_v, real_t dt = default_dt);
 
         void set_v(real_t v);
         void set_dt(real_t dt);
-        OBSERVER_FUNCTION_DECL(void) reset();
-        NULL_OBSERVER_FUNCTION_DECL(void) reset();
+        void reset();
         void update_dynamics(real_t roll_torque_input, // update bicycle internal state
                 real_t steer_torque_input,
                 real_t yaw_angle_measurement,
@@ -73,8 +53,6 @@ class Bicycle {
                 real_t rear_wheel_angle_measurement);
         void update_dynamics(input_t u, measurement_t z);
         void update_kinematics(); // update bicycle pose
-        OBSERVER_FUNCTION_DECL(void) prime_observer(); // perform observer specific initialization routine
-        NULL_OBSERVER_FUNCTION_DECL(void) prime_observer(); // perform observer specific initialization routine
 
         const BicyclePoseMessage& pose() const; // get most recently computed pose
         real_t handlebar_feedback_torque() const; // get most recently computed feedback torque
@@ -84,8 +62,6 @@ class Bicycle {
         // common bicycle model member variables
         model_t& model();
         const model_t& model() const;
-        observer_t& observer();
-        const observer_t& observer() const;
         const second_order_matrix_t& M() const;
         const second_order_matrix_t& C1() const;
         const second_order_matrix_t& K0() const;
@@ -100,15 +76,11 @@ class Bicycle {
 
     private:
         model_t m_model; // bicycle model object
-        observer_t m_observer; // observer object
         full_state_t m_full_state; // auxiliary + dynamic state
         BicyclePoseMessage m_pose; // Unity visualization message
         input_t m_input; // bicycle model input vector
         measurement_t m_measurement; // bicycle model measurement vector
         binary_semaphore_t m_state_sem; // bsem for synchronizing kinematics update
-
-        OBSERVER_FUNCTION_DECL(full_state_t) do_full_state_update(const full_state_t& full_state);
-        NULL_OBSERVER_FUNCTION_DECL(full_state_t) do_full_state_update(const full_state_t& full_state);
 };
 
 } // namespace sim
