@@ -30,27 +30,27 @@ namespace sa {
         return set_kollmorgen_reference(reference_velocity, MAX_KOLLMORGEN_VELOCITY);
     }
 
-    float convert_adcsample(adcsample_t ain, adcsample_t adc_zero, float magnitude) {
+    float convert_adcsample(adcsample_t ain, adcsample_t adc_zero, float magnitude, uint8_t oversample_rate=0) {
         // Linear conversion of ADC sample. ADC samples are 12 bits.
-        const int16_t shifted_value = static_cast<int16_t>(ain) - static_cast<int16_t>(adc_zero);
-        return static_cast<float>(shifted_value)*magnitude/static_cast<float>(ADC_HALF_RANGE);
+        const int32_t shifted_value = static_cast<int32_t>(ain) - (static_cast<int32_t>(adc_zero) << oversample_rate);
+        return static_cast<float>(shifted_value)*magnitude/static_cast<float>(ADC_HALF_RANGE << oversample_rate);
     }
 
-    float get_kollmorgen_motor_torque(adcsample_t ain) {
-        return convert_adcsample(ain, KOLLMORGEN_ADC_ZERO_OFFSET, MAX_KOLLMORGEN_TORQUE);
+    float get_kollmorgen_motor_torque(adcsample_t ain, uint8_t oversample_rate=0) {
+        return convert_adcsample(ain, KOLLMORGEN_ADC_ZERO_OFFSET, MAX_KOLLMORGEN_TORQUE, oversample_rate);
     }
 
-    float get_kistler_sensor_torque(adcsample_t ain) {
+    float get_kistler_sensor_torque(adcsample_t ain, uint8_t oversample_rate=0) {
         // Note that sensor sign is reversed.
         // Decreasing adcsample_t values result in _increasing_ torque.
         // Different constants are used for positive and negative torque based
         // on measured sensor behavior.
         if (ain > KISTLER_ADC_ZERO_OFFSET_NEGATIVE) {
             return convert_adcsample(
-                    ain, KISTLER_ADC_ZERO_OFFSET_NEGATIVE, MAX_KISTLER_TORQUE_NEGATIVE);
+                    ain, KISTLER_ADC_ZERO_OFFSET_NEGATIVE, MAX_KISTLER_TORQUE_NEGATIVE, oversample_rate);
         } else if (ain < KISTLER_ADC_ZERO_OFFSET_POSITIVE) {
             return convert_adcsample(
-                    ain, KISTLER_ADC_ZERO_OFFSET_POSITIVE, MAX_KISTLER_TORQUE_POSITIVE);
+                    ain, KISTLER_ADC_ZERO_OFFSET_POSITIVE, MAX_KISTLER_TORQUE_POSITIVE, oversample_rate);
         } // else
         return 0.0f;
     }

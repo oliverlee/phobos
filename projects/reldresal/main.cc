@@ -35,6 +35,7 @@
 
 namespace {
     constexpr systime_t dt = MS2ST(1); // milliseconds converted to system ticks
+    constexpr uint8_t oversample_bits = 2;
 
     // sensors
     Analog analog;
@@ -89,7 +90,7 @@ int main(void) {
     palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
     encoder_steer.start();
-    analog.start(10000); /* trigger ADC conversion at 10 kHz */
+    analog.start(16000, false, oversample_bits); /* trigger ADC conversion at 16 kHz, 2 oversample bits */
 
     // Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
     // The default line configuration is OUTPUT_OPENDRAIN_PULLUP for SPI1_ENC1_NSS
@@ -118,8 +119,8 @@ int main(void) {
 
     // Normal main() thread activity
     while (true) {
-        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
-        const uint16_t steer_angle_voltage = analog.get_adc13();
+        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12(), oversample_bits);
+        const uint16_t steer_angle_voltage = analog.get_adc12(); // kistler torque voltage
         const float steer_angle = util::encoder_count<float>(encoder_steer);
 
         printfq("%u, %10.5f, %10.5f, %u\r\n",

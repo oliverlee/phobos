@@ -30,6 +30,11 @@ namespace {
     const eventflags_t adc_eventflag_error = EVENT_MASK(1);
     event_source_t adc_event_source;
 
+    static constexpr adc_channels_num_t ADC_OS_RATE_OFFSET = Analog::m_ADC_NUM_CHANNELS;
+    static constexpr adc_channels_num_t ADC_OS_COUNT_OFFSET = Analog::m_ADC_NUM_CHANNELS + 1;
+    static constexpr adc_channels_num_t ADC_OS_SUM_OFFSET = Analog::m_ADC_NUM_CHANNELS + 2;
+    static constexpr adc_channels_num_t ADC_OS_MEAN_OFFSET = 2*Analog::m_ADC_NUM_CHANNELS + 2;
+
     void adcerrorcallback(ADCDriver* adcp, adcerror_t err) {
         (void)adcp;
         (void)err;
@@ -45,10 +50,65 @@ namespace {
         chEvtBroadcastFlagsI(&adc_event_source, adc_eventflag_complete);
         chSysUnlockFromISR();
     }
+    void adccallback_oversample(ADCDriver* adcp, adcsample_t* buffer, size_t n) {
+        (void)adcp;
+        (void)n;
+        chSysLockFromISR();
+        // we use the following buffer layout when oversampling:
+        // ADC1x: first ADC channel
+        // ADC1y: last ADC channel
+        // [ADC1x]...[ADC1y][ADC_os_rate][ADC_os_count][ADC1x_os_sum]...[ACD1y_os_sum][ADC1x_os_mean]....[ADC1y_os_mean][x]...
+        // This results in unused space in the buffer as the current depth (per channel) is 5
+        const uint8_t oversample_rate = buffer[ADC_OS_RATE_OFFSET];
+        for (unsigned int i = 0; i < Analog::m_ADC_NUM_CHANNELS; ++i) {
+            buffer[i + ADC_OS_SUM_OFFSET] += buffer[i];
+        }
+        if (++buffer[ADC_OS_COUNT_OFFSET] == 1 << (2*oversample_rate)) {
+            for (unsigned int i = 0; i < Analog::m_ADC_NUM_CHANNELS; ++i) {
+                buffer[i + ADC_OS_MEAN_OFFSET] =
+                    buffer[i + ADC_OS_SUM_OFFSET] >> oversample_rate;
+                buffer[i + ADC_OS_SUM_OFFSET] = 0;
+            }
+            buffer[ADC_OS_COUNT_OFFSET] = 0;
+        }
+        chSysUnlockFromISR();
+    }
+
+    const ADCConversionGroup adcgrpcfg_oversample = {
+        true,                     /* circular */
+        Analog::m_ADC_NUM_CHANNELS,       /* num channels */
+        adccallback_oversample,   /* end callback */
+        nullptr,                  /* error callback */
+        0,                        /* CR1 */
+        ADC_CR2_EXTEN_RISING | ADC_CR2_EXTSEL_SRC(14),        /* CR2 */
+#ifdef STATIC_SIMULATOR_CONFIG
+        ADC_SMPR1_SMP_AN13(ADC_SAMPLE_15) |
+            ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
+            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_15),
+#else // STATIC_SIMULATOR_CONFIG
+        ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
+            ADC_SMPR1_SMP_AN11(ADC_SAMPLE_15) |
+            ADC_SMPR1_SMP_AN10(ADC_SAMPLE_15),
+#endif // STATIC_SIMULATOR_CONFIG
+        0,                        /* SMPR2 */
+#ifdef STATIC_SIMULATOR_CONFIG
+        ADC_SQR1_NUM_CH(Analog::m_ADC_NUM_CHANNELS),
+        0,
+        ADC_SQR3_SQ3_N(ADC_CHANNEL_IN13) |
+            ADC_SQR3_SQ2_N(ADC_CHANNEL_IN12) |
+            ADC_SQR3_SQ1_N(ADC_CHANNEL_IN11)
+#else // STATIC_SIMULATOR_CONFIG
+        ADC_SQR1_NUM_CH(Analog::m_ADC_NUM_CHANNELS),
+        0,
+        ADC_SQR3_SQ3_N(ADC_CHANNEL_IN12) |
+            ADC_SQR3_SQ2_N(ADC_CHANNEL_IN11) |
+            ADC_SQR3_SQ1_N(ADC_CHANNEL_IN10)
+#endif // STATIC_SIMULATOR_CONFIG
+    };
 
     const ADCConversionGroup adcgrpcfg_events = {
         true,                     /* circular */
-        Analog::buffer_size(),    /* num channels */
+        Analog::m_ADC_BUFFER_SIZE,/* num channels */
         adccallback,              /* end callback */
         adcerrorcallback,         /* error callback */
         0,                        /* CR1 */
@@ -64,7 +124,7 @@ namespace {
 #endif // STATIC_SIMULATOR_CONFIG
         0,                        /* SMPR2 */
 #ifdef STATIC_SIMULATOR_CONFIG
-        ADC_SQR1_NUM_CH(Analog::buffer_size()) |
+        ADC_SQR1_NUM_CH(Analog::m_ADC_BUFFER_SIZE) |
             ADC_SQR1_SQ15_N(ADC_CHANNEL_IN13) |
             ADC_SQR1_SQ14_N(ADC_CHANNEL_IN12) |
             ADC_SQR1_SQ13_N(ADC_CHANNEL_IN11),
@@ -81,7 +141,7 @@ namespace {
             ADC_SQR3_SQ2_N(ADC_CHANNEL_IN12) |
             ADC_SQR3_SQ1_N(ADC_CHANNEL_IN11)
 #else // STATIC_SIMULATOR_CONFIG
-        ADC_SQR1_NUM_CH(Analog::buffer_size()) |
+        ADC_SQR1_NUM_CH(Analog::m_ADC_BUFFER_SIZE) |
             ADC_SQR1_SQ15_N(ADC_CHANNEL_IN12) |
             ADC_SQR1_SQ14_N(ADC_CHANNEL_IN11) |
             ADC_SQR1_SQ13_N(ADC_CHANNEL_IN10),
@@ -102,7 +162,7 @@ namespace {
 
     const ADCConversionGroup adcgrpcfg = {
         true,                     /* circular */
-        Analog::buffer_size(),    /* num channels */
+        Analog::m_ADC_BUFFER_SIZE,    /* num channels */
         nullptr,                  /* end callback */
         nullptr,                  /* error callback */
         0,                        /* CR1 */
@@ -118,7 +178,7 @@ namespace {
 #endif // STATIC_SIMULATOR_CONFIG
         0,                        /* SMPR2 */
 #ifdef STATIC_SIMULATOR_CONFIG
-        ADC_SQR1_NUM_CH(Analog::buffer_size()) |
+        ADC_SQR1_NUM_CH(Analog::m_ADC_BUFFER_SIZE) |
             ADC_SQR1_SQ15_N(ADC_CHANNEL_IN13) |
             ADC_SQR1_SQ14_N(ADC_CHANNEL_IN12) |
             ADC_SQR1_SQ13_N(ADC_CHANNEL_IN11),
@@ -135,7 +195,7 @@ namespace {
             ADC_SQR3_SQ2_N(ADC_CHANNEL_IN12) |
             ADC_SQR3_SQ1_N(ADC_CHANNEL_IN11)
 #else // STATIC_SIMULATOR_CONFIG
-        ADC_SQR1_NUM_CH(Analog::buffer_size()) |
+        ADC_SQR1_NUM_CH(Analog::m_ADC_BUFFER_SIZE) |
             ADC_SQR1_SQ15_N(ADC_CHANNEL_IN12) |
             ADC_SQR1_SQ14_N(ADC_CHANNEL_IN11) |
             ADC_SQR1_SQ13_N(ADC_CHANNEL_IN10),
@@ -173,9 +233,13 @@ namespace {
 } // namespace
 
 
-Analog::Analog() : m_adc_buffer() { }
+Analog::Analog() : m_adc_buffer(), m_oversample_rate(0) { }
 
-void Analog::start(gptcnt_t sample_rate, bool use_events) {
+void Analog::start(gptcnt_t sample_rate, bool use_events, uint8_t oversample_rate) {
+    chDbgAssert(!((oversample_rate > 0) && use_events),
+            "Analog events and oversampling cannot both be enabled."); // Not yet implemented
+    chDbgAssert(oversample_rate <= 2,
+            "Unable to oversample at this rate due to integer overflow."); // Not yet implemented
 #ifdef STATIC_SIMULATOR_CONFIG
     /*
      * We manually toggle the Kistler torque sensor measurement line
@@ -188,7 +252,13 @@ void Analog::start(gptcnt_t sample_rate, bool use_events) {
 #endif // STATIC_SIMULATOR_CONFIG
     gptStart(&GPTD8, &gpt8cfg1);
     adcStart(&ADCD1, nullptr);
-    if (use_events) {
+    if (oversample_rate > 0) {
+        m_oversample_rate = oversample_rate;
+        m_adc_buffer.fill(0); // zero ADC buffer as we will use specific
+                              // entries for oversampling
+        m_adc_buffer[ADC_OS_RATE_OFFSET] = m_oversample_rate;
+        adcStartConversion(&ADCD1, &adcgrpcfg_oversample, m_adc_buffer.data(), 1);
+    } else if (use_events) {
         adcStartConversion(&ADCD1, &adcgrpcfg_events, m_adc_buffer.data(), 1);
     } else {
         adcStartConversion(&ADCD1, &adcgrpcfg, m_adc_buffer.data(), 1);
@@ -208,10 +278,17 @@ adcsample_t Analog::average_adc_conversion_value(sensor_t channel) const {
     channel = static_cast<sensor_t>(static_cast<std::underlying_type_t<sensor_t>>(channel) - 1);
 #endif // STATIC_SIMULATOR_CONFIG
     adcsample_t sum = m_adc_buffer[channel];
-    for (unsigned int i = 1; i < m_adc_buffer_depth; ++i) {
-        sum += m_adc_buffer[channel + i*m_adc_num_channels];
+    for (unsigned int i = 1; i < m_ADC_BUFFER_DEPTH; ++i) {
+        sum += m_adc_buffer[channel + i*m_ADC_NUM_CHANNELS];
     }
-    return sum / m_adc_buffer_depth;
+    return sum / m_ADC_BUFFER_DEPTH;
+}
+
+adcsample_t Analog::get_oversample_mean(sensor_t channel) const {
+#ifdef STATIC_SIMULATOR_CONFIG
+    channel = static_cast<sensor_t>(static_cast<std::underlying_type_t<sensor_t>>(channel) - 1);
+#endif // STATIC_SIMULATOR_CONFIG
+    return m_adc_buffer[channel + ADC_OS_MEAN_OFFSET];
 }
 
 adcsample_t Analog::get_adc10() const {
@@ -219,29 +296,41 @@ adcsample_t Analog::get_adc10() const {
 #ifdef STATIC_SIMULATOR_CONFIG
     return 0;
 #else // STATIC_SIMULATOR_CONFIG
+    if (m_oversample_rate > 0) {
+        return get_oversample_mean(sensor_t::ADC10);
+    }
     return average_adc_conversion_value(sensor_t::ADC10);
 #endif // STATIC_SIMULATOR_CONFIG
 }
 
 adcsample_t Analog::get_adc11() const {
     //return m_adc_buffer[sensor_t::ADC11];
+    if (m_oversample_rate > 0) {
+        return get_oversample_mean(sensor_t::ADC11);
+    }
     return average_adc_conversion_value(sensor_t::ADC11);
 }
 
 adcsample_t Analog::get_adc12() const {
     //return m_adc_buffer[sensor_t::ADC12];
+    if (m_oversample_rate > 0) {
+        return get_oversample_mean(sensor_t::ADC12);
+    }
     return average_adc_conversion_value(sensor_t::ADC12);
 }
 
 adcsample_t Analog::get_adc13() const {
     //return m_adc_buffer[sensor_t::ADC13];
 #ifdef STATIC_SIMULATOR_CONFIG
+    if (m_oversample_rate > 0) {
+        return get_oversample_mean(sensor_t::ADC13);
+    }
     return average_adc_conversion_value(sensor_t::ADC13);
 #else // STATIC_SIMULATOR_CONFIG
     return 0;
 #endif // STATIC_SIMULATOR_CONFIG
 }
 
-adc_channels_num_t Analog::buffer_size() {
-    return m_adc_buffer_size;
+uint8_t Analog::oversample_rate() const {
+    return m_oversample_rate;
 }
