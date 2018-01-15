@@ -42,19 +42,16 @@
 #include "bicycle/kinematic.h" // simplified bicycle model
 #else // No Whipple model simplifications
 #include "bicycle/whipple.h"
-#include "kalman.h" // kalman filter observer
 #endif
 
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleKinematic;
-    using observer_t = std::nullptr_t;
     using haptic_drive_t = haptic::Handlebar0;
 #else
     using model_t = model::BicycleWhipple;
-    using observer_t = observer::Kalman<model_t>;
 #endif
-    using bicycle_t = sim::Bicycle<model_t, observer_t>;
+    using bicycle_t = sim::Bicycle<model_t>;
 
     // sensors
     Analog<10> analog; // per channel buffer depth of 10
@@ -98,47 +95,6 @@ namespace {
 
         return next;
     }
-
-    template <typename T>
-    struct observer_initializer{
-        template <typename S = T>
-        typename std::enable_if<std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
-            initialize(S& bicycle) {
-            typename S::observer_t& observer = bicycle.observer();
-            observer.set_Q(10*parameters::defaultvalue::kalman::Q(observer.dt()));
-            // Reduce steer measurement noise covariance
-            observer.set_R(parameters::defaultvalue::kalman::R);
-
-            // prime the Kalman gain matrix
-            bicycle.prime_observer();
-
-            // We start with steer angle equal to the measurement and all other state elements at zero.
-            model_t::state_t x0 = model_t::state_t::Zero();
-            model_t::set_state_element(x0, model_t::state_index_t::steer_angle,
-                    util::encoder_count<float>(encoder_steer));
-            observer.set_x(x0);
-        }
-        template <typename S = T>
-        typename std::enable_if<!std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
-            initialize(S& bicycle) {
-            // no-op
-            (void)bicycle;
-        }
-
-        template <typename S = T>
-        typename std::enable_if<std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
-            set_message(S& bicycle, SimulationMessage* msg) {
-            message::set_kalman_gain(&msg->kalman, bicycle.observer());
-            msg->has_kalman = true;
-        }
-        template <typename S = T>
-        typename std::enable_if<!std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
-            set_message(S& bicycle, SimulationMessage* msg) {
-            // no-op
-            (void)bicycle;
-            (void)msg;
-        }
-    };
 
     struct pose_thread_arg {
         bicycle_t& bicycle;
@@ -210,8 +166,7 @@ int main(void) {
     sa::set_kollmorgen_velocity(0.0f);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
 
-    // Initialize bicycle. The initial velocity is important as we use it to prime
-    // the Kalman gain matrix.
+    // Initialize bicycle.
     bicycle_t bicycle(
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
             0.0f,
@@ -228,9 +183,6 @@ int main(void) {
     // Initialize handlebar object to estimate torque due to handlebar inertia.
     haptic::Handlebar2 handlebar_inertia(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL);
 
-    observer_initializer<observer_t> oi;
-    oi.initialize(bicycle);
-
     // Initialize time measurements
     time_measurement_t computation_time_measurement;
     time_measurement_t transmission_time_measurement;
@@ -239,11 +191,11 @@ int main(void) {
 
     // Initialize USB data transmission
     message::Transmitter transmitter;
-    {   // Transmit initial message containing gitsha1, model, and observer data.
+    {   // Transmit initial message containing gitsha1 and model data.
         SimulationMessage* msg = transmitter.alloc_simulation_message();
         *msg = SimulationMessage_init_zero;
         msg->timestamp = chVTGetSystemTime();
-        message::set_simulation_full_model_observer(msg, bicycle);
+        message::set_simulation_full_model(msg, bicycle);
         transmitter.transmit(msg); // This blocks until USB data starts getting read
     }
     transmitter.start(NORMALPRIO + 1); // start transmission thread
@@ -310,7 +262,6 @@ int main(void) {
                 msg->has_input = true;
                 message::set_simulation_state(msg, bicycle);
                 message::set_simulation_auxiliary_state(msg, bicycle);
-                oi.set_message(bicycle, msg);
                 message::set_simulation_actuators(msg, handlebar_reference_dac);
                 message::set_simulation_sensors(
                         msg,
