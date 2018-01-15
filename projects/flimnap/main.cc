@@ -42,18 +42,16 @@
 #include "bicycle/kinematic.h" // simplified bicycle model
 #else // No Whipple model simplifications
 #include "bicycle/whipple.h"
-#include "kalman.h" // kalman filter observer
 #endif
 
 namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     using model_t = model::BicycleKinematic;
-    using observer_t = std::nullptr_t;
     using haptic_drive_t = haptic::Handlebar0;
 #else
     using model_t = model::BicycleWhipple;
-    using observer_t = observer::Kalman<model_t>;
 #endif
+    using observer_t = std::nullptr_t;
     using bicycle_t = sim::Bicycle<model_t, observer_t>;
 
     // sensors
@@ -67,8 +65,10 @@ namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     filter::MovingAverage<float, 5> velocity_filter;
 #else
-    constexpr float fixed_v = 5.0f; // fixed bicycle velocity
+    filter::MovingAverage<float, 5> velocity_filter;
+    //constexpr float fixed_v = 5.0f; // fixed bicycle velocity
 #endif
+    //filter::MovingAverage<float, 5> steer_torque_filter;
 
     constexpr float mass_upper = sa::FULL_ASSEMBLY_INERTIA_WITHOUT_WEIGHT;
     constexpr float mass_lower = sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL;
@@ -99,47 +99,6 @@ namespace {
         return next;
     }
 
-    template <typename T>
-    struct observer_initializer{
-        template <typename S = T>
-        typename std::enable_if<std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
-            initialize(S& bicycle) {
-            typename S::observer_t& observer = bicycle.observer();
-            observer.set_Q(10*parameters::defaultvalue::kalman::Q(observer.dt()));
-            // Reduce steer measurement noise covariance
-            observer.set_R(parameters::defaultvalue::kalman::R);
-
-            // prime the Kalman gain matrix
-            bicycle.prime_observer();
-
-            // We start with steer angle equal to the measurement and all other state elements at zero.
-            model_t::state_t x0 = model_t::state_t::Zero();
-            model_t::set_state_element(x0, model_t::state_index_t::steer_angle,
-                    util::encoder_count<float>(encoder_steer));
-            observer.set_x(x0);
-        }
-        template <typename S = T>
-        typename std::enable_if<!std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
-            initialize(S& bicycle) {
-            // no-op
-            (void)bicycle;
-        }
-
-        template <typename S = T>
-        typename std::enable_if<std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
-            set_message(S& bicycle, SimulationMessage* msg) {
-            message::set_kalman_gain(&msg->kalman, bicycle.observer());
-            msg->has_kalman = true;
-        }
-        template <typename S = T>
-        typename std::enable_if<!std::is_same<typename S::observer_t, observer::Kalman<model_t>>::value, void>::type
-            set_message(S& bicycle, SimulationMessage* msg) {
-            // no-op
-            (void)bicycle;
-            (void)msg;
-        }
-    };
-
     struct pose_thread_arg {
         bicycle_t& bicycle;
         message::Transmitter& transmitter;
@@ -166,6 +125,34 @@ namespace {
             deadline = chThdSleepUntilWindowedOrYield(deadline, deadline + pose_loop_period);
         }
     }
+
+    void system_initialize() {
+        // Start sensors.
+        // Encoder:
+        //   Initialize encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
+        //   Pins for encoder driver 3 are already set in board.h.
+        palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
+        palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
+        encoder_steer.start();
+        encoder_rear_wheel.start();
+        analog.start();
+
+        //Set torque measurement enable line low.
+        //The output of the Kistler torque sensor is not valid until after a falling edge
+        //on the measurement line and it is held low. The 'LINE_TORQUE_MEAS_EN' line is
+        //reversed due to NPN switch Q1.
+        palClearLine(LINE_TORQUE_MEAS_EN);
+        chThdSleepMilliseconds(1);
+        palSetLine(LINE_TORQUE_MEAS_EN);
+
+        // Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
+        // The default line configuration is OUTPUT_OPENDRAIN_PULLUP for SPI1_ENC1_NSS
+        // and must be changed to use as analog output.
+        palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
+        dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
+        sa::set_kollmorgen_torque(0.0f);
+    }
+
 } // namespace
 
 
@@ -181,34 +168,8 @@ int main(void) {
     // Create LED blink thread
     chBlinkThreadCreateStatic();
 
-    // Start sensors.
-    // Encoder:
-    //   Initialize encoder driver 5 on pins PA0, PA1 (EXT2-4, EXT2-8).
-    //   Pins for encoder driver 3 are already set in board.h.
-    palSetLineMode(LINE_TIM5_CH1, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
-    palSetLineMode(LINE_TIM5_CH2, PAL_MODE_ALTERNATE(2) | PAL_STM32_PUPDR_FLOATING);
-    encoder_steer.start();
-    encoder_rear_wheel.start();
-    analog.start(10000); // trigger ADC conversion at 10 kHz
+    system_initialize();
 
-    //Set torque measurement enable line low.
-    //The output of the Kistler torque sensor is not valid until after a falling edge
-    //on the measurement line and it is held low. The 'LINE_TORQUE_MEAS_EN' line is
-    //reversed due to NPN switch Q1.
-    palClearLine(LINE_TORQUE_MEAS_EN);
-    chThdSleepMilliseconds(1);
-    palSetLine(LINE_TORQUE_MEAS_EN);
-
-    // Start DAC1 driver and set output pin as analog as suggested in Reference Manual.
-    // The default line configuration is OUTPUT_OPENDRAIN_PULLUP for SPI1_ENC1_NSS
-    // and must be changed to use as analog output.
-    palSetLineMode(LINE_KOLLM_ACTL_TORQUE, PAL_MODE_INPUT_ANALOG);
-    dacStart(sa::KOLLM_DAC, sa::KOLLM_DAC_CFG);
-#if defined(USE_BICYCLE_KINEMATIC_MODEL)
-    sa::set_kollmorgen_torque(0.0f);
-#else // defined(USE_BICYCLE_KINEMATIC_MODEL)
-    sa::set_kollmorgen_velocity(0.0f);
-#endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
 
     // Initialize bicycle. The initial velocity is important as we use it to prime
     // the Kalman gain matrix.
@@ -216,7 +177,8 @@ int main(void) {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
             0.0f,
 #else
-            fixed_v,
+            0.0f,
+            //fixed_v,
 #endif
             static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
@@ -227,9 +189,6 @@ int main(void) {
 
     // Initialize handlebar object to estimate torque due to handlebar inertia.
     haptic::Handlebar2 handlebar_inertia(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL);
-
-    observer_initializer<observer_t> oi;
-    oi.initialize(bicycle);
 
     // Initialize time measurements
     time_measurement_t computation_time_measurement;
@@ -258,41 +217,82 @@ int main(void) {
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
-        const float roll_torque = 0.0f;
+        constexpr float roll_torque = 0.0f;
 
-        // get sensor measurements
-        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
-        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
-        const float steer_angle = util::encoder_count<float>(encoder_steer);
-        const float rear_wheel_angle = std::fmod(-util::encoder_count<float>(encoder_rear_wheel),
-                                                 constants::two_pi);
-#if defined(USE_BICYCLE_KINEMATIC_MODEL)
-        const float v = velocity_filter.output(
-                -sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_rear_wheel)));
-#else
-        constexpr float v = fixed_v;
-#endif
-
-        // yaw angle, just use previous state value
-        const float yaw_angle = util::wrap(bicycle.pose().yaw);
+        // get torque measurements
+        const float kistler_torque = sa::get_kistler_sensor_torque(analog.getf_adc12());
+        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.getf_adc13());
 
         // calculate rider applied torque
-        const float steer_torque = kistler_torque + mass_upper/mass_lower*(kistler_torque - motor_torque);
+        // positive motor torque will rotate the steering shaft clockwise
+        // positive kistler torque equal to positive motor torque will stop
+        // rotation
+        // m1 * xdd = T_delta + T_s
+        // m2 * xdd = -T_s + T_a
+        // m1: upper mass
+        // m2: lower mass
+        // T_delta: rider applied steer torque
+        // T_s: kistler torque (sensor measurement)
+        // T_a: motor torque (actuator command)
+        //
+        // m1/m2*(-T_s + T_a) = T_delta + T_s
+        // T_delta = -T_s + m1/m2*(-T_s + T_a)
+        //const float steer_torque = steer_torque_filter.output(
+        //        -kistler_torque +
+        //        mass_upper/mass_lower*(-kistler_torque + motor_torque));
+        const float steer_torque = -kistler_torque +
+            mass_upper/mass_lower*(-kistler_torque + motor_torque);
 
-        // simulate bicycle
+        const float v = velocity_filter.output(
+                -sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_rear_wheel)));
         bicycle.set_v(v);
-
-        bicycle.update_dynamics(roll_torque, steer_torque, yaw_angle, steer_angle, rear_wheel_angle);
-
-        // generate handlebar torque or velocity reference
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
-        const float desired_torque = haptic_drive.torque(model_t::get_state_part(bicycle.full_state()));
-        const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_torque(desired_torque);
+        // yaw angle, just use previous state value
+        const float yaw_angle = util::wrap(bicycle.pose().yaw);
+        const float steer_angle = util::encoder_count<float>(encoder_steer);
+        //const float rear_wheel_angle =
+        //    std::fmod(-util::encoder_count<float>(encoder_rear_wheel),
+        //              constants::two_pi);
+        bicycle.update_dynamics(
+                roll_torque,
+                steer_torque,
+                yaw_angle,
+                steer_angle,
+                0);
+
+        const float desired_torque = haptic_drive.torque(
+                model_t::get_state_part(bicycle.full_state()));
+        const dacsample_t handlebar_reference_dac =
+            sa::set_kollmorgen_torque(desired_torque);
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
-        const float desired_velocity =
-            model_t::get_full_state_element(bicycle.full_state(),
-                                            model_t::full_state_index_t::steer_rate);
-        const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_velocity(desired_velocity);
+        bicycle.update_dynamics(
+                roll_torque,
+                steer_torque,
+                0,  // measurement ignored
+                0,  // measurement ignored
+                0); // measurement ignored
+
+        const float desired_position = model_t::get_full_state_element(
+                bicycle.full_state(),
+                model_t::full_state_index_t::steer_angle);
+
+        const float steer_angle = util::encoder_count<float>(encoder_steer);
+        const float error = desired_position - steer_angle;
+        constexpr float k_p = 25.0;
+        const float feedback_torque = k_p*error;
+
+        const model_t model = bicycle.model();
+        const model_t::state_t state_deriv =
+            model.A()*model_t::get_state_part(bicycle.full_state()) +
+            model.B()*bicycle.input();
+        const float steer_accel = model_t::get_state_element(
+                state_deriv,
+                model_t::state_index_t::steer_rate);
+        //const float feedforward_torque = (mass_upper + mass_lower)*steer_accel;
+        const float feedforward_torque = 0;
+
+        const dacsample_t handlebar_reference_dac =
+            sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
         chTMStopMeasurementX(&computation_time_measurement);
 
@@ -310,7 +310,6 @@ int main(void) {
                 msg->has_input = true;
                 message::set_simulation_state(msg, bicycle);
                 message::set_simulation_auxiliary_state(msg, bicycle);
-                oi.set_message(bicycle, msg);
                 message::set_simulation_actuators(msg, handlebar_reference_dac);
                 message::set_simulation_sensors(
                         msg,
@@ -328,6 +327,8 @@ int main(void) {
                 }
             }
         }
-        deadline = chThdSleepUntilWindowedOrYield(deadline, deadline + dynamics_loop_period);
+        deadline = chThdSleepUntilWindowedOrYield(
+                deadline,
+                deadline + dynamics_loop_period);
     }
 }

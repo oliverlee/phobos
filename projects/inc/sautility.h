@@ -30,6 +30,11 @@ namespace sa {
         return set_kollmorgen_reference(reference_velocity, MAX_KOLLMORGEN_VELOCITY);
     }
 
+    // DAC driver must be started before this function can be used
+    dacsample_t set_kollmorgen_position(float reference_position) {
+        return set_kollmorgen_reference(reference_position, MAX_KOLLMORGEN_VELOCITY);
+    }
+
     float convert_adcsample(adcsample_t ain, adcsample_t adc_zero, float magnitude) {
         // Linear conversion of ADC sample. ADC samples are 12 bits.
         const int16_t shifted_value = static_cast<int16_t>(ain) - static_cast<int16_t>(adc_zero);

@@ -93,7 +93,7 @@ void Bicycle<Model, Observer>::update_dynamics(real_t roll_torque_input, real_t 
     //
     //  This could also be used to determine the wheel angles, as we assume
     //  no-slip conditions. However, we calculate the wheel angles during the
-    //  kinematic  update and solely from bicycle velocity.
+    //  kinematic update and solely from bicycle velocity.
     (void)rear_wheel_angle_measurement;
 
     input_t u = input_t::Zero();
