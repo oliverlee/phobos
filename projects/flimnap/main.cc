@@ -65,9 +65,10 @@ namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     filter::MovingAverage<float, 5> velocity_filter;
 #else
-    constexpr float fixed_v = 5.0f; // fixed bicycle velocity
+    filter::MovingAverage<float, 5> velocity_filter;
+    //constexpr float fixed_v = 5.0f; // fixed bicycle velocity
 #endif
-    filter::MovingAverage<float, 5> steer_torque_filter;
+    //filter::MovingAverage<float, 5> steer_torque_filter;
 
     constexpr float mass_upper = sa::FULL_ASSEMBLY_INERTIA_WITHOUT_WEIGHT;
     constexpr float mass_lower = sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL;
@@ -176,7 +177,8 @@ int main(void) {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
             0.0f,
 #else
-            fixed_v,
+            0.0f,
+            //fixed_v,
 #endif
             static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
 
@@ -235,16 +237,16 @@ int main(void) {
         //
         // m1/m2*(-T_s + T_a) = T_delta + T_s
         // T_delta = -T_s + m1/m2*(-T_s + T_a)
-        const float steer_torque = steer_torque_filter.output(
-                -kistler_torque +
-                mass_upper/mass_lower*(-kistler_torque + motor_torque));
+        //const float steer_torque = steer_torque_filter.output(
+        //        -kistler_torque +
+        //        mass_upper/mass_lower*(-kistler_torque + motor_torque));
+        const float steer_torque = -kistler_torque +
+            mass_upper/mass_lower*(-kistler_torque + motor_torque);
 
-#if defined(USE_BICYCLE_KINEMATIC_MODEL)
-        // get velocity and update bicycle parameter
         const float v = velocity_filter.output(
                 -sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_rear_wheel)));
         bicycle.set_v(v);
-
+#if defined(USE_BICYCLE_KINEMATIC_MODEL)
         // yaw angle, just use previous state value
         const float yaw_angle = util::wrap(bicycle.pose().yaw);
         const float steer_angle = util::encoder_count<float>(encoder_steer);
@@ -263,9 +265,6 @@ int main(void) {
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(desired_torque);
 #else // defined(USE_BICYCLE_KINEMATIC_MODEL)
-        constexpr float v = fixed_v;
-        bicycle.set_v(v);
-
         bicycle.update_dynamics(
                 roll_torque,
                 steer_torque,
@@ -279,7 +278,7 @@ int main(void) {
 
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float error = desired_position - steer_angle;
-        constexpr float k_p = 150.0;
+        constexpr float k_p = 25.0;
         const float feedback_torque = k_p*error;
 
         const model_t model = bicycle.model();
@@ -289,7 +288,8 @@ int main(void) {
         const float steer_accel = model_t::get_state_element(
                 state_deriv,
                 model_t::state_index_t::steer_rate);
-        const float feedforward_torque = (mass_upper + mass_lower)*steer_accel;
+        //const float feedforward_torque = (mass_upper + mass_lower)*steer_accel;
+        const float feedforward_torque = 0;
 
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
