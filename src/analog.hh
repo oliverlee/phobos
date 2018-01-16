@@ -27,9 +27,11 @@ void Analog<N>::start(gptcnt_t sample_rate, bool use_events) {
     gptStart(&GPTD8, &gpt8cfg1);
     adcStart(&ADCD1, nullptr);
     if (use_events) {
-        adcStartConversion(&ADCD1, &adcgrpcfg_events, m_adc_buffer.data(), 1);
+        adcStartConversion(&ADCD1, &adcgrpcfg_events,
+                m_adc_buffer.data(), m_adc_buffer_depth);
     } else {
-        adcStartConversion(&ADCD1, &adcgrpcfg, m_adc_buffer.data(), 1);
+        adcStartConversion(&ADCD1, &adcgrpcfg,
+                m_adc_buffer.data(), m_adc_buffer_depth);
     }
     gptStartContinuous(&GPTD8, gpt8cfg1.frequency/sample_rate);
 }
