@@ -213,8 +213,10 @@ int main(void) {
         constexpr float roll_torque = 0.0f;
 
         // get torque measurements
-        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
-        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
+        const float kistler_torque = sa::get_kistler_sensor_torque(
+                analog.get_adc12<float>());
+        const float motor_torque = sa::get_kollmorgen_motor_torque(
+                analog.get_adc13<float>());
 
         // positive motor torque will rotate the steering shaft clockwise
         // positive kistler torque equal to positive motor torque will stop rotation

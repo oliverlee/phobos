@@ -1,6 +1,7 @@
 #pragma once
 #include "saconfig.h"
 #include "utility.h"
+#include <type_traits>
 
 /* sensor and actuator utility functions */
 namespace sa {
@@ -30,13 +31,21 @@ namespace sa {
         return set_kollmorgen_reference(reference_velocity, MAX_KOLLMORGEN_VELOCITY);
     }
 
-    float convert_adcsample(adcsample_t ain, adcsample_t adc_zero, float magnitude) {
-        // Linear conversion of ADC sample. ADC samples are 12 bits.
-        const int16_t shifted_value = static_cast<int16_t>(ain) - static_cast<int16_t>(adc_zero);
+    template <typename T>
+    float convert_adcsample(T ain, adcsample_t adc_zero, float magnitude) {
+        // Linear conversion of ADC sample. ADC samples are unsigned int of
+        // 12 bits by default. The type can be coerced by casting the type of
+        // parameter 'ain'.
+        using signed_t = typename std::conditional<
+            std::is_unsigned<T>::value,
+            std::make_signed<T>,
+            std::common_type<T>>::type::type;
+        const signed_t shifted_value = static_cast<signed_t>(ain) - static_cast<signed_t>(adc_zero);
         return static_cast<float>(shifted_value)*magnitude/static_cast<float>(ADC_HALF_RANGE);
     }
 
-    float get_kollmorgen_motor_torque(adcsample_t ain) {
+    template <typename T>
+    float get_kollmorgen_motor_torque(T ain) {
         return convert_adcsample(ain, KOLLMORGEN_ADC_ZERO_OFFSET, MAX_KOLLMORGEN_TORQUE);
     }
 
