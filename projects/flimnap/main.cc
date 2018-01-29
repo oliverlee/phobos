@@ -301,14 +301,7 @@ int main(void) {
 //            sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
 
         const float t = static_cast<float>(ST2MS(starttime - t0)) / 1000.0f; // seconds
-
-        constexpr float two_pi = boost::math::constants::two_pi<float>();
-        float frequency = 0.5f*std::floor(t); // Hz
-        if (frequency > 0.0f) {
-            frequency += 4.0f;
-        }
-        const float amplitude = 0.25f*frequency; // N-m
-        float command_torque = amplitude*std::sin(two_pi*frequency*t);
+        float command_torque = -0.1f*t;
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(command_torque);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
