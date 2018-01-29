@@ -23,6 +23,7 @@
 #include "simulation.pb.h"
 #include "messageutil.h"
 #include "filter/movingaverage.h"
+#include <boost/circular_buffer.hpp>
 
 #include "blink.h"
 #include "saconfig.h"
@@ -66,7 +67,6 @@ namespace {
 #else
     constexpr float fixed_v = 5.0f; // fixed bicycle velocity
 #endif
-
     constexpr float mass_upper = sa::FULL_ASSEMBLY_INERTIA_WITHOUT_WEIGHT;
     constexpr float mass_lower = sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL;
 
@@ -75,6 +75,55 @@ namespace {
 
     // dynamics loop
     constexpr systime_t dynamics_loop_period = MS2ST(1); // 1 ms -> 1 kHz
+
+    // for use with Smith predictor
+    // https://mathworks.com/help/control/examples/control-of-processes-with-long-dead-time-the-smith-predictor.html
+    // 5 ms delay but we integrate for 1 ms in the simulation of Gp
+    constexpr size_t smith_delay = 4/ST2MS(dynamics_loop_period);
+    static_assert(4 == smith_delay, "not getting calculated correctly");
+    boost::circular_buffer<float> _smith_yp_delay_buffer(smith_delay, 0.0f);
+    using state_t = Eigen::Matrix<float, 2, 1>;
+    state_t _smith_yp = state_t::Zero();
+
+    float _smith_process_update(float tau) {
+        using input_t = Eigen::Matrix<float, 1, 1>;
+        using state_matrix_t = Eigen::Matrix<float, 2, 2>;
+        using input_matrix_t = Eigen::Matrix<float, 2, 1>;
+
+        static const state_matrix_t A(
+                (state_matrix_t() << 0.0f, 1.0f, 0.0f, 0.0f).finished());
+        static const input_matrix_t B(
+                (input_matrix_t() << 0.0f, 1.0f/mass_lower).finished());
+
+        const input_t input(
+                (input_t() << tau).finished());
+
+        static boost::numeric::odeint::runge_kutta_dopri5<
+            state_t, float, state_t, float,
+            boost::numeric::odeint::vector_space_algebra> stepper_Gp;
+
+        constexpr float dt = ST2MS(dynamics_loop_period) / 1000.0f;
+
+        stepper_Gp.do_step([&input](const state_t& x, state_t& dxdt, float t) -> void {
+                (void)t; // system is time-independent
+                dxdt = A*x + B*input;
+                }, _smith_yp, 0.0f, dt); // newly obtained state written in place
+        return _smith_yp[0];
+    }
+
+    float smith_predict(float tau, float y) {
+        const float yp = _smith_process_update(tau);
+        const float y1 = _smith_yp_delay_buffer[0];
+        _smith_yp_delay_buffer.push_back(yp);
+
+        const float dy = y - y1;
+
+        // no filter F
+        return dy + yp;
+    }
+
+
+
 
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
@@ -273,7 +322,11 @@ int main(void) {
                 model_t::full_state_index_t::steer_angle);
 
         const float steer_angle = util::encoder_count<float>(encoder_steer);
-        const float error = desired_position - steer_angle;
+
+        const float tau = -kistler_torque + motor_torque;
+        const float y_smith = smith_predict(tau, steer_angle);
+
+        const float error = desired_position - y_smith; // steer_angle;
 
         constexpr float dt = 1000.0f/ST2MS(dynamics_loop_period);
         static_assert(dt > 0, "'dt' must be greater than zero. \
@@ -282,7 +335,8 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
         last_error = error;
 
         constexpr float k_p = 180.0f;
-        constexpr float k_d = 0.20f*k_p;
+        constexpr float k_d = 0.30f*k_p;
+
 
         const float feedback_torque = k_p*error + k_d*derror;
 
