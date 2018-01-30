@@ -208,6 +208,7 @@ int main(void) {
     // Normal main() thread activity. This is the dynamics simulation loop.
     systime_t deadline = chVTGetSystemTime();
     float last_error = 0.0f;
+    const systime_t t0 = chVTGetSystemTime();
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
@@ -300,9 +301,9 @@ int main(void) {
 //            sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
 
         const float t = static_cast<float>(ST2MS(starttime - t0)) / 1000.0f; // seconds
-        float command_torque = 1.0f * std::floor(t/2.0f) + 1.0f;
+        float command_torque = 0.5f*t;
         const dacsample_t handlebar_reference_dac =
-            sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
+            sa::set_kollmorgen_torque(command_torque);
 #endif // defined(USE_BICYCLE_KINEMATIC_MODEL)
         chTMStopMeasurementX(&computation_time_measurement);
 
