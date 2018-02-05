@@ -127,6 +127,16 @@ class ProcessedRecord(object):
         self.states = self.records.state[:, 1:] # skip yaw angle
         self.colors = np.roll(sns.color_palette('Paired', 12), 2, axis=0)
 
+        steer_encoder_counts_per_rev = 152000
+        encoder_count = self.records.sensors.steer_encoder_count
+        encoder_angle = encoder_count / steer_encoder_counts_per_rev * 2*np.pi
+        encoder_angle[np.where(encoder_angle > np.pi)[0]] -= 2*np.pi
+        self.measured_steer_angle = encoder_angle
+
+        self.error = self._signal('steer angle') - self.measured_steer_angle
+        derror = np.diff(self.error) / 0.001
+        self.derror = np.squeeze(np.insert(derror, 0, 0))
+
     def _signal(self, name):
         if name in STATE_LABELS:
             return self.states[:, STATE_LABELS.index(name)]
@@ -185,7 +195,7 @@ class ProcessedRecord(object):
         ax[2].plot(self.t,
                 get_kollmorgen_command_torque(
                     self.records.actuators.kollmorgen_command_velocity),
-                label='feedback torque', color=self.colors[11], alpha=0.8)
+                label='commanded torque', color=self.colors[11], alpha=0.8)
         ax[2].set_ylabel('torque [Nm]')
         ax[2].set_xlabel('time [s]')
         #ax[2].axhline(0, color='black')
@@ -204,27 +214,17 @@ class ProcessedRecord(object):
             scale = 1
             angle_unit = 'rad'
 
-        steer_encoder_counts_per_rev = 152000
-        encoder_count = self.records.sensors.steer_encoder_count
-        encoder_angle = encoder_count / steer_encoder_counts_per_rev * 2*np.pi
-        encoder_angle[np.where(encoder_angle > np.pi)[0]] -= 2*np.pi
-        measured_steer_angle = encoder_angle
-
-        measured_steer_rate = scipy.signal.savgol_filter(
-                encoder_angle, window_length=55, polyorder=5, deriv=1)
-
         # plot angles
         self._plot_line(ax[0], 'steer angle', scale)
         self._plot_line(ax[0], 'measured steer angle', scale,
-                        measured_steer_angle)
+                        self.measured_steer_angle)
         ax[0].set_ylabel('angle [{}]'.format(angle_unit))
         ax[0].set_xlabel('time [s]')
         ax[0].axhline(0, color='black')
         ax[0].legend()
 
         # plot angle error
-        error = scale*(self._signal('steer angle') - measured_steer_angle)
-        ax[1].plot(self.t, error,
+        ax[1].plot(self.t, scale*self.error,
                    label='steer angle error',
                    color=self.colors[5], alpha=0.8)
         ax[1].set_ylabel('angle [{}]'.format(angle_unit))
@@ -233,8 +233,7 @@ class ProcessedRecord(object):
         ax[1].legend()
 
         # plot angle error derivative
-        derror = np.diff(error) / 0.001
-        ax[2].plot(self.t[1:], derror,
+        ax[2].plot(self.t, scale*self.derror,
                    label='steer angle error derivative',
                    color=self.colors[7], alpha=0.8)
         ax[2].set_ylabel('angular rate [{}/s]'.format(angle_unit))
@@ -256,6 +255,14 @@ class ProcessedRecord(object):
     def plot_torque_signals(self, **kwargs):
         fig, ax = plt.subplots(**kwargs)
 
+        commanded_torque = get_kollmorgen_command_torque(
+                self.records.actuators.kollmorgen_command_velocity)
+
+        k_p = 150
+        k_d = 3
+        feedback_torque = k_p*self.error + k_d*self.derror
+        feedforward_torque = commanded_torque - feedback_torque
+
         self._plot_line(ax, 'steer torque')
         ax.plot(self.t,
                 get_kistler_sensor_torque(
@@ -266,9 +273,14 @@ class ProcessedRecord(object):
                     self.records.sensors.kollmorgen_actual_torque),
                 label='motor torque', color=self.colors[3], alpha=0.8)
         ax.plot(self.t,
-                get_kollmorgen_command_torque(
-                    self.records.actuators.kollmorgen_command_velocity),
+                commanded_torque,
                 label='commanded torque', color=self.colors[7], alpha=0.8)
+        ax.plot(self.t,
+                feedback_torque,
+                label='feedback torque', color=self.colors[11], alpha=0.8)
+        ax.plot(self.t,
+                feedforward_torque,
+                label='feedforward torque', color=self.colors[10], alpha=0.8)
         ax.set_ylabel('torque [Nm]')
         ax.set_xlabel('time [s]')
         ax.axhline(0, color='black')
