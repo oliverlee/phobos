@@ -8,6 +8,7 @@ import seaborn as sns
 
 from load_sim import load_messages, get_records_from_messages, get_time_vector
 from phobos.constants import sa
+from dtk.bicycle import benchmark_state_space_vs_speed, benchmark_matrices
 
 
 STATE_LABELS = ['roll angle', 'steer angle', 'roll rate', 'steer rate']
@@ -263,6 +264,16 @@ class ProcessedRecord(object):
         feedback_torque = k_p*self.error + k_d*self.derror
         feedforward_torque = commanded_torque - feedback_torque
 
+        _, A, B = benchmark_state_space_vs_speed(*benchmark_matrices(), [5])
+        A = np.squeeze(A)
+        B = np.squeeze(B)
+
+        steer_accel = (np.dot(A, self.states.T) +
+                       np.dot(B, self.records.input.T))[3, :].T
+        mass_upper = sa.FULL_ASSEMBLY_INERTIA_WITHOUT_WEIGHT
+        mass_lower = sa.UPPER_ASSEMBLY_INERTIA_PHYSICAL
+        feedforward_torque_calculated = (mass_upper + mass_lower)*steer_accel
+
         self._plot_line(ax, 'steer torque')
         ax.plot(self.t,
                 get_kistler_sensor_torque(
@@ -281,6 +292,11 @@ class ProcessedRecord(object):
         ax.plot(self.t,
                 feedforward_torque,
                 label='feedforward torque', color=self.colors[10], alpha=0.8)
+        ax.plot(self.t,
+                feedforward_torque_calculated,
+                linestyle='--',
+                label='feedforward torque calculated',
+                color=self.colors[1], alpha=0.8)
         ax.set_ylabel('torque [Nm]')
         ax.set_xlabel('time [s]')
         ax.axhline(0, color='black')
