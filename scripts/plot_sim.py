@@ -196,7 +196,7 @@ class ProcessedRecord(object):
     def plot_controller_states(self, degrees=False, **kwargs):
         """Plot measured (controller) states and model generated states.
         """
-        fig, ax = plt.subplots(2, 1, sharex=True, **kwargs)
+        fig, ax = plt.subplots(3, 1, sharex=True, **kwargs)
         if degrees:
             scale = 180/np.pi
             angle_unit = 'deg'
@@ -223,14 +223,24 @@ class ProcessedRecord(object):
         ax[0].legend()
 
         # plot angle error
-        ax[1].plot(self.t,
-                   scale*(self._signal('steer angle') - measured_steer_angle),
+        error = scale*(self._signal('steer angle') - measured_steer_angle)
+        ax[1].plot(self.t, error,
                    label='steer angle error',
                    color=self.colors[5], alpha=0.8)
         ax[1].set_ylabel('angle [{}]'.format(angle_unit))
         ax[1].set_xlabel('time [s]')
         ax[1].axhline(0, color='black')
         ax[1].legend()
+
+        # plot angle error derivative
+        derror = np.diff(error) / 0.001
+        ax[2].plot(self.t[1:], derror,
+                   label='steer angle error derivative',
+                   color=self.colors[7], alpha=0.8)
+        ax[2].set_ylabel('angular rate [{}/s]'.format(angle_unit))
+        ax[2].set_xlabel('time [s]')
+        ax[2].axhline(0, color='black')
+        ax[2].legend()
 
         ## plot angular rates
         #self._plot_line(ax[2], 'steer rate', scale)
