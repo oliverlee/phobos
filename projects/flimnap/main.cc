@@ -232,8 +232,31 @@ int main(void) {
         //
         // m1/m2*(-T_s + T_a) = T_delta + T_s
         // T_delta = -T_s + m1/m2*(-T_s + T_a)
-        const float steer_torque = -kistler_torque +
-            mass_upper/mass_lower*(-kistler_torque + motor_torque);
+//        const float steer_torque = -kistler_torque +
+//            mass_upper/mass_lower*(-kistler_torque + motor_torque);
+        const float t = static_cast<float>(chVTGetSystemTime() - t0)/CH_CFG_ST_FREQUENCY;
+
+        static constexpr float amplitude = 0.3f;
+
+        static constexpr float frequency[24] = {
+            0.2, 0.4, 0.6, 0.8, 1.0, 1.2,
+            1.4, 1.6, 1.8, 2.0, 2.2, 2.4,
+            2.6, 2.8, 3.0, 3.2, 3.4, 3.6,
+            3.8, 4.0, 4.2, 4.4, 4.6, 4.8
+        };
+
+        static constexpr float sign[24] = {
+            1.0, 1.0, 1.0, 0.0, 1.0, 1.0,
+            0.0, 1.0, 1.0, 1.0, 1.0, 0.0,
+            0.0, 0.0, 1.0, 0.0, 1.0, 1.0,
+            1.0, 0.0, 1.0, 1.0, 0.0, 1.0
+        };
+
+        float steer_torque = 0.0f;
+        for (unsigned int i = 0; i < 24; ++i) {
+            steer_torque += amplitude*std::sin(
+                    constants::two_pi*frequency[i]*t + constants::pi*sign[i]);
+        }
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float v = velocity_filter.output(
