@@ -276,14 +276,14 @@ int main(void) {
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float error = desired_position - steer_angle;
 
-        constexpr float dt = 1000.0f/ST2MS(dynamics_loop_period);
+        constexpr float dt = static_cast<float>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY;
         static_assert(dt > 0, "'dt' must be greater than zero. \
 Verify 'dynamics_loop_period is greater than 1 ms.");
         const float derror = (error - last_error)/dt;
         last_error = error;
 
-        constexpr float k_p = 50.0f;
-        constexpr float k_d = 50.0f;
+        constexpr float k_p = 150.0f;
+        constexpr float k_d = 3.0f;
 
         const float feedback_torque = k_p*error + k_d*derror;
 
@@ -294,8 +294,7 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
         const float steer_accel = model_t::get_state_element(
                 state_deriv,
                 model_t::state_index_t::steer_rate);
-        //const float feedforward_torque = (mass_upper + mass_lower)*steer_accel;
-        constexpr float feedforward_torque = 0.0f;
+        const float feedforward_torque = 0.0f*(mass_upper + mass_lower)*steer_accel;
 
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
