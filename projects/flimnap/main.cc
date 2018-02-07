@@ -294,7 +294,7 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
         const float steer_accel = model_t::get_state_element(
                 state_deriv,
                 model_t::state_index_t::steer_rate);
-        const float feedforward_torque = 0.0f*(mass_upper + mass_lower)*steer_accel;
+        const float feedforward_torque = 0.5f*(mass_upper + mass_lower)*steer_accel;
 
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
