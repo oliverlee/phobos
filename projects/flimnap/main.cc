@@ -67,8 +67,8 @@ namespace {
     constexpr float fixed_v = 5.0f; // fixed bicycle velocity
 #endif
 
-    constexpr float mass_upper = sa::FULL_ASSEMBLY_INERTIA_WITHOUT_WEIGHT;
-    constexpr float mass_lower = sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL;
+    constexpr float mass_upper = sa::UPPER_ASSEMBLY_INERTIA;
+    constexpr float mass_lower = sa::LOWER_ASSEMBLY_INERTIA;
 
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
@@ -181,7 +181,7 @@ int main(void) {
 #endif
 
     // Initialize handlebar object to estimate torque due to handlebar inertia.
-    haptic::Handlebar2 handlebar_inertia(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA_PHYSICAL);
+    haptic::Handlebar2 handlebar_inertia(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA);
 
     // Initialize time measurements
     time_measurement_t computation_time_measurement;
