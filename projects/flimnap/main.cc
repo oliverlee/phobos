@@ -308,8 +308,8 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
         const float derror = (error - last_error)/dt;
         last_error = error;
 
-        constexpr float k_p = 150.0f;
-        constexpr float k_d = 3.0f;
+        constexpr float k_p = 20.0f;
+        constexpr float k_d = 2.0f;
 
         const float feedback_torque = k_p*error + k_d*derror;
 
