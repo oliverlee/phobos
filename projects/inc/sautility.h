@@ -1,6 +1,7 @@
 #pragma once
 #include "saconfig.h"
 #include "utility.h"
+#include "analog.h"
 #include <type_traits>
 
 /* sensor and actuator utility functions */
@@ -44,16 +45,19 @@ namespace sa {
         return static_cast<float>(shifted_value)*magnitude/static_cast<float>(ADC_HALF_RANGE);
     }
 
-    template <typename T>
-    float get_kollmorgen_motor_torque(T ain) {
+    template <size_t N>
+    float get_kollmorgen_motor_torque(const Analog<N>& analog) {
+        const adcsample_t ain = analog.get_kollmorgen_motor();
         return convert_adcsample(ain, KOLLMORGEN_ADC_ZERO_OFFSET, MAX_KOLLMORGEN_TORQUE);
     }
 
-    float get_kistler_sensor_torque(adcsample_t ain) {
+    template <size_t N>
+    float get_kistler_sensor_torque(const Analog<N>& analog) {
         // Note that sensor sign is reversed.
         // Decreasing adcsample_t values result in _increasing_ torque.
         // Different constants are used for positive and negative torque based
         // on measured sensor behavior.
+        const adcsample_t ain = analog.get_kistler_sensor();
         if (ain > KISTLER_ADC_ZERO_OFFSET_NEGATIVE) {
             return convert_adcsample(
                     ain, KISTLER_ADC_ZERO_OFFSET_NEGATIVE, MAX_KISTLER_TORQUE_NEGATIVE);

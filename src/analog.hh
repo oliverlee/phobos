@@ -52,11 +52,11 @@ T Analog<N>::average_adc_conversion_value(sensor_t channel, T divisor) const {
 #endif // STATIC_SIMULATOR_CONFIG
     static_assert(4096 * N < std::numeric_limits<adcsample_t>::max(),
             "Template parameter N may result in ADC buffer sum overflow.");
-    adcsample_t sum = m_adc_buffer[channel];
+    T sum = static_cast<T>(m_adc_buffer[channel]);
     for (unsigned int i = 1; i < m_adc_buffer_depth; ++i) {
-        sum += m_adc_buffer[channel + i*m_adc_num_channels];
+        sum += static_cast<T>(m_adc_buffer[channel + i*m_adc_num_channels]);
     }
-    return static_cast<T>(sum) / divisor;
+    return sum/divisor;
 }
 
 template <size_t N>
