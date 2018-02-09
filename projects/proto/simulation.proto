@@ -2,24 +2,26 @@ syntax = "proto2";
 import "pose.proto";
 
 message SimulationMessage {
-    required uint32 timestamp =                 1;
-    optional FirmwareVersion gitsha1 =          2;
+    required uint32 timestamp =                             1;
+    optional FirmwareVersion gitsha1 =                      2;
 
-    optional SensorMessage sensors =            3;
-    optional ActuatorMessage actuators =        4;
+    optional SensorMessage sensors =                        3;
+    optional ActuatorMessage actuators =                    4;
 
-    optional BicycleStateMessage state =        5;
-    optional BicycleInputMessage input =        6;
-    optional BicyclePoseMessage pose =          7;
+    optional BicycleStateMessage state =                    5;
+    optional BicycleInputMessage input =                    6;
+    optional BicyclePoseMessage pose =                      7;
 
-    optional BicycleModelMessage model =        8;
-    optional BicycleKalmanMessage kalman =      9;
+    optional BicycleModelMessage model =                    8;
+    optional BicycleKalmanMessage kalman =                  9;
 
     optional BicycleAuxiliaryStateMessage auxiliary_state = 10;
 
-    optional TimingMessage timing = 11;
+    optional TimingMessage timing =                         11;
 
-    optional float feedback_torque = 12;
+    optional float feedback_torque =                        12;
+
+    optional ControllerMessage controller =                 13;
 }
 
 message FirmwareVersion {
@@ -116,6 +118,32 @@ message BicycleModelMessage {
 }
 
 message TimingMessage {
-    optional uint32 computation = 1;
-    optional uint32 transmission = 2;
+    optional uint32 computation =                           1;
+    optional uint32 transmission =                          2;
+}
+
+message ControllerMessage {
+    optional FeedbackMessage feedback =                     1;
+    optional FeedforwardMessage feedforward =               2;
+}
+
+message FeedbackMessage {
+    optional float torque =                                 1;
+
+    optional float error =                                  2;
+    optional float error_integral =                         3;
+    optional float error_derivative =                       4;
+
+    optional float k_p =                                    5;
+    optional float k_i =                                    6;
+    optional float k_d =                                    7;
+
+}
+
+message FeedforwardMessage {
+    optional float torque =                                 1;
+
+    optional float acceleration =                           2;
+
+    optional float inertia =                                3;
 }

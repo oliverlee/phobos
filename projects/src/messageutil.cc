@@ -123,4 +123,26 @@ void set_simulation_timing(SimulationMessage* pb,
     pb->has_timing = true;
 }
 
+void set_simulation_feedback(SimulationMessage* pb,
+        float torque, float error, float error_derivative) {
+    pb->controller.feedback.torque = torque;
+    pb->controller.feedback.has_torque = true;
+    pb->controller.feedback.error = error;
+    pb->controller.feedback.has_error = true;
+    pb->controller.feedback.error_derivative = error_derivative;
+    pb->controller.feedback.has_error_derivative = true;
+    pb->controller.has_feedback = true;
+    pb->has_controller = true;
+}
+
+void set_simulation_feedforward(SimulationMessage* pb,
+        float torque, float acceleration) {
+    pb->controller.feedforward.torque = torque;
+    pb->controller.feedforward.has_torque = true;
+    pb->controller.feedforward.acceleration = acceleration;
+    pb->controller.feedforward.has_acceleration = true;
+    pb->controller.has_feedforward = true;
+    pb->has_controller = true;
+}
+
 } // namespace message

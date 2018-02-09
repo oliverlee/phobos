@@ -278,13 +278,13 @@ int main(void) {
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float error = desired_position - steer_angle;
 
-        const float derror = (error - last_error)/dt;
+        const float error_derivative = (error - last_error)/dt;
         last_error = error;
 
         constexpr float k_p = 20.0f;
         constexpr float k_d = 2.0f;
 
-        const float feedback_torque = k_p*error + k_d*derror;
+        const float feedback_torque = k_p*error + k_d*error_derivative;
 
         const model_t& model = bicycle.model();
         const model_t::state_t state_deriv =

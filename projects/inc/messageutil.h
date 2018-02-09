@@ -26,6 +26,11 @@ namespace message {
     void set_simulation_timing(SimulationMessage* pb,
             uint32_t computation_time, uint32_t transmission_time);
 
+    void set_simulation_feedback(SimulationMessage* pb,
+            float torque, float error, float error_derivative);
+    void set_simulation_feedforward(SimulationMessage* pb,
+            float torque, float acceleration);
+
     template <typename simbicycle_t>
     void set_simulation_state(SimulationMessage* pb, const simbicycle_t& b);
     template <typename simbicycle_t>
