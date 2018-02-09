@@ -232,8 +232,10 @@ int main(void) {
         //
         // m1/m2*(-T_s + T_a) = T_delta + T_s
         // T_delta = -T_s + m1/m2*(-T_s + T_a)
-        const float steer_torque = -kistler_torque +
-            mass_upper/mass_lower*(-kistler_torque + motor_torque);
+        //
+        // NOTE: we neglect inertia torque after finding it to be negligible
+        // compared to the sensor torque
+        const float steer_torque = -kistler_torque;
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float v = velocity_filter.output(
