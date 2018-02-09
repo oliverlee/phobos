@@ -238,22 +238,25 @@ int main(void) {
 
         static constexpr float amplitude = 0.3f;
 
-        static constexpr float frequency[24] = {
-            0.2, 0.4, 0.6, 0.8, 1.0, 1.2,
-            1.4, 1.6, 1.8, 2.0, 2.2, 2.4,
-            2.6, 2.8, 3.0, 3.2, 3.4, 3.6,
-            3.8, 4.0, 4.2, 4.4, 4.6, 4.8
+        static constexpr size_t n = 50;
+        static constexpr float frequency[n] = {
+            0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0,
+            2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0,
+            4.2, 4.4, 4.6, 4.8, 5.0, 5.2, 5.4, 5.6, 5.8, 6.0,
+            6.2, 6.4, 6.6, 6.8, 7.0, 7.2, 7.4, 7.6, 7.8, 8.0,
+            8.2, 8.4, 8.6, 8.8, 9.0, 9.2, 9.4, 9.6, 9.8, 10.0
         };
 
-        static constexpr float sign[24] = {
-            1.0, 1.0, 1.0, 0.0, 1.0, 1.0,
-            0.0, 1.0, 1.0, 1.0, 1.0, 0.0,
-            0.0, 0.0, 1.0, 0.0, 1.0, 1.0,
-            1.0, 0.0, 1.0, 1.0, 0.0, 1.0
+        static constexpr float sign[n] = {
+            1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0,
+            1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0,
+            1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+            0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,
+            1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0
         };
 
         float steer_torque = 0.0f;
-        for (unsigned int i = 0; i < 24; ++i) {
+        for (unsigned int i = 0; i < n; ++i) {
             steer_torque += amplitude*std::sin(
                     constants::two_pi*frequency[i]*t + constants::pi*sign[i]);
         }
@@ -305,8 +308,8 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
         const float derror = (error - last_error)/dt;
         last_error = error;
 
-        constexpr float k_p = 150.0f;
-        constexpr float k_d = 3.0f;
+        constexpr float k_p = 20.0f;
+        constexpr float k_d = 2.0f;
 
         const float feedback_torque = k_p*error + k_d*derror;
 
