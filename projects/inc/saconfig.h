@@ -63,19 +63,12 @@ constexpr DACConfig dac1cfg1 = {
 };
 constexpr const DACConfig* KOLLM_DAC_CFG = &dac1cfg1;
 
-/*
- * Moment of inertia of full steering assembly about the steer axis, kg-m^2
- */
-constexpr float FULL_ASSEMBLY_INERTIA_WITH_WEIGHT = 0.1942f; // with 1 kg weight plate on each side of cross bar
-constexpr float FULL_ASSEMBLY_INERTIA_WITHOUT_WEIGHT = 0.0828f; // without weight plates
-constexpr float FULL_ASSEMBLY_INERTIA = FULL_ASSEMBLY_INERTIA_WITH_WEIGHT; // default configuration
 
 /*
- * For the moment of inertia of the upper assembly, we use both virtual and physical values.
- * See ICSC2017 abstract for details.
- * The virtual term is determined from scripts/calculate_handlebar_inertia.py
- * The physical term is determined from an experiment measuring the oscillation period.
+ * Moment of inertia of steering assembly about the steer axis, kg-m^2
  */
-constexpr float UPPER_ASSEMBLY_INERTIA_VIRTUAL = 0.1314; // kg-m^2
-constexpr float UPPER_ASSEMBLY_INERTIA_PHYSICAL = 0.0413; // kg-m^2
+constexpr float UPPER_ASSEMBLY_INERTIA = 0.03185004118699606; // kg-m^2
+constexpr float LOWER_ASSEMBLY_INERTIA = 0.010860690708980467; // kg-m^2
+constexpr float ASSEMBLY_INERTIA = UPPER_ASSEMBLY_INERTIA + LOWER_ASSEMBLY_INERTIA;
+
 } // namespace

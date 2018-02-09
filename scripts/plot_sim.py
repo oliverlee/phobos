@@ -270,8 +270,8 @@ class ProcessedRecord(object):
 
         steer_accel = (np.dot(A, self.states.T) +
                        np.dot(B, self.records.input.T))[3, :].T
-        mass_upper = sa.FULL_ASSEMBLY_INERTIA_WITHOUT_WEIGHT
-        mass_lower = sa.UPPER_ASSEMBLY_INERTIA_PHYSICAL
+        mass_upper = sa.UPPER_ASSEMBLY_INERTIA
+        mass_lower = sa.LOWER_ASSEMBLY_INERTIA
         feedforward_torque_calculated = (mass_upper + mass_lower)*steer_accel
 
         self._plot_line(ax, 'steer torque')
