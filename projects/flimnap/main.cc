@@ -76,6 +76,11 @@ namespace {
     static_assert(dt > 0, "'dt' must be greater than zero. \
 Verify 'dynamics_loop_period is greater than 1 ms.");
 
+    // feedback and feedforward parameters
+    constexpr float k_p = 20.0f;
+    constexpr float k_d = 2.0f;
+    constexpr float m = sa::ASSEMBLY_INERTIA;
+
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
     // The system time is assumed to be between prev and time else the call is
@@ -196,6 +201,19 @@ int main(void) {
         *msg = SimulationMessage_init_zero;
         msg->timestamp = chVTGetSystemTime();
         message::set_simulation_full_model(msg, bicycle);
+
+        msg->controller.feedback.k_p = k_p;
+        msg->controller.feedback.has_k_p = true;
+        msg->controller.feedback.k_d = k_d;
+        msg->controller.feedback.has_k_d = true;
+        msg->controller.has_feedback = true;
+
+        msg->controller.feedforward.inertia = m;
+        msg->controller.feedforward.has_inertia = true;
+        msg->controller.has_feedforward = true;
+
+        msg->has_controller = true;
+
         transmitter.transmit(msg); // This blocks until USB data starts getting read
     }
     transmitter.start(NORMALPRIO + 1); // start transmission thread
@@ -281,9 +299,6 @@ int main(void) {
         const float error_derivative = (error - last_error)/dt;
         last_error = error;
 
-        constexpr float k_p = 20.0f;
-        constexpr float k_d = 2.0f;
-
         const float feedback_torque = k_p*error + k_d*error_derivative;
 
         const model_t& model = bicycle.model();
@@ -293,7 +308,7 @@ int main(void) {
         const float steer_accel = model_t::get_state_element(
                 state_deriv,
                 model_t::state_index_t::steer_rate);
-        const float feedforward_torque = sa::ASSEMBLY_INERTIA*steer_accel;
+        const float feedforward_torque = m*steer_accel;
 
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
@@ -315,16 +330,23 @@ int main(void) {
                 message::set_simulation_state(msg, bicycle);
                 message::set_simulation_auxiliary_state(msg, bicycle);
                 message::set_simulation_actuators(msg, handlebar_reference_dac);
-                message::set_simulation_sensors(
-                        msg,
+                message::set_simulation_sensors(msg,
                         analog.get_adc12(),
                         analog.get_adc13(),
                         encoder_steer.count(),
                         encoder_rear_wheel.count());
-                message::set_simulation_timing(
-                        msg,
+                message::set_simulation_timing(msg,
                         computation_time_measurement.last,
                         transmission_time_measurement.last);
+#if not defined(USE_BICYCLE_KINEMATIC_MODEL)
+                message::set_simulation_feedback(msg,
+                        feedback_torque,
+                        error,
+                        error_derivative);
+                message::set_simulation_feedforward(msg,
+                        feedforward_torque,
+                        steer_accel);
+#endif
                 if (transmitter.transmit_async(msg) != MSG_OK) {
                     // Discard simulation message if it cannot be processed quickly enough.
                     transmitter.free_message(msg);
