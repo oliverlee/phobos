@@ -120,10 +120,10 @@ def plot_entries(t, entries, n, m):
 
 class ProcessedRecord(object):
     def __init__(self, filename):
-        messages = load_messages(filename)
+        self.messages = load_messages(filename)
         # ignore first sample as it transmitted before the simulation loop
         # TODO: check time diff instead of ignoring first message?
-        self.records = get_records_from_messages(messages)[1:]
+        self.records = get_records_from_messages(self.messages)[1:]
         self.t = get_time_vector(self.records)
         self.states = self.records.state[:, 1:] # skip yaw angle
         self.colors = np.roll(sns.color_palette('Paired', 12), 2, axis=0)
