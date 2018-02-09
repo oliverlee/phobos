@@ -111,8 +111,8 @@ int main(void) {
      */
     while (true) {
         /* get sensor measurements */
-        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
-        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
+        const float kistler_torque = sa::get_kistler_sensor_torque(analog);
+        const float motor_torque = sa::get_kollmorgen_motor_torque(analog);
         const float steer_rate = static_cast<float>(analog.get_adc11() - sa::GYRO_ADC_ZERO_OFFSET) *
             sa::MAX_GYRO_RATE/sa::ADC_HALF_RANGE;
         const float steer_angle = util::encoder_count<float>(encoder_steer);

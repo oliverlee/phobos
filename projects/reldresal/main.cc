@@ -118,8 +118,8 @@ int main(void) {
 
     // Normal main() thread activity
     while (true) {
-        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
-        const uint16_t steer_angle_voltage = analog.get_adc13();
+        const float kistler_torque = sa::get_kistler_sensor_torque(analog);
+        const uint16_t steer_angle_voltage = analog.get_kollmorgen_motor();
         const float steer_angle = util::encoder_count<float>(encoder_steer);
 
         printfq("%u, %10.5f, %10.5f, %u\r\n",
