@@ -30,19 +30,19 @@ def convert_adcsample(adc_samples, adc_zero_value, magnitude):
     return shifted_value*magnitude/sa.ADC_HALF_RANGE
 
 
-def get_kollmorgen_applied_torque(adc_samples):
+def convert_kollmorgen_applied_adc(adc_samples):
     return convert_adcsample(adc_samples,
                              sa.KOLLMORGEN_ADC_ZERO_OFFSET,
                              sa.MAX_KOLLMORGEN_TORQUE)
 
 
-def get_kollmorgen_command_torque(adc_samples):
+def convert_kollmorgen_command_dac(adc_samples):
     return convert_adcsample(adc_samples,
                              sa.KOLLMORGEN_DAC_ZERO_OFFSET,
                              sa.MAX_KOLLMORGEN_TORQUE)
 
 
-def get_kistler_sensor_torque(adc_samples):
+def convert_kistler_torque_adc(adc_samples):
     torque = np.zeros(adc_samples.shape)
     # inequalities are reversed as we need to negate adc_samples
     # max torque value constants are negative
@@ -138,6 +138,14 @@ class ProcessedRecord(object):
         derror = np.diff(self.error) / 0.001
         self.derror = np.squeeze(np.insert(derror, 0, 0))
 
+        self.kollmorgen_command_torque = convert_kollmorgen_command_dac(
+                self.records.actuators.kollmorgen_command_torque)
+        self.kollmorgen_applied_torque = convert_kollmorgen_applied_adc(
+                self.records.sensors.kollmorgen_actual_torque)
+        self.kistler_sensor_torque = convert_kistler_torque_adc(
+                self.records.sensors.kistler_measured_torque)
+
+
     def _signal(self, name):
         if name in STATE_LABELS:
             return self.states[:, STATE_LABELS.index(name)]
@@ -193,9 +201,7 @@ class ProcessedRecord(object):
 
         # plot torques
         self._plot_line(ax[2], 'steer torque')
-        ax[2].plot(self.t,
-                get_kollmorgen_command_torque(
-                    self.records.actuators.kollmorgen_command_torque),
+        ax[2].plot(self.t, self.kollmorgen_command_torque,
                 label='commanded torque', color=self.colors[11], alpha=0.8)
         ax[2].set_ylabel('torque [Nm]')
         ax[2].set_xlabel('time [s]')
@@ -256,13 +262,10 @@ class ProcessedRecord(object):
     def plot_torque_signals(self, **kwargs):
         fig, ax = plt.subplots(**kwargs)
 
-        commanded_torque = get_kollmorgen_command_torque(
-                self.records.actuators.kollmorgen_command_torque)
-
         k_p = 150
         k_d = 3
         feedback_torque = k_p*self.error + k_d*self.derror
-        feedforward_torque = commanded_torque - feedback_torque
+        feedforward_torque = self.kollmorgen_command_torque - feedback_torque
 
         _, A, B = benchmark_state_space_vs_speed(*benchmark_matrices(), [5])
         A = np.squeeze(A)
@@ -276,15 +279,13 @@ class ProcessedRecord(object):
 
         self._plot_line(ax, 'steer torque')
         ax.plot(self.t,
-                get_kistler_sensor_torque(
-                    self.records.sensors.kistler_measured_torque),
+                self.kistler_sensor_torque,
                 label='sensor torque', color=self.colors[5], alpha=0.8)
         ax.plot(self.t,
-                get_kollmorgen_applied_torque(
-                    self.records.sensors.kollmorgen_actual_torque),
+                self.kollmorgen_applied_torque,
                 label='motor torque', color=self.colors[3], alpha=0.8)
         ax.plot(self.t,
-                commanded_torque,
+                self.kollmorgen_command_torque,
                 label='commanded torque', color=self.colors[7], alpha=0.8)
         ax.plot(self.t,
                 feedback_torque,
