@@ -67,14 +67,14 @@ namespace {
     constexpr float fixed_v = 5.0f; // fixed bicycle velocity
 #endif
 
-    constexpr float mass_upper = sa::UPPER_ASSEMBLY_INERTIA;
-    constexpr float mass_lower = sa::LOWER_ASSEMBLY_INERTIA;
-
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
 
     // dynamics loop
     constexpr systime_t dynamics_loop_period = MS2ST(1); // 1 ms -> 1 kHz
+    constexpr float dt = static_cast<float>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY;
+    static_assert(dt > 0, "'dt' must be greater than zero. \
+Verify 'dynamics_loop_period is greater than 1 ms.");
 
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
@@ -173,7 +173,7 @@ int main(void) {
 #else
             fixed_v,
 #endif
-            static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+            static_cast<model::real_t>(dt));
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     // Initialize handlebar object to calculate motor drive feedback torque
@@ -278,9 +278,6 @@ int main(void) {
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float error = desired_position - steer_angle;
 
-        constexpr float dt = static_cast<float>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY;
-        static_assert(dt > 0, "'dt' must be greater than zero. \
-Verify 'dynamics_loop_period is greater than 1 ms.");
         const float derror = (error - last_error)/dt;
         last_error = error;
 
@@ -296,7 +293,7 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
         const float steer_accel = model_t::get_state_element(
                 state_deriv,
                 model_t::state_index_t::steer_rate);
-        const float feedforward_torque = 1.0f*(mass_upper + mass_lower)*steer_accel;
+        const float feedforward_torque = sa::ASSEMBLY_INERTIA*steer_accel;
 
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
