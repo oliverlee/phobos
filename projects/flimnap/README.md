@@ -11,28 +11,14 @@ The following sensors are used:
  - kollmorgen actual torque, ADC13, 10 kHz
 
 The following actuators are used:
- - binary __flimnap_arend__
-    - handlebar, DAC1, __torque reference__, 1 kHz
- - binary __flimnap_kinematic__
-    - handlebar, DAC1, __torque reference__, 1 kHz
- - binary __flimnap_whipple__
-    - handlebar, DAC1, __velocity reference__, 1 kHz
- - binary __flimnap_zero_input__
-    - handlebar, DAC1, __velocity reference__, 1 kHz
+ - handlebar, DAC1, __torque reference__, 1 kHz
 
 Simulation loop rate is 1 kHz. This project creates multiple binaries
 differences in configurations. The binary variants use different model
 simplifications:
- - binary __flimnap_arend__
-    - Whipple model with angle, rate only simplification
-    - feedback torque calculated using haptic::Handlebar1
  - binary __flimnap_kinematic__
     - Whipple model with angle only simplification
-    - feedback torque calculated using haptic::Handlebar0
+    - Feedback torque calculated using haptic::Handlebar0
  - binary __flimnap_whipple__
     - Whipple model
-    - Kalman filter
- - binary __flimnap_zero_input__
-    - Whipple model
-    - Kalman filter
-    - steer torque is always zero
+    - Feedback and feedforward controller to generate handlebar torque

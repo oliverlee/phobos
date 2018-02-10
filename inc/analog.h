@@ -23,6 +23,17 @@ class Analog {
         Analog();
         void start(gptcnt_t sample_rate, bool use_events=false);
         void stop();
+
+        // The get_adcX() methods perform an average of the ADC samples
+        // contained in the conversion buffer.
+        //
+        // The numeric type of the result can be specified to prevent overflow
+        // if this is a concern or if a different numeric type is desired
+        // (e.g. float instead of adcsample_t).
+        //
+        // The divisor defaults to N to perform an average. This can be changed
+        // to allow an increase of resolution if the ADC channels are
+        // sufficiently oversampled.
         template <typename T = adcsample_t>
         T get_adc10(T divisor = N) const;
         template <typename T = adcsample_t>
@@ -31,6 +42,16 @@ class Analog {
         T get_adc12(T divisor = N) const;
         template <typename T = adcsample_t>
         T get_adc13(T divisor = N) const;
+#ifdef STATIC_SIMULATOR_CONFIG
+        template <typename T = adcsample_t>
+        inline T get_kollmorgen_motor(T divisor = N) const {
+            return get_adc12<T>(divisor);
+        }
+        template <typename T = adcsample_t>
+        inline T get_kistler_sensor(T divisor = N) const {
+            return get_adc13<T>(divisor);
+        }
+#endif // STATIC_SIMULATOR_CONIG
 
     private:
         enum sensor_t: uint8_t {ADC10=0, ADC11, ADC12, ADC13};

@@ -67,14 +67,19 @@ namespace {
     constexpr float fixed_v = 5.0f; // fixed bicycle velocity
 #endif
 
-    constexpr float mass_upper = sa::UPPER_ASSEMBLY_INERTIA;
-    constexpr float mass_lower = sa::LOWER_ASSEMBLY_INERTIA;
-
     // pose calculation loop
     constexpr systime_t pose_loop_period = US2ST(8333); // update pose at 120 Hz
 
     // dynamics loop
     constexpr systime_t dynamics_loop_period = MS2ST(1); // 1 ms -> 1 kHz
+    constexpr float dt = static_cast<float>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY;
+    static_assert(dt > 0, "'dt' must be greater than zero. \
+Verify 'dynamics_loop_period is greater than 1 ms.");
+
+    // feedback and feedforward parameters
+    constexpr float k_p = 20.0f;
+    constexpr float k_d = 2.0f;
+    constexpr float m = sa::ASSEMBLY_INERTIA;
 
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
@@ -173,7 +178,7 @@ int main(void) {
 #else
             fixed_v,
 #endif
-            static_cast<model::real_t>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY);
+            static_cast<model::real_t>(dt));
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     // Initialize handlebar object to calculate motor drive feedback torque
@@ -196,6 +201,19 @@ int main(void) {
         *msg = SimulationMessage_init_zero;
         msg->timestamp = chVTGetSystemTime();
         message::set_simulation_full_model(msg, bicycle);
+
+        msg->controller.feedback.k_p = k_p;
+        msg->controller.feedback.has_k_p = true;
+        msg->controller.feedback.k_d = k_d;
+        msg->controller.feedback.has_k_d = true;
+        msg->controller.has_feedback = true;
+
+        msg->controller.feedforward.inertia = m;
+        msg->controller.feedforward.has_inertia = true;
+        msg->controller.has_feedforward = true;
+
+        msg->has_controller = true;
+
         transmitter.transmit(msg); // This blocks until USB data starts getting read
     }
     transmitter.start(NORMALPRIO + 1); // start transmission thread
@@ -208,17 +226,10 @@ int main(void) {
     // Normal main() thread activity. This is the dynamics simulation loop.
     systime_t deadline = chVTGetSystemTime();
     float last_error = 0.0f;
-    const systime_t t0 = chVTGetSystemTime();
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
         constexpr float roll_torque = 0.0f;
-
-        // get torque measurements
-        const float kistler_torque = sa::get_kistler_sensor_torque(
-                analog.get_adc12<float>());
-        const float motor_torque = sa::get_kollmorgen_motor_torque(
-                analog.get_adc13<float>());
 
         // positive motor torque will rotate the steering shaft clockwise
         // positive kistler torque equal to positive motor torque will stop rotation
@@ -235,7 +246,7 @@ int main(void) {
         //
         // NOTE: we neglect inertia torque after finding it to be negligible
         // compared to the sensor torque
-        const float steer_torque = -kistler_torque;
+        const float steer_torque = -sa::get_kistler_sensor_torque(analog);
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float v = velocity_filter.output(
@@ -278,16 +289,10 @@ int main(void) {
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float error = desired_position - steer_angle;
 
-        constexpr float dt = static_cast<float>(dynamics_loop_period)/CH_CFG_ST_FREQUENCY;
-        static_assert(dt > 0, "'dt' must be greater than zero. \
-Verify 'dynamics_loop_period is greater than 1 ms.");
-        const float derror = (error - last_error)/dt;
+        const float error_derivative = (error - last_error)/dt;
         last_error = error;
 
-        constexpr float k_p = 20.0f;
-        constexpr float k_d = 2.0f;
-
-        const float feedback_torque = k_p*error + k_d*derror;
+        const float feedback_torque = k_p*error + k_d*error_derivative;
 
         const model_t& model = bicycle.model();
         const model_t::state_t state_deriv =
@@ -296,7 +301,7 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
         const float steer_accel = model_t::get_state_element(
                 state_deriv,
                 model_t::state_index_t::steer_rate);
-        const float feedforward_torque = 1.0f*(mass_upper + mass_lower)*steer_accel;
+        const float feedforward_torque = m*steer_accel;
 
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
@@ -311,23 +316,28 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
                 msg->model.v = bicycle.v();
                 msg->model.has_v = true;
                 msg->has_model = true;
-                message::set_bicycle_input(
-                        &msg->input,
-                        (model_t::input_t() << roll_torque, steer_torque).finished());
+                message::set_bicycle_input(&msg->input, bicycle.input());
                 msg->has_input = true;
                 message::set_simulation_state(msg, bicycle);
                 message::set_simulation_auxiliary_state(msg, bicycle);
                 message::set_simulation_actuators(msg, handlebar_reference_dac);
-                message::set_simulation_sensors(
-                        msg,
-                        analog.get_adc12(),
-                        analog.get_adc13(),
+                // The sensor values are sampled again at a slightly different time
+                // but should be roughly the same is the ones used in computation
+                message::set_simulation_sensors(msg,
+                        analog.get_kistler_sensor(),
+                        analog.get_kollmorgen_motor(),
                         encoder_steer.count(),
                         encoder_rear_wheel.count());
-                message::set_simulation_timing(
-                        msg,
+                message::set_simulation_timing(msg,
                         computation_time_measurement.last,
                         transmission_time_measurement.last);
+                message::set_simulation_feedback(msg,
+                        feedback_torque,
+                        error,
+                        error_derivative);
+                message::set_simulation_feedforward(msg,
+                        feedforward_torque,
+                        steer_accel);
                 if (transmitter.transmit_async(msg) != MSG_OK) {
                     // Discard simulation message if it cannot be processed quickly enough.
                     transmitter.free_message(msg);
