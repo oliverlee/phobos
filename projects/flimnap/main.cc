@@ -316,9 +316,7 @@ int main(void) {
                 msg->model.v = bicycle.v();
                 msg->model.has_v = true;
                 msg->has_model = true;
-                message::set_bicycle_input(
-                        &msg->input,
-                        (model_t::input_t() << roll_torque, steer_torque).finished());
+                message::set_bicycle_input(&msg->input, bicycle.input());
                 msg->has_input = true;
                 message::set_simulation_state(msg, bicycle);
                 message::set_simulation_auxiliary_state(msg, bicycle);
