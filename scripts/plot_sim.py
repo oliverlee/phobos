@@ -30,19 +30,19 @@ def convert_adcsample(adc_samples, adc_zero_value, magnitude):
     return shifted_value*magnitude/sa.ADC_HALF_RANGE
 
 
-def get_kollmorgen_applied_torque(adc_samples):
+def convert_kollmorgen_applied_adc(adc_samples):
     return convert_adcsample(adc_samples,
                              sa.KOLLMORGEN_ADC_ZERO_OFFSET,
                              sa.MAX_KOLLMORGEN_TORQUE)
 
 
-def get_kollmorgen_command_torque(adc_samples):
+def convert_kollmorgen_command_dac(adc_samples):
     return convert_adcsample(adc_samples,
                              sa.KOLLMORGEN_DAC_ZERO_OFFSET,
                              sa.MAX_KOLLMORGEN_TORQUE)
 
 
-def get_kistler_sensor_torque(adc_samples):
+def convert_kistler_torque_adc(adc_samples):
     torque = np.zeros(adc_samples.shape)
     # inequalities are reversed as we need to negate adc_samples
     # max torque value constants are negative
@@ -120,10 +120,10 @@ def plot_entries(t, entries, n, m):
 
 class ProcessedRecord(object):
     def __init__(self, filename):
-        messages = load_messages(filename)
+        self.messages = load_messages(filename)
         # ignore first sample as it transmitted before the simulation loop
         # TODO: check time diff instead of ignoring first message?
-        self.records = get_records_from_messages(messages)[1:]
+        self.records = get_records_from_messages(self.messages)[1:]
         self.t = get_time_vector(self.records)
         self.states = self.records.state[:, 1:] # skip yaw angle
         self.colors = np.roll(sns.color_palette('Paired', 12), 2, axis=0)
@@ -137,6 +137,14 @@ class ProcessedRecord(object):
         self.error = self._signal('steer angle') - self.measured_steer_angle
         derror = np.diff(self.error) / 0.001
         self.derror = np.squeeze(np.insert(derror, 0, 0))
+
+        self.kollmorgen_command_torque = convert_kollmorgen_command_dac(
+                self.records.actuators.kollmorgen_command_torque)
+        self.kollmorgen_applied_torque = convert_kollmorgen_applied_adc(
+                self.records.sensors.kollmorgen_actual_torque)
+        self.kistler_sensor_torque = convert_kistler_torque_adc(
+                self.records.sensors.kistler_measured_torque)
+
 
     def _signal(self, name):
         if name in STATE_LABELS:
@@ -193,9 +201,7 @@ class ProcessedRecord(object):
 
         # plot torques
         self._plot_line(ax[2], 'steer torque')
-        ax[2].plot(self.t,
-                get_kollmorgen_command_torque(
-                    self.records.actuators.kollmorgen_command_velocity),
+        ax[2].plot(self.t, self.kollmorgen_command_torque,
                 label='commanded torque', color=self.colors[11], alpha=0.8)
         ax[2].set_ylabel('torque [Nm]')
         ax[2].set_xlabel('time [s]')
@@ -256,13 +262,10 @@ class ProcessedRecord(object):
     def plot_torque_signals(self, **kwargs):
         fig, ax = plt.subplots(**kwargs)
 
-        commanded_torque = get_kollmorgen_command_torque(
-                self.records.actuators.kollmorgen_command_velocity)
-
         k_p = 150
         k_d = 3
         feedback_torque = k_p*self.error + k_d*self.derror
-        feedforward_torque = commanded_torque - feedback_torque
+        feedforward_torque = self.kollmorgen_command_torque - feedback_torque
 
         _, A, B = benchmark_state_space_vs_speed(*benchmark_matrices(), [5])
         A = np.squeeze(A)
@@ -276,15 +279,13 @@ class ProcessedRecord(object):
 
         self._plot_line(ax, 'steer torque')
         ax.plot(self.t,
-                get_kistler_sensor_torque(
-                    self.records.sensors.kistler_measured_torque),
+                self.kistler_sensor_torque,
                 label='sensor torque', color=self.colors[5], alpha=0.8)
         ax.plot(self.t,
-                get_kollmorgen_applied_torque(
-                    self.records.sensors.kollmorgen_actual_torque),
+                self.kollmorgen_applied_torque,
                 label='motor torque', color=self.colors[3], alpha=0.8)
         ax.plot(self.t,
-                commanded_torque,
+                self.kollmorgen_command_torque,
                 label='commanded torque', color=self.colors[7], alpha=0.8)
         ax.plot(self.t,
                 feedback_torque,
@@ -309,76 +310,3 @@ if __name__ == '__main__':
     log = ProcessedRecord(sys.argv[1])
     log.plot_states(degrees=True)
     plt.show()
-
-    """
-    messages = load_messages(sys.argv[1])
-    # ignore first sample as it transmitted before the simulation loop
-    records = get_records_from_messages(messages)[1:]
-    t = get_time_vector(records)
-
-    states = records.state[:, 1:]
-    fig1, ax1 = plot_states(t, states, second_yaxis=False, to_degrees=False)
-
-    encoder_count = records.sensors.steer_encoder_count
-    encoder_angle = encoder_count / 152000 * 2*np.pi
-    encoder_angle[np.where(encoder_angle > np.pi)[0]] -= 2*np.pi
-
-    # calculate a simple numerical derivative of encoder_angle
-    # timestamps units are system ticks, at 10 kHz
-    dt = np.insert(np.diff(t), 0, 0)
-    encoder_rate = np.insert(np.diff(encoder_angle), 0, 0) / dt
-
-    fig2, ax2 = plt.subplots()
-    index = STATE_LABELS.index('steer angle')
-    ax2.plot(t, states[:, index], label=STATE_LABELS[index],
-             alpha=0.8,
-             color=STATE_COLOR[1 + 2*index])
-    ax2.plot(t, encoder_angle, label='encoder angle',
-             alpha=0.8,
-             color=STATE_COLOR[2*index])
-
-    index = STATE_LABELS.index('steer rate')
-    ax2.plot(t, states[:, index], label=STATE_LABELS[index],
-             alpha=0.8,
-             color=STATE_COLOR[1 + 2*index])
-    ax2.plot(t, encoder_rate, label='encoder rate (from angle diff)',
-             alpha=0.8,
-             color=STATE_COLOR[2*index])
-    ax2.set_ylabel('rad, rad/s, rad/s/s')
-    ax2.set_xlabel('time [s]')
-    ax2.legend()
-
-    fig3, ax3 = plt.subplots()
-    ax3.plot(t,
-             get_kollmorgen_applied_torque(
-                 records.sensors.kollmorgen_actual_torque),
-             label=SENSOR_LABELS[1],
-             alpha=0.8,
-             color=STATE_COLOR[9])
-    ax3.plot(t,
-             get_kistler_sensor_torque(records.sensors.kistler_measured_torque),
-             label=SENSOR_LABELS[0],
-             alpha=0.8,
-             color=STATE_COLOR[5])
-    ax3.plot(t,
-             records.input[:, 1],
-             label='steer torque',
-             alpha=0.8,
-             color=STATE_COLOR[3])
-    # FIXME The field sensors.kollmorgen_command_velocity contains the
-    # kollmorgen drive reference. This is either interpreted as a torque or
-    # velocity command depending on the drive settings and must be set correctly
-    # depending on the project.
-    # We currently assume torque mode is being used.
-    ax3.plot(t,
-             get_kollmorgen_command_torque(
-                 records.actuators.kollmorgen_command_velocity),
-             label='kollmorgen command torque',
-             alpha=0.8,
-             color=STATE_COLOR[7])
-    ax3.set_ylabel('torque [N-m]')
-    ax3.set_xlabel('time [s]')
-    ax3.legend()
-
-    plt.show()
-    """

@@ -109,8 +109,8 @@ void set_simulation_sensors(SimulationMessage* pb,
 }
 
 void set_simulation_actuators(SimulationMessage* pb,
-        uint32_t commanded_feedback_velocity) {
-    pb->actuators.kollmorgen_command_velocity = commanded_feedback_velocity;
+        uint32_t commanded_torque) {
+    pb->actuators.kollmorgen_command_torque = commanded_torque;
     pb->has_actuators = true;
 }
 
@@ -121,6 +121,28 @@ void set_simulation_timing(SimulationMessage* pb,
     pb->timing.transmission = transmission_time;
     pb->timing.has_transmission = true;
     pb->has_timing = true;
+}
+
+void set_simulation_feedback(SimulationMessage* pb,
+        float torque, float error, float error_derivative) {
+    pb->controller.feedback.torque = torque;
+    pb->controller.feedback.has_torque = true;
+    pb->controller.feedback.error = error;
+    pb->controller.feedback.has_error = true;
+    pb->controller.feedback.error_derivative = error_derivative;
+    pb->controller.feedback.has_error_derivative = true;
+    pb->controller.has_feedback = true;
+    pb->has_controller = true;
+}
+
+void set_simulation_feedforward(SimulationMessage* pb,
+        float torque, float acceleration) {
+    pb->controller.feedforward.torque = torque;
+    pb->controller.feedforward.has_torque = true;
+    pb->controller.feedforward.acceleration = acceleration;
+    pb->controller.feedforward.has_acceleration = true;
+    pb->controller.has_feedforward = true;
+    pb->has_controller = true;
 }
 
 } // namespace message
