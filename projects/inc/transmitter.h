@@ -26,13 +26,16 @@ class Transmitter {
         static constexpr size_t SIMULATION_MESSAGE_POOL_SIZE = 2;
         static constexpr size_t MAILBOX_SIZE = POSE_MESSAGE_POOL_SIZE + SIMULATION_MESSAGE_POOL_SIZE;
 
+        struct alignas(sizeof(stkalign_t)) BicyclePoseMessage_stkalign { BicyclePoseMessage m; };
+        struct alignas(sizeof(stkalign_t)) SimulationMessage_stkalign { SimulationMessage m; };
+
         mailbox_t m_message_mailbox;
-        MEMORYPOOL_DECL(m_pose_message_pool, sizeof(BicyclePoseMessage), nullptr);
-        MEMORYPOOL_DECL(m_simulation_message_pool, sizeof(SimulationMessage), nullptr);
+        MEMORYPOOL_DECL(m_pose_message_pool, sizeof(BicyclePoseMessage_stkalign), nullptr);
+        MEMORYPOOL_DECL(m_simulation_message_pool, sizeof(SimulationMessage_stkalign), nullptr);
 
         msg_t m_message_mailbox_buffer[MAILBOX_SIZE];
-        BicyclePoseMessage m_pose_message_buffer[POSE_MESSAGE_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
-        SimulationMessage m_simulation_message_buffer[SIMULATION_MESSAGE_POOL_SIZE] __attribute__((aligned(sizeof(stkalign_t))));
+        BicyclePoseMessage_stkalign m_pose_message_buffer[POSE_MESSAGE_POOL_SIZE];
+        SimulationMessage_stkalign m_simulation_message_buffer[SIMULATION_MESSAGE_POOL_SIZE];
 
         static constexpr size_t VARINT_MAX_SIZE = 10;
         std::array<uint8_t, sizeof(SimulationMessage) + VARINT_MAX_SIZE> m_serialize_buffer;
