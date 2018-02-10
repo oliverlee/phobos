@@ -37,9 +37,10 @@ class Transmitter {
         BicyclePoseMessage_stkalign m_pose_message_buffer[POSE_MESSAGE_POOL_SIZE];
         SimulationMessage_stkalign m_simulation_message_buffer[SIMULATION_MESSAGE_POOL_SIZE];
 
+        // Use maximum encoded message size for serialization buffer
         static constexpr size_t VARINT_MAX_SIZE = 10;
-        std::array<uint8_t, sizeof(SimulationMessage) + VARINT_MAX_SIZE> m_serialize_buffer;
-        std::array<uint8_t, cobs::max_encoded_length(sizeof(SimulationMessage) + VARINT_MAX_SIZE)> m_packet_buffer;
+        std::array<uint8_t, SimulationMessage_size + VARINT_MAX_SIZE> m_serialize_buffer;
+        std::array<uint8_t, cobs::max_encoded_length(SimulationMessage_size + VARINT_MAX_SIZE)> m_packet_buffer;
         THD_WORKING_AREA(m_wa_transmitter_thread, 1280);
         thread_t* m_thread;
         size_t m_bytes_written;
