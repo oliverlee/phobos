@@ -1,0 +1,63 @@
+syntax = "proto3";
+import "build.proto";
+import "pose.proto";
+import "simulation.proto";
+
+message pbEmpty { }
+
+message pbModelCanonical {
+    pbSecondOrderMatrix M = 1;
+    pbSecondOrderMatrix C1 = 2;
+    pbSecondOrderMatrix K0 = 3;
+    pbSecondOrderMatrix K2 = 4;
+}
+
+message pbFeedbackGains {
+    float k_p = 1;
+    float k_i = 2;
+    float k_d = 3;
+}
+
+message pbRxMaster {
+    oneof value {
+        pbEmpty start = 1;
+        pbEmpty stop = 2;
+        float set_v = 3;
+        float set_dt = 4;
+        pbModelCanonical set_model_canonical = 5;
+        pbFeedbackGains set_controller_feedback_gains = 6;
+        float set_controller_feedforward_inertia = 7;
+    }
+}
+
+message pbSmallMessageGroup {
+    // These values are reserved to allow us to copy a pbSmallMessageGroup
+    // object directly into a pbTxMaster object using memcpy.
+    reserved 1, 2;
+
+    oneof value {
+        float v = 3;
+        float dt = 4;
+        pbModelCanonical model_canonical = 5;
+        pbFeedbackGains controller_feedback_gains = 6;
+        float controller_feedforward_inertia = 7;
+        pbBuildConfig build_config = 8;
+        pbPose pose = 9;
+    }
+}
+
+message pbTxMaster {
+    uint32 timestamp = 1;
+    oneof value {
+        pbSimulation simulation_data = 2;
+
+        // These values are copied from pbTxSmallMessageGroup
+        float v = 3;
+        float dt = 4;
+        pbModelCanonical model_canonical = 5;
+        pbFeedbackGains controller_feedback_gains = 6;
+        float controller_feedforward_inertia = 7;
+        pbBuildConfig build_config = 8;
+        pbPose pose = 9;
+    }
+}

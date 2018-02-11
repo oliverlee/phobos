@@ -1,21 +1,15 @@
-FirmwareVersion.f                           max_size:7 type:FT_INLINE
+pbSensor.kistler_measured_torque       int_size:IS_16
+pbSensor.kollmorgen_measured_torque    int_size:IS_16
+pbSensor.rear_wheel_encoder_count      int_size:IS_16
 
-BicycleStateMessage.x                       max_count:5
-BicycleAuxiliaryStateMessage.x              max_count:4
-BicycleInputMessage.u                       max_count:2
+pbActuator.kollmorgen_command_torque   int_size:IS_16
 
-SensorMessage.kistler_measured_torque       int_size:IS_16
-SensorMessage.kollmorgen_actual_torque      int_size:IS_16
-SensorMessage.rear_wheel_encoder_count      int_size:IS_16
+pbModelState.data                      max_count:5 fixed_count:true
+pbModelInput.data                      max_count:2 fixed_count:true
+pbModelAuxiliaryState.data             max_count:4 fixed_count:true
 
-ActuatorMessage.kollmorgen_command_torque   int_size:IS_16
-
-SymmetricStateMatrixMessage.m               max_count:15
-SymmetricOutputMatrixMessage.m              max_count:3
-KalmanGainMatrixMessage.m                   max_count:10
-
-SecondOrderMatrixMessage.m                  max_count:4
-StateMatrixMessage.m                        max_count:25
-InputMatrixMessage.m                        max_count:10
-OutputMatrixMessage.m                       max_count:10
-FeedthroughMatrixMessage.m                  max_count:4
+pbSecondOrderMatrix.data               max_count:4 fixed_count:true
+pbStateMatrix.data                     max_count:25 fixed_count:true
+pbInputMatrix.data                     max_count:10 fixed_count:true
+pbOutputMatrix.data                    max_count:10 fixed_count:true
+pbFeedthroughMatrix.data               max_count:4 fixed_count:true

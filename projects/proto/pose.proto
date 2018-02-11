@@ -1,13 +1,12 @@
-syntax = "proto2";
+syntax = "proto3";
 
 // message type for stm32 -> Unity communication
-message BicyclePoseMessage {
-    required uint32 timestamp = 1;
-    required float x =          2;
-    required float y =          3;
-    required float yaw =        4;
-    required float roll =       5;
-    required float pitch =      6;
-    required float steer =      7;
-    required float rear_wheel = 8;
+message pbPose {
+    float x_position = 1;
+    float y_position = 2;
+    float yaw_angle = 3;
+    float roll_angle = 4;
+    float pitch_angle = 5;
+    float steer_angle = 6;
+    float rear_wheel_angle = 7;
 }
