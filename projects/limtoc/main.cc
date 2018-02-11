@@ -128,8 +128,8 @@ int main(void) {
     // Normal main() thread activity
     while (true) {
         const float kistler_torque = kistler_average.output(
-                sa::get_kistler_sensor_torque(analog.get_adc12()));
-        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
+                sa::get_kistler_sensor_torque(analog));
+        const float motor_torque = sa::get_kollmorgen_motor_torque(analog);
         const float steer_angle = util::encoder_count<float>(encoder_steer);
 
         // generate motor torque to simulate a spring and virtual mass

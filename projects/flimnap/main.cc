@@ -226,17 +226,10 @@ int main(void) {
     // Normal main() thread activity. This is the dynamics simulation loop.
     systime_t deadline = chVTGetSystemTime();
     float last_error = 0.0f;
-    const systime_t t0 = chVTGetSystemTime();
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
         constexpr float roll_torque = 0.0f;
-
-        // get torque measurements
-        const float kistler_torque = sa::get_kistler_sensor_torque(
-                analog.get_adc12<float>());
-        const float motor_torque = sa::get_kollmorgen_motor_torque(
-                analog.get_adc13<float>());
 
         // positive motor torque will rotate the steering shaft clockwise
         // positive kistler torque equal to positive motor torque will stop rotation
@@ -253,7 +246,7 @@ int main(void) {
         //
         // NOTE: we neglect inertia torque after finding it to be negligible
         // compared to the sensor torque
-        const float steer_torque = -kistler_torque;
+        const float steer_torque = -sa::get_kistler_sensor_torque(analog);
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float v = velocity_filter.output(
@@ -323,16 +316,16 @@ int main(void) {
                 msg->model.v = bicycle.v();
                 msg->model.has_v = true;
                 msg->has_model = true;
-                message::set_bicycle_input(
-                        &msg->input,
-                        (model_t::input_t() << roll_torque, steer_torque).finished());
+                message::set_bicycle_input(&msg->input, bicycle.input());
                 msg->has_input = true;
                 message::set_simulation_state(msg, bicycle);
                 message::set_simulation_auxiliary_state(msg, bicycle);
                 message::set_simulation_actuators(msg, handlebar_reference_dac);
+                // The sensor values are sampled again at a slightly different time
+                // but should be roughly the same is the ones used in computation
                 message::set_simulation_sensors(msg,
-                        analog.get_adc12(),
-                        analog.get_adc13(),
+                        analog.get_kistler_sensor(),
+                        analog.get_kollmorgen_motor(),
                         encoder_steer.count(),
                         encoder_rear_wheel.count());
                 message::set_simulation_timing(msg,

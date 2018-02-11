@@ -52,7 +52,7 @@ Polyfit<N, K>::Polyfit(float sample_time) :
 template <size_t N, size_t K>
 void Polyfit<N, K>::update(float sample) {
     // shift buffer samples
-    std::memcpy(m_buffer, &m_buffer[1],
+    std::memmove(m_buffer, &m_buffer[1],
             sizeof(m_buffer) - sizeof(&m_buffer[0]));
     // save most recent sample
     m_buffer[0] = sample;

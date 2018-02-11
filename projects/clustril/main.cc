@@ -150,8 +150,8 @@ int main(void) {
         constexpr float roll_torque = 0;
 
         /* get torque measurements */
-        const float kistler_torque = sa::get_kistler_sensor_torque(analog.get_adc12());
-        const float motor_torque = sa::get_kollmorgen_motor_torque(analog.get_adc13());
+        const float kistler_torque = sa::get_kistler_sensor_torque(analog);
+        const float motor_torque = sa::get_kollmorgen_motor_torque(analog);
         (void)motor_torque; /* this isn't currently used */
 
         /* get angle measurements */
@@ -171,8 +171,10 @@ int main(void) {
         sample = simulation_message_zero;
         sample.timestamp = chSysGetRealtimeCounterX();
         message::set_simulation_sensors(&sample,
-                analog.get_adc12(), analog.get_adc13(),
-                encoder_steer.count(), encoder_rear_wheel.count());
+                analog.get_kistler_sensor(),
+                analog.get_kollmorgen_motor(),
+                encoder_steer.count(),
+                encoder_rear_wheel.count());
         message::set_simulation_actuators(&sample, handlebar_velocity_dac);
 
         // TODO: fix sleep amount
