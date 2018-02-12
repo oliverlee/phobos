@@ -226,7 +226,7 @@ static USBOutEndpointState ep1outstate;
 /**
  * @brief   EP1 initialization structure (both IN and OUT).
  */
-static const USBEndpointConfig ep1config = {
+const USBEndpointConfig ep1config = {
   USB_EP_MODE_TYPE_BULK,
   NULL, /* no setup callback */
   NULL, /* no data transmitted callback */

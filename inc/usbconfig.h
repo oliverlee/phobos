@@ -17,6 +17,9 @@
 #ifndef _USBCFG_H_
 #define _USBCFG_H_
 
+#include "hal.h"
+
+extern const USBEndpointConfig ep1config;
 extern const USBConfig usbcfg;
 extern SerialUSBConfig serusbcfg;
 extern SerialUSBDriver SDU1;

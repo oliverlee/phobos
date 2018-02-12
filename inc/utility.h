@@ -60,4 +60,9 @@ T encoder_rate(const EncoderFoaw<T, N>& encoder) {
     auto rev = static_cast<std::make_signed<enccnt_t>::type>(encoder.config().counts_per_rev);
     return static_cast<T>(encoder.velocity()) / rev * boost::math::constants::two_pi<T>();
 }
+
+template <typename T>
+constexpr T integer_ceil(T x, T y) {
+    return (x + y - 1) / y;
+}
 } // namespace util

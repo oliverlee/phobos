@@ -35,6 +35,8 @@ message pbSmallMessageGroup {
     // object directly into a pbTxMaster object using memcpy.
     reserved 1, 2;
 
+    // These values are copied from pbRxMaster as we want to able to acknowledge
+    // a change in configuration.
     oneof value {
         float v = 3;
         float dt = 4;
@@ -52,6 +54,7 @@ message pbTxMaster {
         pbSimulation simulation_data = 2;
 
         // These values are copied from pbTxSmallMessageGroup
+        // TODO: autogenerate this
         float v = 3;
         float dt = 4;
         pbModelCanonical model_canonical = 5;

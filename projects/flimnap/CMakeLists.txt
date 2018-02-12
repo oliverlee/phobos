@@ -1,7 +1,10 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-generate_protobuf_source(${PHOBOS_PROJECT_PROTO_DIR}/simulation.proto
-                         ${PHOBOS_PROJECT_PROTO_DIR}/pose.proto)
+generate_protobuf_source(
+    ${PHOBOS_PROJECT_PROTO_DIR}/build.proto
+    ${PHOBOS_PROJECT_PROTO_DIR}/simulation.proto
+    ${PHOBOS_PROJECT_PROTO_DIR}/pose.proto
+    ${PHOBOS_PROJECT_PROTO_DIR}/txrx.proto)
 
 # exclude printf source and default USB config
 set(PHOBOS_COMMON_SRC
