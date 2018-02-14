@@ -1,57 +1,62 @@
 #pragma once
-#include <array>
-#include "cobs.h"
 #include "ch.h"
-#include "simulation.pb.h"
+#include "cobs.h"
+#include "packet/serialize.h"
+#include "txrx.pb.h"
+#include <array>
+#include <type_traits>
+#include <algorithm>
 
 namespace message {
+
 class Transmitter {
     public:
         Transmitter();
         void start(tprio_t priority);
 
-        BicyclePoseMessage* alloc_pose_message();
-        void free_message(BicyclePoseMessage* msg);
-        msg_t transmit_async(BicyclePoseMessage* msg); // frees msg on MSG_OK
+        pbSimulation* alloc_simulation_message();
+        pbSmallMessageGroup* alloc_smallgroup_message();
 
-        SimulationMessage* alloc_simulation_message();
-        void free_message(SimulationMessage* msg);
-        msg_t transmit_async(SimulationMessage* msg); // frees msg on MSG_OK
+        msg_t transmit(pbSimulation* msg);
+        msg_t transmit(pbSmallMessageGroup* msg);
 
-        // TODO: REMOVE after config message is defined
-        void transmit(SimulationMessage* msg); // frees msg
+        void free(pbSimulation* msg);
+        void free(pbSmallMessageGroup* msg);
 
     private:
-        static constexpr size_t POSE_MESSAGE_POOL_SIZE = 2;
-        static constexpr size_t SIMULATION_MESSAGE_POOL_SIZE = 2;
-        static constexpr size_t MAILBOX_SIZE = POSE_MESSAGE_POOL_SIZE + SIMULATION_MESSAGE_POOL_SIZE;
+        struct alignas(sizeof(stkalign_t)) pbSimulation_stkalign { pbSimulation m; };
+        struct alignas(sizeof(stkalign_t)) pbSmallMessageGroup_stkalign { pbSmallMessageGroup m; };
+        static constexpr size_t A = 2;
+        static constexpr size_t B = 2;
+        std::array<pbSimulation_stkalign, A> m_simulation_pool_buffer;
+        std::array<pbSmallMessageGroup_stkalign, B> m_smallgroup_pool_buffer;
 
-        struct alignas(sizeof(stkalign_t)) BicyclePoseMessage_stkalign { BicyclePoseMessage m; };
-        struct alignas(sizeof(stkalign_t)) SimulationMessage_stkalign { SimulationMessage m; };
+        mailbox_t m_mailbox;
+        MEMORYPOOL_DECL(m_simulation_pool, sizeof(pbSimulation_stkalign), nullptr);
+        MEMORYPOOL_DECL(m_smallgroup_pool, sizeof(pbSmallMessageGroup_stkalign), nullptr);
 
-        mailbox_t m_message_mailbox;
-        MEMORYPOOL_DECL(m_pose_message_pool, sizeof(BicyclePoseMessage_stkalign), nullptr);
-        MEMORYPOOL_DECL(m_simulation_message_pool, sizeof(SimulationMessage_stkalign), nullptr);
+        std::array<msg_t, A + B> m_mailbox_buffer;
 
-        msg_t m_message_mailbox_buffer[MAILBOX_SIZE];
-        BicyclePoseMessage_stkalign m_pose_message_buffer[POSE_MESSAGE_POOL_SIZE];
-        SimulationMessage_stkalign m_simulation_message_buffer[SIMULATION_MESSAGE_POOL_SIZE];
+        // Messages are delimited and prepended with a protobuf varint
+        static constexpr size_t N = packet::serialize::VARINT_MAX_SIZE +
+            std::max(pbSimulation_size, pbTxSmallPackage_size);
+        static constexpr size_t M = cobs::max_encoded_length(N);
+        std::array<uint8_t, N> m_serialize_buffer;
+        std::array<uint8_t, M> m_packet_buffer;
 
-        // Use maximum encoded message size for serialization buffer
-        static constexpr size_t VARINT_MAX_SIZE = 10;
-        std::array<uint8_t, SimulationMessage_size + VARINT_MAX_SIZE> m_serialize_buffer;
-        std::array<uint8_t, cobs::max_encoded_length(SimulationMessage_size + VARINT_MAX_SIZE)> m_packet_buffer;
-        THD_WORKING_AREA(m_wa_transmitter_thread, 1280);
+        THD_WORKING_AREA(m_wa_transmitter_thread, 512);
         thread_t* m_thread;
-        size_t m_bytes_written;
 
-        void encode_message(const BicyclePoseMessage* const msg);
-        void encode_message(const SimulationMessage* const msg);
-        void transmit_packet() const;
-        size_t encode_packet(const SimulationMessage& m);
+        // use uint8_t if possible
+        using index_t = std::conditional<(N < 256) && (M < 256), uint8_t, size_t>::type;
+        index_t m_serialized_size; // byte size of serialized object
+        index_t m_encoded_size; // byte size of encoded packet
+
+        void serialize_message(msg_t msg);
+        void encode_packet();
         static void transmitter_thread_function(void* p);
 
-        bool is_within_pose_message_memory(msg_t msg);
-        bool is_within_simulation_message_memory(msg_t msg);
+        pbTxMaster m_wrapper;
 };
+
 } // namespace message
