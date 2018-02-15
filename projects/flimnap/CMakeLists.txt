@@ -28,7 +28,6 @@ set(PHOBOS_COMMON_SRC
 
 # suppress Boost undef warnings and Eigen deprecated warnings
 set_property(SOURCE
-    ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
     APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef -Wno-deprecated")
 
@@ -43,8 +42,8 @@ set(FLIMNAP_COMMON_SRC
     main.cc
     serialize.cc
     usbconfig.c # add USB config file without input/output buffer queues
-    ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
+    ${PHOBOS_PROJECT_SOURCE_DIR}/receiver.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/transmitter.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc
