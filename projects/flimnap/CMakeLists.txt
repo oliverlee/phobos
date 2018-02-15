@@ -1,5 +1,15 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
+find_host_package(PythonInterp REQUIRED)
+add_custom_command(OUTPUT
+    ${CMAKE_CURRENT_BINARY_DIR}/txrx.proto
+    COMMAND ${PYTHON_EXECUTABLE} ${PHOBOS_PROJECT_PROTO_DIR}/generate_proto.py
+        ${PHOBOS_PROJECT_PROTO_DIR}/txrx.proto.in ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS ${PHOBOS_PROJECT_PROTO_DIR}/generate_proto.py
+        ${PHOBOS_PROJECT_PROTO_DIR}/txrx.proto.in
+        ${PHOBOS_PROJECT_PROTO_DIR}/txrx.options
+    COMMENT "Generating proto schema ${CMAKE_CURRENT_BINARY_DIR}/txrx.proto")
+
 generate_protobuf_source(
     ${PHOBOS_PROJECT_PROTO_DIR}/build.proto
     ${PHOBOS_PROJECT_PROTO_DIR}/simulation.proto
@@ -7,8 +17,9 @@ generate_protobuf_source(
 set(NANOPB_DEPENDS
     ${PHOBOS_PROJECT_PROTO_DIR}/build.options
     ${PHOBOS_PROJECT_PROTO_DIR}/simulation.options)
+set(NANOPB_IMPORT_DIRS ${PHOBOS_PROJECT_PROTO_DIR})
 generate_protobuf_source(
-    ${PHOBOS_PROJECT_PROTO_DIR}/txrx.proto)
+    ${CMAKE_CURRENT_BINARY_DIR}/txrx.proto)
 
 # exclude printf source and default USB config
 set(PHOBOS_COMMON_SRC
