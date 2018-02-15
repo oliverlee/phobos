@@ -52,6 +52,8 @@ set(FLIMNAP_COMMON_SRC
     ${PROTOBUF_GENERATED_SOURCE}
     ${BICYCLE_SOURCE})
 
+add_definitions("-DPROJECT_FLIMPNAP")
+
 if(PHOBOS_BUILD_PROJECT_FLIMNAP_WHIPPLE)
 add_phobos_executable(flimnap_whipple ${FLIMNAP_COMMON_SRC})
 endif()

@@ -1,77 +1,88 @@
 #pragma once
 #include "simulation.pb.h"
+#include "build.pb.h"
+#include "pose.pb.h"
 #include "bicycle/bicycle.h"
 #include "simbicycle.h"
+#include <cstring>
 
 namespace message {
-    using bicycle_t = model::Bicycle;
-    void set_bicycle_state(BicycleStateMessage* pb, const bicycle_t::state_t& x);
-    void set_bicycle_auxiliary_state(BicycleAuxiliaryStateMessage* pb, const bicycle_t::auxiliary_state_t& x);
-    void set_bicycle_input(BicycleInputMessage* pb, const bicycle_t::input_t& u);
-    void set_state_matrix(StateMatrixMessage* pb, const bicycle_t::state_matrix_t& m);
-    void set_input_matrix(InputMatrixMessage* pb, const bicycle_t::input_matrix_t& m);
-    void set_output_matrix(OutputMatrixMessage* pb, const bicycle_t::output_matrix_t& m);
-    void set_feedthrough_matrix(FeedthroughMatrixMessage* pb, const bicycle_t::feedthrough_matrix_t& m);
-    void set_second_order_matrix(SecondOrderMatrixMessage* pb, const bicycle_t::second_order_matrix_t& m);
-    void set_symmetric_state_matrix(SymmetricStateMatrixMessage* pb, const bicycle_t::state_matrix_t& m);
-    void set_bicycle_canonical(BicycleModelMessage* pb, const bicycle_t& b);
-    void set_bicycle_discrete_time_state_space(BicycleModelMessage* pb, const bicycle_t& b);
+    /**
+     There are utility functions to simplify storing of data.
+     */
+    void set_build_config(pbBuildConfig* pb);
 
-    void set_simulation_gitsha1(SimulationMessage* pb);
-    void set_simulation_sensors(SimulationMessage* pb,
-            uint32_t measured_steer_torque, uint32_t measured_motor_torque,
-            uint32_t steer_encoder_count, uint32_t rear_wheel_encoder_count);
-    void set_simulation_actuators(SimulationMessage* pb,
-            uint32_t commanded_feedback_velocity);
-    void set_simulation_timing(SimulationMessage* pb,
-            uint32_t computation_time, uint32_t transmission_time);
+    void set_state_matrix(pbStateMatrix* pb, const model::Bicycle::state_matrix_t& m);
+    void set_input_matrix(pbInputMatrix* pb, const model::Bicycle::input_matrix_t& m);
+    void set_output_matrix(pbOutputMatrix* pb, const model::Bicycle::output_matrix_t& m);
+    void set_feedthrough_matrix(pbFeedthroughMatrix* pb, const model::Bicycle::feedthrough_matrix_t& m);
+    void set_second_order_matrix(pbSecondOrderMatrix* pb, const model::Bicycle::second_order_matrix_t& m);
 
-    void set_simulation_feedback(SimulationMessage* pb,
-            float torque, float error, float error_derivative);
-    void set_simulation_feedforward(SimulationMessage* pb,
-            float torque, float acceleration);
+    void set_model_state(pbModelState* pb, const model::Bicycle::state_t& m);
+    void set_model_input(pbModelInput* pb, const model::Bicycle::input_t& m);
+    void set_model_auxiliary_state(pbModelAuxiliaryState* pb, const model::Bicycle::auxiliary_state_t& m);
 
-    template <typename simbicycle_t>
-    void set_simulation_state(SimulationMessage* pb, const simbicycle_t& b);
-    template <typename simbicycle_t>
-    void set_simulation_auxiliary_state(SimulationMessage* pb, const simbicycle_t& b);
-    template <typename simbicycle_t>
-    void set_simulation_pose(SimulationMessage* pb, const simbicycle_t& b);
+    void set_model_state_space(pbModelStateSpace* pb, const model::Bicycle& bicycle);
 
-    template <typename simbicycle_t>
-    void set_simulation_full_model(SimulationMessage* pb, const simbicycle_t& b);
+    template <typename PbType, typename EigenType>
+    void set_matrix(PbType* pb, const EigenType& m);
+
+    template <typename Model>
+    void set_simulation_model(pbSimulation* pb, const sim::Bicycle<Model>& sim);
+
+    template <typename Model>
+    void set_pose(pbPose* pb, const sim::Bicycle<Model>& sim);
 } // namespace message
 
+
 namespace message {
 
-template <typename simbicycle_t>
-void set_simulation_state(SimulationMessage* pb, const simbicycle_t& b) {
-    set_bicycle_state(&pb->state, bicycle_t::get_state_part(b.full_state()));
-    pb->has_state = true;
+namespace impl {
+template <typename PbType, typename EigenType>
+void set_matrix(PbType* pb, const EigenType& m) {
+    static_assert(
+            sizeof(pb->data) == (
+                sizeof(typename EigenType::Scalar) *
+                EigenType::RowsAtCompileTime *
+                EigenType::ColsAtCompileTime),
+            "Number of matrix elements do not match.");
+
+    std::memcpy(pb->data, m.data(), sizeof(pb->data));
+}
 }
 
-template <typename simbicycle_t>
-void set_simulation_auxiliary_state(SimulationMessage* pb, const simbicycle_t& b) {
-    set_bicycle_auxiliary_state(&pb->auxiliary_state, bicycle_t::get_auxiliary_state_part(b.full_state()));
-    pb->has_auxiliary_state = true;
+template <typename Model>
+void set_simulation_model(pbSimulation* pb, const sim::Bicycle<Model>& sim) {
+    set_model_state_space(&pb->model, sim.model());
+    pb->model_v = sim.v();
+    set_model_state(&pb->state, sim.state());
+    set_model_input(&pb->input, sim.input());
+    set_model_auxiliary_state(&pb->auxiliary_state, sim.auxiliary_state());
 }
 
-template <typename simbicycle_t>
-void set_simulation_pose(SimulationMessage* pb, const simbicycle_t& b) {
-    pb->pose = b.pose();
-    pb->has_pose = true;
-}
-
-template <typename simbicycle_t>
-void set_simulation_full_model(SimulationMessage* pb, const simbicycle_t& b) {
-    set_simulation_gitsha1(pb);
-
-    set_simulation_state(pb, b);
-    set_simulation_auxiliary_state(pb, b);
-
-    set_bicycle_canonical(&pb->model, b.model());
-    set_bicycle_discrete_time_state_space(&pb->model, b.model());
-    pb->has_model = true;
+template <typename Model>
+void set_pose(pbPose* pb, const sim::Bicycle<Model>& sim) {
+    pb->x_position = model::Bicycle::get_full_state_element(
+            sim.full_state(),
+            model::Bicycle::full_state_index_t::x);
+    pb->y_position = model::Bicycle::get_full_state_element(
+            sim.full_state(),
+            model::Bicycle::full_state_index_t::y);
+    pb->yaw_angle = model::Bicycle::get_full_state_element(
+            sim.full_state(),
+            model::Bicycle::full_state_index_t::yaw_angle);
+    pb->roll_angle = model::Bicycle::get_full_state_element(
+            sim.full_state(),
+            model::Bicycle::full_state_index_t::yaw_angle);
+    pb->pitch_angle = model::Bicycle::get_full_state_element(
+            sim.full_state(),
+            model::Bicycle::full_state_index_t::pitch_angle);
+    pb->steer_angle = model::Bicycle::get_full_state_element(
+            sim.full_state(),
+            model::Bicycle::full_state_index_t::steer_angle);
+    pb->rear_wheel_angle = model::Bicycle::get_full_state_element(
+            sim.full_state(),
+            model::Bicycle::full_state_index_t::rear_wheel_angle);
 }
 
 } // namespace message
