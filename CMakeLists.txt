@@ -28,7 +28,6 @@ message(STATUS "Using CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 # bicycle setup
 set(BICYCLE_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/src)
 set(BICYCLE_SOURCE
-    ${BICYCLE_SOURCE_DIR}/bicycle/arend.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/bicycle.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/bicycle_solve_constraint_pitch.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/kinematic.cc
@@ -36,6 +35,7 @@ set(BICYCLE_SOURCE
     ${BICYCLE_SOURCE_DIR}/parameters.cc)
 set(BICYCLE_INCLUDE_DIR ${BICYCLE_SOURCE_DIR} ${BICYCLE_SOURCE_DIR}/../inc)
 add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=false")
+add_definitions("-DBICYCLE_NO_DISCRETIZATION")
 set_property(SOURCE ${BICYCLE_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS
     "-fno-math-errno -fassociative-math -freciprocal-math -fcx-limited-range")
 

@@ -9,6 +9,7 @@ include_directories(${Boost_INCLUDE_DIR})
 
 # Allow printing of float types
 add_definitions("-DCHPRINTF_USE_FLOAT")
+remove_definitions("-DBICYCLE_NO_DISCRETIZATION")
 
 # The required stacksize is not the exact amount but large enough such that the
 # main thread does not overflow.
