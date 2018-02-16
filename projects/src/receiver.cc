@@ -1,6 +1,5 @@
 #include "receiver.h"
 #include "txrx_common.h"
-#include "usbconfig.h"
 #include <cstring>
 #include <functional>
 
@@ -8,10 +7,98 @@
 #define ASSERT_RX_MEMORY_LIMIT TRUE
 
 namespace message {
+
+void Receiver::usb_event(USBDriver *usbp, usbevent_t event) {
+    switch (event) {
+    case USB_EVENT_ADDRESS:
+        return;
+    case USB_EVENT_CONFIGURED:
+        chSysLockFromISR();
+
+        // Enables the endpoints specified into the configuration.
+        // Note, this callback is invoked from an ISR so I-Class functions
+        // must be used.
+        usbInitEndpointI(usbp, USBD1_DATA_REQUEST_EP, &Receiver::ep1config);
+        usbInitEndpointI(usbp, USBD1_INTERRUPT_REQUEST_EP, &ep2config);
+
+        chSysUnlockFromISR();
+        return;
+    case USB_EVENT_RESET:
+    case USB_EVENT_UNCONFIGURED:
+    case USB_EVENT_SUSPEND:
+        return;
+    case USB_EVENT_WAKEUP:
+        return;
+    case USB_EVENT_STALLED:
+        return;
+    }
+    return;
+}
+
+void Receiver::data_received_callback(USBDriver* usbp, usbep_t ep) {
+    Receiver* self = static_cast<Receiver*>(usbp->out_params[ep - 1U]);
+    chDbgAssert(self == nullptr, "Receiver is not valid.");
+
+    chSysLockFromISR();
+
+    // Signal that data is available
+    chEvtSignalI(self->m_thread, EVENT_DATA_AVAILABLE);
+
+    // Set number of received bytes
+    self->m_packet_buffer_offset += usbGetReceiveTransactionSizeX(
+            serusbcfg.usbp,
+            serusbcfg.bulk_out);
+
+    chSysUnlockFromISR();
+}
+
+void Receiver::receiver_thread_function(void* p) {
+    auto self = static_cast<Receiver*>(p);
+
+    chRegSetThreadName("receiver");
+
+    auto start_receive = [self]() {
+            chSysLock();
+
+            // Check if the USB driver is in the correct state
+            if (usbGetDriverStateI(serusbcfg.usbp) != USB_ACTIVE) {
+                chSysHalt("USB driver not ready.");
+            }
+
+            usbStartReceiveI(
+                    serusbcfg.usbp,
+                    serusbcfg.bulk_out,
+                    self->m_packet_buffer.data(),
+                    ((self->m_packet_buffer.size() - self->m_packet_buffer_offset) /
+                     ep1config.out_maxsize));
+
+            chSysUnlock();
+    };
+
+    start_receive();
+
+    while(!chThdShouldTerminateX()) {
+        // Wait for data available event
+        // Timeout is used to periodically check if thread should terminate.
+        const eventmask_t event = chEvtWaitAnyTimeout(ALL_EVENTS, MS2ST(200));
+
+        if (event == 0) { // timeout
+            continue;
+        }
+
+        if (event & EVENT_DATA_AVAILABLE) {
+            self->decode_packet();
+
+            start_receive();
+        } else {
+            chSysHalt("Unhandled thread event.");
+        }
+    }
+}
+
 Receiver::Receiver() :
 m_thread(nullptr),
-m_packet_buffer_offset(0),
-m_ep1config(ep1config) {
+m_packet_buffer_offset(0) {
     chMBObjectInit(
             &m_mailbox,
             m_mailbox_buffer.data(),
@@ -21,25 +108,29 @@ m_ep1config(ep1config) {
             static_cast<void*>(m_receive_pool_buffer.data()),
             m_receive_pool_buffer.size());
 
-    chDbgAssert(SDU1.state == SDU_UNINIT,
-            "SDU1 cannot be running as the USB endpoint must be configured.");
+    chSysLock();
+    chDbgCheck(usbGetDriverStateI(serusbcfg.usbp) == USB_STOP);
 
-    // Create a new endpoint configuration so we can set the callback;
-    register_callback();
+    // We need to set USBDriver in_params to be used with
+    // Receiver::data_available_callback.
+    serusbcfg.usbp->in_params[serusbcfg.bulk_in - 1U] = nullptr;
+    serusbcfg.usbp->out_params[serusbcfg.bulk_out - 1U] = this;
+    if (serusbcfg.int_in > 0U) {
+        serusbcfg.usbp->in_params[serusbcfg.int_in - 1U]  = nullptr;
+    }
 
-    sduObjectInit(&SDU1);
-    sduStart(&SDU1, &serusbcfg);
+    chSysUnlock();
 
     // Activate the USB driver and then the USB bus pull-up on D+.
     // Note, a delay is inserted in order to not have to disconnect the cable
     // after a reset.
     board_usb_lld_disconnect_bus();   //usbDisconnectBus(serusbcfg.usbp);
     chThdSleepMilliseconds(1500);
-    usbStart(serusbcfg.usbp, &usbcfg);
+    usbStart(serusbcfg.usbp, &usbconfig);
     board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
     // Block USB device until ready
-    while (!((SDU1.config->usbp->state == USB_ACTIVE) && (SDU1.state == SDU_READY))) {
+    while (serusbcfg.usbp->state != USB_ACTIVE) {
         chThdSleepMilliseconds(10);
     }
 }
@@ -162,73 +253,6 @@ void Receiver::decode_packet() {
             m_packet_buffer.data() + offset,
             m_packet_buffer_offset - offset);
     m_packet_buffer_offset -= offset;
-}
-
-void Receiver::receiver_thread_function(void* p) {
-    auto self = static_cast<Receiver*>(p);
-
-    chRegSetThreadName("receiver");
-
-    // lambda function here
-    auto start_receive = [self]() {
-            chSysLock();
-
-            // Check if the USB driver is in the correct state
-            if ((usbGetDriverStateI(SDU1.config->usbp) != USB_ACTIVE) ||
-                 (SDU1.state != SDU_READY)) {
-                chSysHalt("SDU driver not ready.");
-            }
-
-            usbStartReceiveI(
-                    SDU1.config->usbp,
-                    SDU1.config->bulk_out,
-                    self->m_packet_buffer.data(),
-                    (self->m_packet_buffer.size() - self->m_packet_buffer_offset)/usb_packet_size);
-
-            chSysUnlock();
-    };
-
-    start_receive();
-
-    while(!chThdShouldTerminateX()) {
-        // Wait for data available event
-        // Timeout is used to periodically check if thread should terminate.
-        const eventmask_t event = chEvtWaitAnyTimeout(ALL_EVENTS, MS2ST(200));
-
-        if (event & EVENT_DATA_AVAILABLE) {
-            self->decode_packet();
-
-            start_receive();
-        } else {
-            chSysHalt("Unhandled thread event.");
-        }
-    }
-}
-
-void Receiver::data_received_callback(USBDriver* usbp, usbep_t ep) {
-    // Check if SerialUSBDriver* is valid
-    SerialUSBDriver* sdup = static_cast<SerialUSBDriver*>(usbp->out_params[ep - 1U]);
-    chDbgAssert(sdup == nullptr, "Serial USB driver is not valid.");
-
-    chSysLockFromISR();
-
-    // Signal that data is available
-    chEvtSignalI(m_thread, EVENT_DATA_AVAILABLE);
-
-    // Set number of received bytes
-    m_packet_buffer_offset += usbGetReceiveTransactionSizeX(sdup->config->usbp,
-            sdup->config->bulk_out);
-
-    chSysUnlockFromISR();
-}
-
-inline void Receiver::register_callback() {
-    usbepcallback_t callback = std::bind(
-            &Receiver::data_received_callback,
-            this,
-            std::placeholders::_1,
-            std::placeholders::_2);
-    m_ep1config.out_cb = callback;
 }
 
 } //namespace message

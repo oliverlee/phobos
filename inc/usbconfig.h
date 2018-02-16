@@ -17,12 +17,25 @@
 #ifndef _USBCFG_H_
 #define _USBCFG_H_
 
+/*
+ * Endpoints to be used for USBD1.
+ */
+#define USBD1_DATA_REQUEST_EP           1
+#define USBD1_DATA_AVAILABLE_EP         1
+#define USBD1_INTERRUPT_REQUEST_EP      2
+
 #include "hal.h"
 
-extern const USBEndpointConfig ep1config;
+extern const USBEndpointConfig ep2config;
 extern const USBConfig usbcfg;
-extern SerialUSBConfig serusbcfg;
+extern const SerialUSBConfig serusbcfg;
 extern SerialUSBDriver SDU1;
+
+const USBDescriptor *get_descriptor(USBDriver *usbp,
+                                    uint8_t dtype,
+                                    uint8_t dindex,
+                                    uint16_t lang);
+
 
 #endif  /* _USBCFG_H_ */
 

@@ -4,6 +4,7 @@
 #include "packet/serialize.h"
 #include "utility.h"
 #include "txrx.pb.h"
+#include "usbconfig.h"
 #include <array>
 #include <type_traits>
 
@@ -36,6 +37,32 @@ class Receiver {
         void free(const pbRxMaster* msg);
 
     private:
+        static void usb_event(USBDriver* usbp, usbevent_t event);
+        static void data_received_callback(USBDriver* usbp, usbep_t ep);
+        static void receiver_thread_function(void* p);
+
+        static USBInEndpointState ep1instate;
+        static USBOutEndpointState ep1outstate;
+        static constexpr USBConfig usbconfig {
+            usb_event,
+            get_descriptor,
+            sduRequestsHook,
+            nullptr // no sof handler
+        };
+        static constexpr USBEndpointConfig ep1config {
+            USB_EP_MODE_TYPE_BULK,
+            nullptr, // no setup callback
+            nullptr, // no data transmitted callback
+            data_received_callback,
+            0x0040, // IN endpoint maximum size
+            0x0040, // OUT endpoint maximum size
+            &ep1instate,
+            &ep1outstate,
+            2, // ep_buffers
+            nullptr // no setup buffer
+        };
+        static constexpr eventmask_t EVENT_DATA_AVAILABLE = 1;
+
         struct alignas(sizeof(stkalign_t)) pbRxMaster_stkalign { pbRxMaster m; };
         static constexpr size_t A = 10;
         std::array<pbRxMaster_stkalign, A> m_receive_pool_buffer;
@@ -46,14 +73,13 @@ class Receiver {
         std::array<msg_t, A> m_mailbox_buffer;
 
         // Messages are delimited and prepended with a protobuf varint
-        // TODO look up USB endpoint packet size instead of using this hardcoded value
         static constexpr size_t N = pbRxMaster_size + packet::serialize::VARINT_MAX_SIZE;
         std::array<uint8_t, N> m_deserialize_buffer;
 
-        static constexpr size_t usb_packet_size = 0x40;
-        static constexpr size_t M = usb_packet_size*util::integer_ceil(
-                2*cobs::max_encoded_length(N),
-                usb_packet_size);
+        static constexpr size_t M = static_cast<size_t>(ep1config.out_maxsize) *
+            util::integer_ceil(
+                    2*cobs::max_encoded_length(N),
+                    static_cast<size_t>(ep1config.out_maxsize));
         std::array<uint8_t, M> m_packet_buffer;
 
         THD_WORKING_AREA(m_wa_receiver_thread, 256);
@@ -65,12 +91,6 @@ class Receiver {
 
         void deserialize_message(index_t message_size);
         void decode_packet();
-        static void receiver_thread_function(void* p);
-        void data_received_callback(USBDriver* usbp, usbep_t ep);
-
-        USBEndpointConfig m_ep1config;
-
-        static constexpr eventmask_t EVENT_DATA_AVAILABLE = 1;
 };
 
 } // namespace message
