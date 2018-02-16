@@ -35,11 +35,12 @@
 #include <array>
 #include <type_traits>
 
-#include "haptic.h"
 #include "simbicycle.h"
 #include "transmitter.h"
+#include "receiver.h"
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
+#include "haptic.h"
 #include "bicycle/kinematic.h" // simplified bicycle model
 #else // No Whipple model simplifications
 #include "bicycle/whipple.h"
@@ -93,12 +94,14 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
         systime_t time;
 
         chSysLock();
+
         time = chVTGetSystemTimeX();
         if (chVTIsTimeWithinX(time, prev, next)) {
             chThdSleepS(next - time);
         } else {
             chSchDoYieldS();
         }
+
         chSysUnlock();
 
         return next;
@@ -116,14 +119,15 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
         systime_t deadline = chVTGetSystemTime();
         while (true) {
             a->bicycle.update_kinematics();
-            BicyclePoseMessage* msg = a->transmitter.alloc_pose_message();
+            pbSmallMessageGroup* msg = a->transmitter.alloc_smallgroup_message();
             if (msg != nullptr) {
-                *msg = a->bicycle.pose();
-                if (a->transmitter.transmit_async(msg) != MSG_OK) {
+                msg->which_value = pbTxSmallPackage_set_pose_tag;
+                message::set_pose(reinterpret_cast<pbPose*>(&msg->value), a->bicycle);
+                if (a->transmitter.transmit(msg) != MSG_OK) {
                     // Discard pose message if transmission fails. As the
                     // receiver requires the most recent pose, we should not
                     // wait to queue a pose message.
-                    a->transmitter.free_message(msg);
+                    a->transmitter.free(msg);
                 }
             }
 
@@ -188,49 +192,24 @@ int main(void) {
     haptic_drive_t haptic_drive(bicycle.model());
 #endif
 
-    // Initialize handlebar object to estimate torque due to handlebar inertia.
-    haptic::Handlebar2 handlebar_inertia(bicycle.model(), sa::UPPER_ASSEMBLY_INERTIA);
-
     // Initialize time measurements
     time_measurement_t computation_time_measurement;
-    time_measurement_t transmission_time_measurement;
     chTMObjectInit(&computation_time_measurement);
-    chTMObjectInit(&transmission_time_measurement);
 
     // Initialize USB data transmission
     message::Transmitter transmitter;
-    {   // Transmit initial message containing gitsha1 and model data.
-        SimulationMessage* msg = transmitter.alloc_simulation_message();
-        *msg = SimulationMessage_init_zero;
-        msg->timestamp = chVTGetSystemTime();
-        message::set_simulation_full_model(msg, bicycle);
+    message::Receiver receiver;
 
-        msg->controller.feedback.k_p = k_p;
-        msg->controller.feedback.has_k_p = true;
-        msg->controller.feedback.k_d = k_d;
-        msg->controller.feedback.has_k_d = true;
-        msg->controller.has_feedback = true;
+    receiver.start(NORMALPRIO + 2);
+    transmitter.start(NORMALPRIO + 1);
 
-        msg->controller.feedforward.inertia = m;
-        msg->controller.feedforward.has_inertia = true;
-        msg->controller.has_feedforward = true;
-
-        msg->has_controller = true;
-
-        SimulationMessage msg_copy = *msg;
-        transmitter.transmit(msg); // This blocks until USB data starts getting read
-
-        // send message a new more times since unity drops the first few messages
-        msg = transmitter.alloc_simulation_message();
-        *msg = msg_copy;
-        transmitter.transmit(msg); // This blocks until USB data starts getting read
-
-        // send message a new more times since unity drops the first few messages
-        msg = transmitter.alloc_simulation_message();
-        *msg = msg_copy;
-        transmitter.transmit(msg); // This blocks until USB data starts getting read
+    {
+        // TODO Transmit initial message containing gitsha1 and model data.
+        pbSimulation* msg = transmitter.alloc_simulation_message();
+        *msg = pbSimulation_init_zero;
+        message::set_simulation_model(msg, bicycle);
+        transmitter.transmit(msg);
     }
-    transmitter.start(NORMALPRIO + 1); // start transmission thread
 
     // Start running pose calculation thread
     pose_thread_arg a{bicycle, transmitter};
@@ -286,14 +265,7 @@ int main(void) {
         constexpr float v = fixed_v;
         bicycle.set_v(v);
 
-        // Measurements are ignored in state update. Instead, state is stored
-        // in sim::bicycle object.
-        bicycle.update_dynamics(
-                roll_torque,
-                steer_torque,
-                0,  // measurement ignored
-                0,  // measurement ignored
-                0); // measurement ignored
+        bicycle.update_dynamics(roll_torque, steer_torque);
 
         const float desired_position = model_t::get_full_state_element(
                 bicycle.full_state(),
@@ -322,40 +294,34 @@ int main(void) {
         chTMStopMeasurementX(&computation_time_measurement);
 
         {   // prepare message for transmission
-            SimulationMessage* msg = transmitter.alloc_simulation_message();
+            pbSimulation* msg = transmitter.alloc_simulation_message();
             if (msg != nullptr) {
-                *msg = SimulationMessage_init_zero;
-                msg->timestamp = starttime;
-                msg->model.v = bicycle.v();
-                msg->model.has_v = true;
-                msg->has_model = true;
-                message::set_bicycle_input(&msg->input, bicycle.input());
-                msg->has_input = true;
-                message::set_simulation_state(msg, bicycle);
-                message::set_simulation_auxiliary_state(msg, bicycle);
-                message::set_simulation_actuators(msg, handlebar_reference_dac);
+                *msg = pbSimulation_init_zero;
+                message::set_simulation_model(msg, bicycle);
+
+                msg->actuators.kollmorgen_command_torque = handlebar_reference_dac;
+
                 // The sensor values are sampled again at a slightly different time
                 // but should be roughly the same is the ones used in computation
-                message::set_simulation_sensors(msg,
-                        analog.get_kistler_sensor(),
-                        analog.get_kollmorgen_motor(),
-                        encoder_steer.count(),
-                        encoder_rear_wheel.count());
-                message::set_simulation_timing(msg,
-                        computation_time_measurement.last,
-                        transmission_time_measurement.last);
+                msg->sensors.kistler_measured_torque = analog.get_kistler_sensor();
+                msg->sensors.kollmorgen_measured_torque = analog.get_kollmorgen_motor();
+                msg->sensors.steer_encoder_count = encoder_steer.count();
+                msg->sensors.rear_wheel_encoder_count = encoder_rear_wheel.count();
+
+                msg->timing.starttime = starttime;
+                msg->timing.computation = computation_time_measurement.last;
+
 #if not defined(USE_BICYCLE_KINEMATIC_MODEL)
-                message::set_simulation_feedback(msg,
-                        feedback_torque,
-                        error,
-                        error_derivative);
-                message::set_simulation_feedforward(msg,
-                        feedforward_torque,
-                        steer_accel);
+                msg->controller.feedback.torque = feedback_torque;
+                msg->controller.feedback.error = error;
+                msg->controller.feedback.error_derivative = error_derivative;
+
+                msg->controller.feedforward.torque = feedforward_torque;
+                msg->controller.feedforward.acceleration = steer_accel;
 #endif
-                if (transmitter.transmit_async(msg) != MSG_OK) {
+                if (transmitter.transmit(msg) != MSG_OK) {
                     // Discard simulation message if it cannot be processed quickly enough.
-                    transmitter.free_message(msg);
+                    transmitter.free(msg);
                 }
             }
         }
