@@ -73,23 +73,17 @@ macro(add_phobos_executable target_name)
     foreach(src in ${ARGN})
         get_filename_component(src_name ${src} NAME)
 
-        if(src_name MATCHES "receiver.cc")
-            # suppress Boost undef warnings
-            if(USE_BICYCLE_BOOST_SUBMODULE)
-                set_property(SOURCE ${src}
-                    APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
-            endif()
+        # suppress Boost undef warnings
+        if(USE_BICYCLE_BOOST_SUBMODULE AND
+           src_name MATCHES "(main|receiver|txrx_common).cc")
+            set_property(SOURCE ${src}
+                APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
         endif()
 
         if(src_name MATCHES "main.cc")
             # Disable format warnings for printf as we use parameters types defined by ChibiOS
             set_property(SOURCE ${src}
                 APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-format")
-            # suppress Boost undef warnings
-            if(USE_BICYCLE_BOOST_SUBMODULE)
-                set_property(SOURCE ${src}
-                    APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
-            endif()
             # suppress deprecated warnings from Eigen
             if(USE_BICYCLE_EIGEN3_SUBMODULE)
                 set_property(SOURCE ${src}

@@ -1,4 +1,6 @@
 #pragma once
+#include "hal.h"
+#include <array>
 
 namespace message {
 
@@ -18,4 +20,19 @@ bool from_pool(msg_t msg, const std::array<AlignedMessageType, N>& pool_buffer) 
     return (offset % sizeof(AlignedMessageType) == 0) && (offset / sizeof(AlignedMessageType) < N);
 }
 
-}
+
+/**
+ Define our own USBConfig object as we want to interact with the USB device
+ directly for sending and receiving data instead of using the serial class
+ input and output queues.
+
+ While we still need to link with serial_usb.c, we want the linker to remove
+ unused sdu functions.
+ */
+extern USBConfig usbcfg;
+extern USBEndpointConfig usbep1cfg;
+
+constexpr uint16_t USB_ENDPOINT_MAX_PACKET_SIZE = 0x0040;
+
+void usbStart();
+} // namespace message

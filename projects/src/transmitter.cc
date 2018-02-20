@@ -1,6 +1,7 @@
 #include "transmitter.h"
 #include "txrx_common.h"
-#include "usbconfig.h"
+#include "hal.h"
+#include "usbcfg.h"
 #include <cstring>
 
 // This define can be useful when sizing message mailbox and memory pools
@@ -24,16 +25,22 @@ m_encoded_size(0) {
             static_cast<void*>(m_smallgroup_pool_buffer.data()),
             m_smallgroup_pool_buffer.size());
 
-    // SDU driver must already be running.
-    chDbgAssert(((SDU1.config->usbp->state == USB_ACTIVE) &&
-                (SDU1.state == SDU_READY)),
-            "SDU1 must be running.");
+    chSysLock();
+
+    chDbgCheck(usbGetDriverStateI(serusbcfg.usbp) == USB_STOP);
+
+    // USB driver data received callback not used
+    serusbcfg.usbp->in_params[serusbcfg.bulk_in - 1U] = nullptr;
+
+    chSysUnlock();
 }
 
 void Transmitter::start(tprio_t priority) {
     chDbgAssert(priority < STM32_USB_OTG_THREAD_PRIO,
             "Transmitter thread priority must be lower than STM32_USB_OTG_THREAD_PRIO");
     chDbgAssert(m_thread == nullptr, "Transmitter cannot start if already running");
+
+    usbStart(); // start USB device if not already active
 
     m_thread = chThdCreateStatic(m_wa_transmitter_thread,
             sizeof(m_wa_transmitter_thread), priority,
@@ -156,30 +163,30 @@ void Transmitter::encode_packet() {
 }
 
 void Transmitter::transmitter_thread_function(void* p) {
-    auto self = static_cast<Transmitter*>(p);
+    Transmitter* txp = static_cast<Transmitter*>(p);
 
     chRegSetThreadName("transmitter");
 
-    usbep_t ep = SDU1.config->bulk_in;
-    USBDriver* usbp = SDU1.config->usbp;
+    usbep_t ep = serusbcfg.bulk_in;
+    USBDriver* usbp = serusbcfg.usbp;
 
     while (!chThdShouldTerminateX()) {
         msg_t msg;
-        const msg_t rdymsg = chMBFetch(&self->m_mailbox, &msg, MS2ST(200));
+        const msg_t rdymsg = chMBFetch(&txp->m_mailbox, &msg, MS2ST(200));
 
         if (rdymsg == MSG_OK) {
-           self->serialize_message(msg);
+           txp->serialize_message(msg);
         } else {
             // No message available so check for terminate flag.
             continue;
         }
 
-        self->encode_packet();
+        txp->encode_packet();
 
         chSysLock();
 
-        if ((usbGetDriverStateI(usbp) != USB_ACTIVE) || (SDU1.state != SDU_READY)) {
-            chSysHalt("SDU driver not ready.");
+        if (usbGetDriverStateI(usbp) != USB_ACTIVE) {
+            chSysHalt("USB driver not ready.");
         }
 
         if (usbGetTransmitStatusI(usbp, ep)) {
@@ -195,8 +202,8 @@ void Transmitter::transmitter_thread_function(void* p) {
         usbStartTransmitI(
                 usbp,
                 ep,
-                self->m_packet_buffer.data(),
-                self->m_encoded_size);
+                txp->m_packet_buffer.data(),
+                txp->m_encoded_size);
 
         chSysUnlock();
     }

@@ -1,10 +1,11 @@
 #pragma once
+#include "hal.h"
 #include "ch.h"
 #include "cobs.h"
 #include "packet/serialize.h"
 #include "utility.h"
 #include "txrx.pb.h"
-#include "usbconfig.h"
+#include "txrx_common.h"
 #include <array>
 #include <type_traits>
 
@@ -36,31 +37,10 @@ class Receiver {
 
         void free(const pbRxMaster* msg);
 
-    private:
-        static void usb_event(USBDriver* usbp, usbevent_t event);
         static void data_received_callback(USBDriver* usbp, usbep_t ep);
-        static void receiver_thread_function(void* p);
 
-        static USBInEndpointState ep1instate;
-        static USBOutEndpointState ep1outstate;
-        static constexpr USBConfig usbconfig {
-            usb_event,
-            get_descriptor,
-            sduRequestsHook,
-            nullptr // no sof handler
-        };
-        static constexpr USBEndpointConfig ep1config {
-            USB_EP_MODE_TYPE_BULK,
-            nullptr, // no setup callback
-            nullptr, // no data transmitted callback
-            data_received_callback,
-            0x0040, // IN endpoint maximum size
-            0x0040, // OUT endpoint maximum size
-            &ep1instate,
-            &ep1outstate,
-            2, // ep_buffers
-            nullptr // no setup buffer
-        };
+    private:
+        static void receiver_thread_function(void* p);
         static constexpr eventmask_t EVENT_DATA_AVAILABLE = 1;
 
         struct alignas(sizeof(stkalign_t)) pbRxMaster_stkalign { pbRxMaster m; };
@@ -76,10 +56,10 @@ class Receiver {
         static constexpr size_t N = pbRxMaster_size + packet::serialize::VARINT_MAX_SIZE;
         std::array<uint8_t, N> m_deserialize_buffer;
 
-        static constexpr size_t M = static_cast<size_t>(ep1config.out_maxsize) *
+        static constexpr size_t M = static_cast<size_t>(USB_ENDPOINT_MAX_PACKET_SIZE) *
             util::integer_ceil(
                     2*cobs::max_encoded_length(N),
-                    static_cast<size_t>(ep1config.out_maxsize));
+                    static_cast<size_t>(USB_ENDPOINT_MAX_PACKET_SIZE));
         std::array<uint8_t, M> m_packet_buffer;
 
         THD_WORKING_AREA(m_wa_receiver_thread, 256);

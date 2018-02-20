@@ -15,6 +15,7 @@
 */
 
 #include "hal.h"
+#include "usbcfg.h"
 
 /* Virtual serial port over USB.*/
 SerialUSBDriver SDU1;
@@ -194,10 +195,10 @@ static const USBDescriptor vcom_strings[] = {
  * Handles the GET_DESCRIPTOR callback. All required descriptors must be
  * handled here.
  */
-static const USBDescriptor *get_descriptor(USBDriver *usbp,
-                                           uint8_t dtype,
-                                           uint8_t dindex,
-                                           uint16_t lang) {
+const USBDescriptor *get_descriptor(USBDriver *usbp,
+                                    uint8_t dtype,
+                                    uint8_t dindex,
+                                    uint16_t lang) {
 
   (void)usbp;
   (void)lang;

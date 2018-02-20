@@ -197,8 +197,8 @@ int main(void) {
     chTMObjectInit(&computation_time_measurement);
 
     // Initialize USB data transmission
-    message::Transmitter transmitter;
     message::Receiver receiver;
+    message::Transmitter transmitter;
 
     receiver.start(NORMALPRIO + 2);
     transmitter.start(NORMALPRIO + 1);

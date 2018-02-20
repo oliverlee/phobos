@@ -24,7 +24,8 @@ generate_protobuf_source(
 # exclude printf source and default USB config
 set(PHOBOS_COMMON_SRC
     ${PROJECT_BINARY_DIR}/src/gitsha1.cc
-    ${PROJECT_SOURCE_DIR}/src/blink.cc)
+    ${PROJECT_SOURCE_DIR}/src/blink.cc
+    ${PROJECT_SOURCE_DIR}/src/usbcfg.c)
 
 # suppress Boost undef warnings and Eigen deprecated warnings
 set_property(SOURCE
@@ -41,10 +42,10 @@ set(FLIMNAP_COMMON_SRC
     mcuconf.h
     main.cc
     serialize.cc
-    usbcfg.c # add USB config file without input/output buffer queues
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/receiver.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/transmitter.cc
+    ${PHOBOS_PROJECT_SOURCE_DIR}/txrx_common.cc
     ${PHOBOS_SOURCE_DIR}/src/encoder.cc
     ${PHOBOS_SOURCE_DIR}/src/extconfig.cc
     ${PHOBOS_SOURCE_DIR}/src/cobs.cc
