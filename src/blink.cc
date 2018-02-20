@@ -1,5 +1,5 @@
 #include "blink.h"
-#include "usbconfig.h"
+#include "usbcfg.h"
 
 namespace {
     THD_WORKING_AREA(wa_blink_thread, 128);

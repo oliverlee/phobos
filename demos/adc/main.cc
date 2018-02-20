@@ -20,7 +20,7 @@
 
 #include "blink.h"
 #include "printf.h"
-#include "usbconfig.h"
+#include "usbcfg.h"
 
 /*
  * ADC configuration options (set in halconf.h)

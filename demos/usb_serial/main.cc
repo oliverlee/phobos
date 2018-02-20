@@ -19,7 +19,7 @@
 #include "test.h"
 
 #include "blink.h"
-#include "usbconfig.h"
+#include "usbcfg.h"
 
 /*
  * Application entry point.

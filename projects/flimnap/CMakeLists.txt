@@ -41,7 +41,7 @@ set(FLIMNAP_COMMON_SRC
     mcuconf.h
     main.cc
     serialize.cc
-    usbconfig.c # add USB config file without input/output buffer queues
+    usbcfg.c # add USB config file without input/output buffer queues
     ${PHOBOS_PROJECT_SOURCE_DIR}/messageutil.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/receiver.cc
     ${PHOBOS_PROJECT_SOURCE_DIR}/transmitter.cc
