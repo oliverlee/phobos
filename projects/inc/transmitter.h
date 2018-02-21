@@ -15,25 +15,25 @@ class Transmitter {
         void start(tprio_t priority);
 
         pbSimulation* alloc_simulation_message();
-        pbSmallMessageGroup* alloc_smallgroup_message();
+        pbTxSmallPackage* alloc_smallpackage_message();
 
         msg_t transmit(pbSimulation* msg);
-        msg_t transmit(pbSmallMessageGroup* msg);
+        msg_t transmit(pbTxSmallPackage* msg);
 
         void free(pbSimulation* msg);
-        void free(pbSmallMessageGroup* msg);
+        void free(pbTxSmallPackage* msg);
 
     private:
         struct alignas(sizeof(stkalign_t)) pbSimulation_stkalign { pbSimulation m; };
-        struct alignas(sizeof(stkalign_t)) pbSmallMessageGroup_stkalign { pbSmallMessageGroup m; };
+        struct alignas(sizeof(stkalign_t)) pbTxSmallPackage_stkalign { pbTxSmallPackage m; };
         static constexpr size_t A = 2;
         static constexpr size_t B = 2;
         std::array<pbSimulation_stkalign, A> m_simulation_pool_buffer;
-        std::array<pbSmallMessageGroup_stkalign, B> m_smallgroup_pool_buffer;
+        std::array<pbTxSmallPackage_stkalign, B> m_smallpackage_pool_buffer;
 
         mailbox_t m_mailbox;
         MEMORYPOOL_DECL(m_simulation_pool, sizeof(pbSimulation_stkalign), nullptr);
-        MEMORYPOOL_DECL(m_smallgroup_pool, sizeof(pbSmallMessageGroup_stkalign), nullptr);
+        MEMORYPOOL_DECL(m_smallpackage_pool, sizeof(pbTxSmallPackage_stkalign), nullptr);
 
         std::array<msg_t, A + B> m_mailbox_buffer;
 
@@ -56,7 +56,7 @@ class Transmitter {
         void encode_packet();
         static void transmitter_thread_function(void* p);
 
-        pbTxMaster m_wrapper;
+        pbTxPackage m_package;
 };
 
 } // namespace message

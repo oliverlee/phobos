@@ -22,12 +22,12 @@ class Receiver {
             const msg_t status;
 
             /**
-             If status is MSG_OK, msg points a valid pbRxMaster object.
+             If status is MSG_OK, msg points a valid pbRxPackage object.
              Otherwise msg is set to 0.
 
              The user must free the object after using it.
              */
-            const pbRxMaster* const msg;
+            const pbRxPackage* const msg;
         };
 
         Receiver();
@@ -35,7 +35,7 @@ class Receiver {
 
         const Result get(systime_t time);
 
-        void free(const pbRxMaster* msg);
+        void free(const pbRxPackage* msg);
 
         static void data_received_callback(USBDriver* usbp, usbep_t ep);
 
@@ -43,17 +43,17 @@ class Receiver {
         static void receiver_thread_function(void* p);
         static constexpr eventmask_t EVENT_DATA_AVAILABLE = 1;
 
-        struct alignas(sizeof(stkalign_t)) pbRxMaster_stkalign { pbRxMaster m; };
+        struct alignas(sizeof(stkalign_t)) pbRxPackage_stkalign { pbRxPackage m; };
         static constexpr size_t A = 10;
-        std::array<pbRxMaster_stkalign, A> m_receive_pool_buffer;
+        std::array<pbRxPackage_stkalign, A> m_receive_pool_buffer;
 
         mailbox_t m_mailbox;
-        MEMORYPOOL_DECL(m_receive_pool, sizeof(pbRxMaster_stkalign), nullptr);
+        MEMORYPOOL_DECL(m_receive_pool, sizeof(pbRxPackage_stkalign), nullptr);
 
         std::array<msg_t, A> m_mailbox_buffer;
 
         // Messages are delimited and prepended with a protobuf varint
-        static constexpr size_t N = pbRxMaster_size + packet::serialize::VARINT_MAX_SIZE;
+        static constexpr size_t N = pbRxPackage_size + packet::serialize::VARINT_MAX_SIZE;
         std::array<uint8_t, N> m_deserialize_buffer;
 
         static constexpr size_t M = static_cast<size_t>(USB_ENDPOINT_MAX_PACKET_SIZE) *

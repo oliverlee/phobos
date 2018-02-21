@@ -21,9 +21,9 @@ m_encoded_size(0) {
             static_cast<void*>(m_simulation_pool_buffer.data()),
             m_simulation_pool_buffer.size());
     chPoolLoadArray(
-            &m_smallgroup_pool,
-            static_cast<void*>(m_smallgroup_pool_buffer.data()),
-            m_smallgroup_pool_buffer.size());
+            &m_smallpackage_pool,
+            static_cast<void*>(m_smallpackage_pool_buffer.data()),
+            m_smallpackage_pool_buffer.size());
 
     chSysLock();
 
@@ -57,14 +57,14 @@ pbSimulation* Transmitter::alloc_simulation_message() {
     return static_cast<pbSimulation*>(msg);
 }
 
-pbSmallMessageGroup* Transmitter::alloc_smallgroup_message() {
-    void* msg = chPoolAlloc(&m_smallgroup_pool);
+pbTxSmallPackage* Transmitter::alloc_smallpackage_message() {
+    void* msg = chPoolAlloc(&m_smallpackage_pool);
 
 #if ASSERT_TX_MEMORY_LIMIT
     chDbgAssert(msg != nullptr, "Increase Transmitter pbSmallMessagGroup pool size,");
 #endif
 
-    return static_cast<pbSmallMessageGroup*>(msg);
+    return static_cast<pbTxSmallPackage*>(msg);
 }
 
 msg_t Transmitter::transmit(pbSimulation* msg) {
@@ -81,10 +81,10 @@ msg_t Transmitter::transmit(pbSimulation* msg) {
     return status;
 }
 
-msg_t Transmitter::transmit(pbSmallMessageGroup* msg) {
+msg_t Transmitter::transmit(pbTxSmallPackage* msg) {
     msg_t m = reinterpret_cast<msg_t>(msg);
 
-    chDbgAssert(from_pool(msg, m_smallgroup_pool_buffer),
+    chDbgAssert(from_pool(msg, m_smallpackage_pool_buffer),
             "'msg' pointer does not originate from Transmitter managed memory");
 
     msg_t status = chMBPost(&m_mailbox, m, TIME_IMMEDIATE);
@@ -102,33 +102,33 @@ void Transmitter::free(pbSimulation* msg) {
     chPoolFree(&m_simulation_pool, static_cast<void*>(msg));
 }
 
-void Transmitter::free(pbSmallMessageGroup* msg) {
-    chDbgAssert(from_pool(msg, m_smallgroup_pool_buffer),
+void Transmitter::free(pbTxSmallPackage* msg) {
+    chDbgAssert(from_pool(msg, m_smallpackage_pool_buffer),
             "'msg' pointer does not originate from Transmitter managed memory");
 
-    chPoolFree(&m_smallgroup_pool, static_cast<void*>(msg));
+    chPoolFree(&m_smallpackage_pool, static_cast<void*>(msg));
 }
 
 void Transmitter::serialize_message(msg_t msg) {
-    m_wrapper = pbTxMaster_init_zero;
+    m_package = pbTxPackage_init_zero;
 
     // TODO: Should we set the timestamp when the message is created?
-    m_wrapper.timestamp = chVTGetSystemTime();
+    m_package.timestamp = chVTGetSystemTime();
 
     if (from_pool(msg, m_simulation_pool_buffer)) {
         pbSimulation* p = reinterpret_cast<pbSimulation*>(msg);
 
-        m_wrapper.which_value = pbTxMaster_simulation_data_tag;
-        m_wrapper.value.simulation_data = *p;
+        m_package.which_value = pbTxPackage_simulation_data_tag;
+        m_package.value.simulation_data = *p;
 
         free(p);
-    } else if (from_pool(msg, m_smallgroup_pool_buffer)) {
-        pbSmallMessageGroup* p = reinterpret_cast<pbSmallMessageGroup*>(msg);
+    } else if (from_pool(msg, m_smallpackage_pool_buffer)) {
+        pbTxSmallPackage* p = reinterpret_cast<pbTxSmallPackage*>(msg);
 
-        // We have reserved tag values in pbSmallMessageGroup so they match
-        // those of pbTxMaster
-        m_wrapper.which_value = p->which_value;
-        std::memcpy(&m_wrapper.value, &p->value, sizeof(p->value));
+        // We have reserved tag values in pbTxSmallPackage so they match
+        // those of pbTxPackage
+        m_package.which_value = p->which_value;
+        std::memcpy(&m_package.value, &p->value, sizeof(p->value));
 
         free(p);
     } else {
@@ -136,7 +136,7 @@ void Transmitter::serialize_message(msg_t msg) {
     }
 
    m_serialized_size = packet::serialize::encode_delimited(
-            m_wrapper, m_serialize_buffer.data(), m_serialize_buffer.size());
+            m_package, m_serialize_buffer.data(), m_serialize_buffer.size());
 }
 
 void Transmitter::encode_packet() {

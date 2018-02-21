@@ -119,7 +119,7 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
         systime_t deadline = chVTGetSystemTime();
         while (true) {
             a->bicycle.update_kinematics();
-            pbSmallMessageGroup* msg = a->transmitter.alloc_smallgroup_message();
+            pbTxSmallPackage* msg = a->transmitter.alloc_smallpackage_message();
             if (msg != nullptr) {
                 msg->which_value = pbTxSmallPackage_set_pose_tag;
                 message::set_pose(reinterpret_cast<pbPose*>(&msg->value), a->bicycle);

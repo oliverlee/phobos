@@ -41,13 +41,13 @@ class Field(object):
                                        self.configurable)
 
 if __name__ == "__main__":
-    usage = 'generate protobuf schema files\n'
+    usage = 'generate protobuf txrx schema file\n'
     usage += '{0} <template_file> <output_directory>'.format(__file__)
     if len(sys.argv) < 2:
         print(usage)
         sys.exit(1)
 
-    # Configure pbRxMaster/pbSmallMessageGroup/pbTxMaster
+    # Configure pbRxPackage/pbTxSmallPackage/pbTxPackage
     field = [
         # These fields are transmitted (somewhat) frequently
         Field('v',                              'float',            3, True),

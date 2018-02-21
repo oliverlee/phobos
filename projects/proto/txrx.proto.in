@@ -37,9 +37,9 @@ Generated with the following fields:
 {%- endmacro -%}
 
 
-{%- macro tx_commands_smallgroup() %}
+{%- macro tx_commands_smallpackage() %}
         /**
-        This message contains fields copied from pbRxMaster as we want to
+        This message contains fields copied from pbRxPackage as we want to
         acknowledge a change in configuration.
         */
 {%- for f in field %}
@@ -61,7 +61,7 @@ message pbFeedbackGains {
     float k_d = 3;
 }
 
-message pbRxMaster {
+message pbRxPackage {
     oneof value {
         pbEmpty start = 1;
         pbEmpty stop = 2;
@@ -69,23 +69,23 @@ message pbRxMaster {
     }
 }
 
-message pbSmallMessageGroup {
+message pbTxSmallPackage {
     /**
-    These values are reserved to allow us to copy a pbSmallMessageGroup
-    object directly into a pbTxMaster object using memcpy.
+    These values are reserved to allow us to copy a pbTxSmallPackage
+    object directly into a pbTxPackage object using memcpy.
     */
     reserved 1, 2;
 
     oneof value {
-{{- tx_commands_smallgroup() }}
+{{- tx_commands_smallpackage() }}
     }
 }
 
-message pbTxMaster {
+message pbTxPackage {
     uint32 timestamp = 1;
 
     oneof value {
         pbSimulation simulation_data = 2;
-{{- tx_commands_smallgroup() }}
+{{- tx_commands_smallpackage() }}
     }
 }

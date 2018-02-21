@@ -119,17 +119,17 @@ const Receiver::Result Receiver::get(systime_t time) {
     const msg_t rdymsg = chMBFetch(&m_mailbox, &msg, time);
 
     if ((rdymsg == MSG_TIMEOUT) || (rdymsg == MSG_RESET)) {
-        return Result { rdymsg, reinterpret_cast<pbRxMaster*>(msg) };
+        return Result { rdymsg, reinterpret_cast<pbRxPackage*>(msg) };
     }
 
-    return Result { rdymsg, reinterpret_cast<pbRxMaster*>(msg) };
+    return Result { rdymsg, reinterpret_cast<pbRxPackage*>(msg) };
 }
 
-void Receiver::free(const pbRxMaster* msg) {
+void Receiver::free(const pbRxPackage* msg) {
     chDbgAssert(from_pool(msg, m_receive_pool_buffer),
             "'msg' pointer does not originate from Receiver managed memory");
 
-    chPoolFree(&m_receive_pool, static_cast<void*>(const_cast<pbRxMaster*>(msg)));
+    chPoolFree(&m_receive_pool, static_cast<void*>(const_cast<pbRxPackage*>(msg)));
 }
 
 void Receiver::deserialize_message(index_t message_size) {
@@ -139,7 +139,7 @@ void Receiver::deserialize_message(index_t message_size) {
             "'msg' pointer does not originate from Receiver managed memory");
 
     if (packet::serialize::decode_delimited(m_deserialize_buffer.data(),
-                static_cast<pbRxMaster*>(msg),
+                static_cast<pbRxPackage*>(msg),
                 message_size)) {
         if (chMBPost(&m_mailbox, reinterpret_cast<msg_t>(msg), TIME_IMMEDIATE) == MSG_OK) {
             return;
