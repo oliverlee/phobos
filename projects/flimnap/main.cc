@@ -65,7 +65,7 @@ namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     filter::MovingAverage<float, 5> velocity_filter;
 #else
-    constexpr float fixed_v = 5.0f; // fixed bicycle velocity
+    constexpr float fixed_v = 6.0f; // fixed bicycle velocity
 #endif
 
     // pose calculation loop
@@ -78,8 +78,8 @@ namespace {
 Verify 'dynamics_loop_period is greater than 1 ms.");
 
     // feedback and feedforward parameters
-    constexpr float k_p = 60.0f;
-    constexpr float k_d = 6.0f;
+    constexpr float k_p = 150.0f;
+    constexpr float k_d = k_p*0.15f;
     constexpr float m = sa::ASSEMBLY_INERTIA;
 
     Foaw<float, 8> error_filter(dynamics_loop_period, 3.0f);
