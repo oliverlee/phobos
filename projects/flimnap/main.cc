@@ -23,6 +23,7 @@
 #include "simulation.pb.h"
 #include "messageutil.h"
 #include "filter/movingaverage.h"
+#include "foaw.h"
 
 #include "blink.h"
 #include "saconfig.h"
@@ -64,7 +65,7 @@ namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     filter::MovingAverage<float, 5> velocity_filter;
 #else
-    constexpr float fixed_v = 5.0f; // fixed bicycle velocity
+    constexpr float fixed_v = 6.0f; // fixed bicycle velocity
 #endif
 
     // pose calculation loop
@@ -77,9 +78,11 @@ namespace {
 Verify 'dynamics_loop_period is greater than 1 ms.");
 
     // feedback and feedforward parameters
-    constexpr float k_p = 20.0f;
-    constexpr float k_d = 2.0f;
+    constexpr float k_p = 150.0f;
+    constexpr float k_d = k_p*0.15f;
     constexpr float m = sa::ASSEMBLY_INERTIA;
+
+    Foaw<float, 8> error_filter(dynamics_loop_period, 3.0f);
 
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
@@ -236,7 +239,6 @@ int main(void) {
 
     // Normal main() thread activity. This is the dynamics simulation loop.
     systime_t deadline = chVTGetSystemTime();
-    float last_error = 0.0f;
     while (true) {
         systime_t starttime = chVTGetSystemTime();
         chTMStartMeasurementX(&computation_time_measurement);
@@ -300,8 +302,8 @@ int main(void) {
         const float steer_angle = util::encoder_count<float>(encoder_steer);
         const float error = desired_position - steer_angle;
 
-        const float error_derivative = (error - last_error)/dt;
-        last_error = error;
+        error_filter.add_position(error);
+        const float error_derivative = error_filter.estimate_velocity();
 
         const float feedback_torque = k_p*error + k_d*error_derivative;
 
