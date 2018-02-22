@@ -233,20 +233,20 @@ int main(void) {
 
         // positive motor torque will rotate the steering shaft clockwise
         // positive kistler torque equal to positive motor torque will stop rotation
-        // m1 * xdd = T_delta + T_s
-        // m2 * xdd = -T_s + T_a
+        // m2 * xdd = T_s + T_a = 0
+        //
+        // then
+        // m1 * xdd = T_delta + -T_s = 0
+        //
         // m1: upper mass
         // m2: lower mass
         // T_delta: rider applied steer torque
         // T_s: kistler torque (sensor measurement)
         // T_a: motor torque (actuator command)
         //
-        // m1/m2*(-T_s + T_a) = T_delta + T_s
-        // T_delta = -T_s + m1/m2*(-T_s + T_a)
-        //
         // NOTE: we neglect inertia torque after finding it to be negligible
         // compared to the sensor torque
-        const float steer_torque = -sa::get_kistler_sensor_torque(analog);
+        const float steer_torque = sa::get_kistler_sensor_torque(analog);
 
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
         const float v = velocity_filter.output(
