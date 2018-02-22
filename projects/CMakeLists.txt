@@ -29,34 +29,54 @@ set(PHOBOS_PROJECT_INCLUDE_DIR
 set(PHOBOS_PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${PHOBOS_PROJECT_INCLUDE_DIR})
 
-# define protobuf generation macro
-macro(generate_protobuf_source)
-    set(argn ${ARGN})
-    list(LENGTH argn n)
-    if(${n} GREATER 0)
-        find_host_package(Nanopb REQUIRED)
-        include_directories(${NANOPB_INCLUDE_DIRS})
+# define protobuf generation macro as dependencies for add_custom_command only
+# works with targets created in the same directory
+macro(generate_protobuf)
+    find_host_package(PythonInterp REQUIRED)
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/txrx.proto
+        COMMAND ${PYTHON_EXECUTABLE} ${PHOBOS_PROJECT_PROTO_DIR}/generate_proto.py
+            ${PHOBOS_PROJECT_PROTO_DIR}/txrx.proto.in ${CMAKE_CURRENT_BINARY_DIR}
+        DEPENDS ${PHOBOS_PROJECT_PROTO_DIR}/generate_proto.py
+            ${PHOBOS_PROJECT_PROTO_DIR}/txrx.proto.in
+            ${PHOBOS_PROJECT_PROTO_DIR}/txrx.options
+        COMMENT "Generating proto schema ${CMAKE_CURRENT_BINARY_DIR}/txrx.proto")
 
-        nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${ARGN})
-        include_directories(${CMAKE_CURRENT_BINARY_DIR})
+    set(PROTO_SCHEMA
+        ${PHOBOS_PROJECT_PROTO_DIR}/build.proto
+        ${PHOBOS_PROJECT_PROTO_DIR}/simulation.proto
+        ${PHOBOS_PROJECT_PROTO_DIR}/pose.proto
+        ${CMAKE_CURRENT_BINARY_DIR}/txrx.proto)
 
-        set(PROTOBUF_COMPILE_DEFINITIONS)
-        foreach(proto in ${ARGN})
-            get_filename_component(proto_name ${proto} NAME)
-            if(proto_name MATCHES "txrx.proto")
-                set(PROTOBUF_COMPILE_DEFINITIONS "PB_FIELD_16BIT")
-                break()
-            endif()
-        endforeach()
+    find_host_package(Nanopb REQUIRED)
+    include_directories(${NANOPB_INCLUDE_DIRS})
 
+    foreach(proto ${PROTO_SCHEMA})
+        set(NANOPB_DEPENDS)
+        set(NANOPB_IMPORT_DIRS)
         if(CMAKE_BUILD_TYPE MATCHES Release)
-            set(PROTOBUF_COMPILE_DEFINITIONS ${PROTOBUF_COMPILE_DEFINITIONS}
-                "PB_NO_ERRMSG" "PB_BUFFER_ONLY")
+            set(PROTOBUF_COMPILE_DEFINITIONS "PB_NO_ERRMSG" "PB_BUFFER_ONLY")
         endif()
-        set_property(SOURCE ${PROTO_SRCS} APPEND PROPERTY COMPILE_DEFINITIONS
-            ${PROTOBUF_COMPILE_DEFINITIONS})
-        set(PROTOBUF_GENERATED_SOURCE ${PROTO_SRCS} ${PROTO_HDRS})
-    endif()
+
+        get_filename_component(proto_name ${proto} NAME)
+        if(proto_name MATCHES "txrx.proto")
+            # manually set dependencies
+            set(NANOPB_DEPENDS
+                ${PHOBOS_PROJECT_PROTO_DIR}/build.options
+                ${PHOBOS_PROJECT_PROTO_DIR}/simulation.options)
+            set(NANOPB_IMPORT_DIRS
+                ${PHOBOS_PROJECT_PROTO_DIR})
+            set(PROTOBUF_COMPILE_DEFINITIONS
+                ${PROTOBUF_COMPILE_DEFINITIONS} "PB_FIELD_16BIT")
+        endif()
+
+        nanopb_generate_cpp(PROTO_SRCS PROTO_HDRS ${proto})
+        set_property(SOURCE ${PROTO_SRCS}
+            APPEND PROPERTY COMPILE_DEFINITIONS ${PROTOBUF_COMPILE_DEFINITIONS})
+    endforeach()
+
+    set(PROTOBUF_GENERATED_SOURCE ${PROTO_SRCS} ${PROTO_HDRS})
+    list(REMOVE_DUPLICATES PROTOBUF_GENERATED_SOURCE)
+    include_directories(${CMAKE_CURRENT_BINARY_DIR})
 endmacro()
 
 option(PHOBOS_BUILD_PROJECT_CLUSTRIL "Build Clustril (static simulator) demo" TRUE)

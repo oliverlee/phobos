@@ -60,35 +60,27 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 macro(add_phobos_executable target_name)
     add_chibios_executable(${target_name} ${ARGN} ${PHOBOS_COMMON_SRC})
 
-    set(USE_BICYCLE_SOURCE FALSE)
-    foreach(src in ${ARGN})
-        get_filename_component(src_name ${src} NAME)
-
-        # Determine if bicycle sources are included in this project
-        if(src_name STREQUAL "bicycle.cc")
-            set(USE_BICYCLE_SOURCE TRUE)
-        endif()
-    endforeach()
-
     foreach(src in ${ARGN})
         get_filename_component(src_name ${src} NAME)
 
         # suppress Boost undef warnings
         if(USE_BICYCLE_BOOST_SUBMODULE AND
-           src_name MATCHES "(main|receiver|txrx_common).cc")
+           src_name MATCHES "(main|haptic|messageutil|receiver|txrx_common).cc")
             set_property(SOURCE ${src}
                 APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
         endif()
 
+        # suppress Eigen deprecated warnings
+        if(USE_BICYCLE_EIGEN3_SUBMODULE AND
+                src_name MATCHES "(main|haptic|messageutil).cc")
+            set_property(SOURCE ${src}
+                APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated")
+        endif()
+
+        # Disable format warnings for printf as we use parameters types defined by ChibiOS
         if(src_name MATCHES "main.cc")
-            # Disable format warnings for printf as we use parameters types defined by ChibiOS
             set_property(SOURCE ${src}
                 APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-format")
-            # suppress deprecated warnings from Eigen
-            if(USE_BICYCLE_EIGEN3_SUBMODULE)
-                set_property(SOURCE ${src}
-                    APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated")
-            endif()
         endif()
     endforeach()
 

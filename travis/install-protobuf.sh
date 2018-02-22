@@ -14,6 +14,7 @@ fi
 
 if ! python -c "import google.protobuf.text_format"; then
     cd $HOME/protobuf/protobuf-3.5.1/python;
+    ls .;
     if [ -f "dist/protobuf-3.5.1-py2.7-linux-x86_64.egg" ]; then
         python -m easy_install --user dist/protobuf-3.5.1-py2.7-linux-x86_64.egg
     else
