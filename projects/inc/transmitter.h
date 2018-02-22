@@ -44,7 +44,7 @@ class Transmitter {
         std::array<uint8_t, N> m_serialize_buffer;
         std::array<uint8_t, M> m_packet_buffer;
 
-        THD_WORKING_AREA(m_wa_transmitter_thread, 512);
+        THD_WORKING_AREA(m_wa_transmitter_thread, 1028);
         thread_t* m_thread;
 
         // use uint8_t if possible

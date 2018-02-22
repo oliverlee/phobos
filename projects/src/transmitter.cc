@@ -5,7 +5,7 @@
 #include <cstring>
 
 // This define can be useful when sizing message mailbox and memory pools
-#define ASSERT_TX_MEMORY_LIMIT TRUE
+#define ASSERT_TX_MEMORY_LIMIT FALSE
 
 namespace message {
 Transmitter::Transmitter() :
@@ -167,9 +167,6 @@ void Transmitter::transmitter_thread_function(void* p) {
 
     chRegSetThreadName("transmitter");
 
-    usbep_t ep = serusbcfg.bulk_in;
-    USBDriver* usbp = serusbcfg.usbp;
-
     while (!chThdShouldTerminateX()) {
         msg_t msg;
         const msg_t rdymsg = chMBFetch(&txp->m_mailbox, &msg, MS2ST(200));
@@ -183,29 +180,15 @@ void Transmitter::transmitter_thread_function(void* p) {
 
         txp->encode_packet();
 
-        chSysLock();
-
-        if (usbGetDriverStateI(usbp) != USB_ACTIVE) {
+        if (usbGetDriverStateI(serusbcfg.usbp) != USB_ACTIVE) {
             chSysHalt("USB driver not ready.");
         }
 
-        if (usbGetTransmitStatusI(usbp, ep)) {
-            msg = chThdSuspendTimeoutS(
-                    &usbp->epc[ep]->in_state->thread,
-                    MS2ST(200));
-
-            if (msg == MSG_TIMEOUT) {
-                chSysHalt("Previous USB transmission it taking too long.");
-            }
-        }
-
-        usbStartTransmitI(
-                usbp,
-                ep,
+        usbTransmit(
+                serusbcfg.usbp,
+                serusbcfg.bulk_in,
                 txp->m_packet_buffer.data(),
                 txp->m_encoded_size);
-
-        chSysUnlock();
     }
 }
 
