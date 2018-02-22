@@ -47,10 +47,9 @@ namespace {
     Encoder encoder_steer(sa::RLS_ROLIN_ENC, sa::RLS_ROLIN_ENC_INDEX_CFG);
     EncoderFoaw<float, 32> encoder_rear_wheel(sa::RLS_GTS35_ENC, sa::RLS_GTS35_ENC_CFG, MS2ST(1), 3.0f);
 
-    static constexpr SimulationMessage simulation_message_zero = SimulationMessage_init_zero;
-    SimulationMessage sample;
+    pbSimulation sample;
 
-    std::array<uint8_t, SimulationMessage_size> encode_buffer;
+    std::array<uint8_t, pbSimulation_size> encode_buffer;
 } // namespace
 
 /*
@@ -104,10 +103,8 @@ int main(void) {
     // FIXME: initialize Kalman matrices here
 
     /* write firmware gitsha1, bicycle and Kalman settings to file */
-    rtcnt_t bicycle_simulation_time = chSysGetRealtimeCounterX();
-
-    sample = simulation_message_zero;
-    sample.timestamp = bicycle_simulation_time;
+    sample = pbSimulation_init_zero;
+    sample.timing.starttime = chSysGetRealtimeCounterX();
 
     /*
      * Normal main() thread activity, in this demo it simulates the bicycle
@@ -150,32 +147,25 @@ int main(void) {
         constexpr float roll_torque = 0;
 
         /* get torque measurements */
-        const float kistler_torque = sa::get_kistler_sensor_torque(analog);
-        const float motor_torque = sa::get_kollmorgen_motor_torque(analog);
-        (void)motor_torque; /* this isn't currently used */
-
-        /* get angle measurements */
-        const float yaw_angle = util::wrap(bicycle.pose().yaw);
-        const float steer_angle = util::encoder_count<float>(encoder_steer);
-        const float rear_wheel_angle = -util::encoder_count<float>(encoder_rear_wheel);
+        const float steer_torque = sa::get_kistler_sensor_torque(analog);
 
         /* time/measurement update (~80 us with real_t = float) */
-        bicycle.update_dynamics(roll_torque, kistler_torque, yaw_angle, steer_angle, rear_wheel_angle);
+        bicycle.update_dynamics(roll_torque, steer_torque);
         bicycle.update_kinematics();
 
         const float desired_velocity = model_t::get_full_state_element(
                 bicycle.full_state(),
                 model_t::full_state_index_t::steer_rate);
-        const dacsample_t handlebar_velocity_dac = sa::set_kollmorgen_velocity(desired_velocity);
+        const dacsample_t handlebar_reference_dac = sa::set_kollmorgen_velocity(desired_velocity);
 
-        sample = simulation_message_zero;
-        sample.timestamp = chSysGetRealtimeCounterX();
-        message::set_simulation_sensors(&sample,
-                analog.get_kistler_sensor(),
-                analog.get_kollmorgen_motor(),
-                encoder_steer.count(),
-                encoder_rear_wheel.count());
-        message::set_simulation_actuators(&sample, handlebar_velocity_dac);
+        sample = pbSimulation_init_zero;
+        sample.timing.starttime = chSysGetRealtimeCounterX();
+        sample.sensors.kistler_measured_torque = analog.get_kistler_sensor();
+        sample.sensors.kollmorgen_measured_torque = analog.get_kollmorgen_motor();
+        sample.sensors.steer_encoder_count = encoder_steer.count();
+        sample.sensors.rear_wheel_encoder_count = encoder_rear_wheel.count();
+
+        sample.actuators.kollmorgen_command_torque = handlebar_reference_dac;
 
         // TODO: fix sleep amount
         chThdSleepMilliseconds(static_cast<systime_t>(1000*bicycle.dt()));
