@@ -7,7 +7,8 @@ namespace message {
 template <typename MessageType, typename AlignedMessageType, size_t N>
 bool from_pool(const MessageType* msg, const std::array<AlignedMessageType, N>& pool_buffer) {
     const size_t offset = static_cast<size_t>(
-            (reinterpret_cast<AlignedMessageType*>(const_cast<MessageType*>(msg)) - &pool_buffer[0]));
+            (reinterpret_cast<char*>(const_cast<MessageType*>(msg)) -
+             reinterpret_cast<char*>(const_cast<AlignedMessageType*>(&pool_buffer[0]))));
 
     return (offset % sizeof(AlignedMessageType) == 0) && (offset / sizeof(AlignedMessageType) < N);
 }
@@ -15,7 +16,8 @@ bool from_pool(const MessageType* msg, const std::array<AlignedMessageType, N>& 
 template <typename AlignedMessageType, size_t N>
 bool from_pool(msg_t msg, const std::array<AlignedMessageType, N>& pool_buffer) {
     const size_t offset = static_cast<size_t>(
-            (reinterpret_cast<AlignedMessageType*>(msg) - &pool_buffer[0]));
+            (reinterpret_cast<char*>(msg) -
+             reinterpret_cast<char*>(const_cast<AlignedMessageType*>(&pool_buffer[0]))));
 
     return (offset % sizeof(AlignedMessageType) == 0) && (offset / sizeof(AlignedMessageType) < N);
 }
