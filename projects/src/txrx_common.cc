@@ -120,10 +120,14 @@ void usbStart() {
 
         board_usb_lld_connect_bus();      //usbConnectBus(serusbcfg.usbp);
 
+        chSysUnlock();
+
         // Block USB device until ready
-        while (usbGetDriverStateI(serusbcfg.usbp) != USB_ACTIVE) {
-            chThdSleepS(MS2ST(10));
+        while (serusbcfg.usbp->state != USB_ACTIVE) {
+            chThdSleep(MS2ST(10));
         }
+
+        chSysLock();
     }
 
     chSysUnlock();
