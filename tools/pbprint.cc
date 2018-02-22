@@ -8,8 +8,7 @@
 #include <asio/signal_set.hpp>
 #include <google/protobuf/io/coded_stream.h>
 #include "cobs.h"
-#include "pose.pb.h"
-#include "simulation.pb.h"
+#include "txrx.pb.h"
 
 namespace {
 
@@ -59,7 +58,7 @@ namespace {
             exit(EXIT_FAILURE);
         }
 
-        SimulationMessage msg;
+        pbTxPackage msg;
         if (!msg.ParsePartialFromCodedStream(&input)) {
             std::cerr << "Unable to parse protobuf message." << std::endl;
             exit(EXIT_FAILURE);
