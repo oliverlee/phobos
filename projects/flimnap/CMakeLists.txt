@@ -35,7 +35,8 @@ if(PHOBOS_BUILD_PROJECT_FLIMNAP_WHIPPLE)
 endif()
 
 if(PHOBOS_BUILD_PROJECT_FLIMNAP_KINEMATIC)
-    add_phobos_executable(flimnap_kinematic ${FLIMNAP_COMMON_SRC})
+    add_phobos_executable(flimnap_kinematic ${FLIMNAP_COMMON_SRC}
+        ${PHOBOS_PROJECT_SOURCE_DIR}/haptic.cc)
     target_compile_definitions(flimnap_kinematic
         PRIVATE USE_BICYCLE_KINEMATIC_MODEL)
 endif()

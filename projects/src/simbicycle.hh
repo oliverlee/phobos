@@ -69,6 +69,26 @@ void Bicycle<Model>::update_dynamics(const input_t& u) {
 }
 
 template <typename Model>
+void Bicycle<Model>::update_dynamics(const input_t& u, const measurement_t& z) {
+    m_input = u;
+
+    // copy full state before performing state update
+    chBSemWait(&m_state_sem);
+    full_state_t full_state_copy = m_full_state;
+    chBSemSignal(&m_state_sem);
+
+    full_state_t full_state_next = m_model.integrate_full_state(
+            full_state_copy,
+            m_input,
+            m_model.dt(),
+            z);
+
+    chBSemWait(&m_state_sem);
+    m_full_state = full_state_next;
+    chBSemSignal(&m_state_sem);
+}
+
+template <typename Model>
 void Bicycle<Model>::update_kinematics() {
     chBSemWait(&m_state_sem);
     full_state_t full_state_copy = m_full_state;

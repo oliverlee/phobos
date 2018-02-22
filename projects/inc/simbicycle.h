@@ -45,6 +45,7 @@ class Bicycle {
         void reset();
         void update_dynamics(real_t roll_torque_input, real_t steer_torque_input); // update bicycle internal state
         void update_dynamics(const input_t& u);
+        void update_dynamics(const input_t& u, const measurement_t& z);
         void update_kinematics(); // update bicycle pose
 
         // get most recent state

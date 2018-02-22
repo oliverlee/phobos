@@ -245,17 +245,16 @@ int main(void) {
                 -sa::REAR_WHEEL_RADIUS*(util::encoder_rate(encoder_rear_wheel)));
         bicycle.set_v(v);
 
-        const float yaw_angle = util::wrap(bicycle.pose().yaw); // use previous state
+        const float yaw_angle = util::wrap(
+                model_t::get_full_state_element(
+                    bicycle.full_state(),
+                    model_t::full_state_index_t::yaw_angle)
+                ); // use previous state
         const float steer_angle = util::encoder_count<float>(encoder_steer);
-        //const float rear_wheel_angle = std::fmod(-util::encoder_count<float>(encoder_rear_wheel),
-        //                                         constants::two_pi);
 
         bicycle.update_dynamics(
-                roll_torque,
-                steer_torque,
-                yaw_angle,
-                steer_angle,
-                0);
+                (model_t::input_t() << roll_torque, steer_torque).finished(),
+                (model_t::measurement_t() << yaw_angle, steer_angle).finished());
 
         const float desired_torque = haptic_drive.torque(
                 model_t::get_state_part(bicycle.full_state()));
