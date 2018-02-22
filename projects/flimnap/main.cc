@@ -214,6 +214,17 @@ int main(void) {
 
         msg->has_controller = true;
 
+        SimulationMessage msg_copy = *msg;
+        transmitter.transmit(msg); // This blocks until USB data starts getting read
+
+        // send message a new more times since unity drops the first few messages
+        msg = transmitter.alloc_simulation_message();
+        *msg = msg_copy;
+        transmitter.transmit(msg); // This blocks until USB data starts getting read
+
+        // send message a new more times since unity drops the first few messages
+        msg = transmitter.alloc_simulation_message();
+        *msg = msg_copy;
         transmitter.transmit(msg); // This blocks until USB data starts getting read
     }
     transmitter.start(NORMALPRIO + 1); // start transmission thread

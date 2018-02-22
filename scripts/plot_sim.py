@@ -121,9 +121,15 @@ def plot_entries(t, entries, n, m):
 class ProcessedRecord(object):
     def __init__(self, filename):
         self.messages = load_messages(filename)
-        # ignore first sample as it transmitted before the simulation loop
-        # TODO: check time diff instead of ignoring first message?
-        self.records = get_records_from_messages(self.messages)[1:]
+
+        # messages with gitsha1 are transmitted before the simulation loop
+        for i, msg in enumerate(self.messages):
+            if msg.HasField('gitsha1'):
+                start_index = i + 1
+            else:
+                break
+
+        self.records = get_records_from_messages(self.messages)[start_index:]
         self.t = get_time_vector(self.records)
         self.states = self.records.state[:, 1:] # skip yaw angle
         self.colors = np.roll(sns.color_palette('Paired', 12), 2, axis=0)
