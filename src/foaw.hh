@@ -9,7 +9,7 @@ T estimate_velocity(const std::array<T, N>& circular_buffer, size_t oldest_index
     assert(sample_period > static_cast<T>(0));
     assert(allowed_error > static_cast<T>(0));
     assert(oldest_index < N);
-    assert(overflow_value > static_cast<T>(0));
+    assert(overflow_value >= static_cast<T>(0));
 
     size_t newest_index = oldest_index - 1;
     if (oldest_index == 0) {
