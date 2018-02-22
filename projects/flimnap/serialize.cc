@@ -1,11 +1,11 @@
 #include "packet/serialize.h"
-#include "simulation.pb.h"
+#include "txrx.pb.h"
 
 namespace packet {
 namespace serialize {
 
-// TODO: autogenerate these template specializations
-template <> const pb_field_t* message_field<SimulationMessage>::type = SimulationMessage_fields;
+// The only protobuf message we want to serialize and transmit is pbTxPackage
+template <> const pb_field_t* message_field<pbTxPackage>::type = pbTxPackage_fields;
 
 } // namespace serialize
 } // namespace packet

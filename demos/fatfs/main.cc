@@ -23,7 +23,7 @@
 
 #include "ff.h"
 
-#include "usbconfig.h"
+#include "usbcfg.h"
 
 /*===========================================================================*/
 /* Card insertion monitor.                                                   */

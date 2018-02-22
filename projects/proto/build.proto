@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+message pbBuildConfig {
+    pbProject project = 1;
+    pbFirmwareVersion gitsha1 = 2;
+    pbBuildType build_type = 3;
+    pbSystemTickResolution ch_st_resolution = 4;
+    uint32 ch_st_frequency = 5;
+    uint32 ch_rtc_frequency = 6;
+}
+
+// rename enums!
+enum pbProject {
+    UNSPECIFIED_PROJECT = 0; // DON'T BE LAZY!
+    FLIMNAP = 1;
+}
+
+message pbFirmwareVersion {
+    bytes f = 1;
+}
+
+// rename enums!
+enum pbBuildType {
+    UNSPECIFIED_BUILDTYPE = 0;
+    DEBUG = 1;
+    RELEASE = 2;
+    RELWITHDEBINFO = 3;
+}
+
+// rename enums!
+enum pbSystemTickResolution {
+    UNSPECIFIED_SYSTEMTICKRESOLUTION = 0;
+    BITS_16 = 1;
+    BITS_32 = 2;
+}

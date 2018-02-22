@@ -13,9 +13,9 @@ include(external/ChibiOS/chibios.cmake)
 set(CHIBIOS_USE_PROCESS_STACKSIZE "0x3000"
     CACHE STRING "Stack size used by the main() thread.")
 if(CMAKE_BUILD_TYPE MATCHES Release)
-    add_definitions("-DOSAL_DBG_ENABLE_ASSERTS=false -DOSAL_DBG_ENABLE_CHECKS=false")
+    add_definitions(-DOSAL_DBG_ENABLE_ASSERTS=false -DOSAL_DBG_ENABLE_CHECKS=false)
 else()
-    add_definitions("-DOSAL_DBG_ENABLE_ASSERTS=true -DOSAL_DBG_ENABLE_CHECKS=true")
+    add_definitions(-DOSAL_DBG_ENABLE_ASSERTS=true -DOSAL_DBG_ENABLE_CHECKS=true)
 endif()
 
 # define CMake module path and include external project CMake modules
@@ -28,14 +28,14 @@ message(STATUS "Using CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 # bicycle setup
 set(BICYCLE_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/bicycle/src)
 set(BICYCLE_SOURCE
-    ${BICYCLE_SOURCE_DIR}/bicycle/arend.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/bicycle.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/bicycle_solve_constraint_pitch.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/kinematic.cc
     ${BICYCLE_SOURCE_DIR}/bicycle/whipple.cc
     ${BICYCLE_SOURCE_DIR}/parameters.cc)
 set(BICYCLE_INCLUDE_DIR ${BICYCLE_SOURCE_DIR} ${BICYCLE_SOURCE_DIR}/../inc)
-add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=false")
+add_definitions(-DBICYCLE_USE_DOUBLE_PRECISION_REAL=false)
+add_definitions(-DBICYCLE_NO_DISCRETIZATION)
 set_property(SOURCE ${BICYCLE_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS
     "-fno-math-errno -fassociative-math -freciprocal-math -fcx-limited-range")
 
@@ -59,47 +59,43 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 # external libraries and definitions for those external libraries.
 macro(add_phobos_executable target_name)
     add_chibios_executable(${target_name} ${ARGN} ${PHOBOS_COMMON_SRC})
-    set(source_file_properties_modified 0)
+
     foreach(src in ${ARGN})
         get_filename_component(src_name ${src} NAME)
+
+        # suppress Boost undef warnings
+        if(USE_BICYCLE_BOOST_SUBMODULE AND
+           src_name MATCHES "(main|haptic|messageutil|receiver|txrx_common).cc")
+            set_property(SOURCE ${src}
+                APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
+        endif()
+
+        # suppress Eigen deprecated warnings
+        if(USE_BICYCLE_EIGEN3_SUBMODULE AND
+                src_name MATCHES "(main|haptic|messageutil).cc")
+            set_property(SOURCE ${src}
+                APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated")
+        endif()
+
+        # Disable format warnings for printf as we use parameters types defined by ChibiOS
         if(src_name MATCHES "main.cc")
-            # Disable format warnings for printf as we use parameters types defined by ChibiOS
-            set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-format")
-            # suppress Boost undef warnings
-            if(USE_BICYCLE_BOOST_SUBMODULE)
-                set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
-            endif()
-            # suppress deprecated warnings from Eigen
-            if(USE_BICYCLE_EIGEN3_SUBMODULE)
-                set_property(SOURCE ${src} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated")
-            endif()
-            math(EXPR source_file_properties_modified
-                "${source_file_properties_modified} + 1")
-        endif()
-        # Determine if bicycle sources are included in this project
-        set(USE_BICYCLE_SOURCE FALSE)
-        if(src_name STREQUAL "bicycle.cc")
-            set(USE_BICYCLE_SOURCE TRUE)
-            math(EXPR source_file_properties_modified
-                "${source_file_properties_modified} + 1")
-        endif()
-        if(source_file_properties_modified GREATER 2)
-            break()
+            set_property(SOURCE ${src}
+                APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-format")
         endif()
     endforeach()
 
     if(USE_BICYCLE_BOOST_SUBMODULE)
         # suppress boost undef warnings
-        set_property(SOURCE ${BICYCLE_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
+        set_property(SOURCE ${BICYCLE_SOURCE}
+            APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-undef")
     endif()
+
     if(USE_BICYCLE_EIGEN3_SUBMODULE)
         # Any request from Eigen to allocate memory from heap results in an assertion failure
         add_definitions("-DEIGEN_NO_MALLOC")
         # suppress deprecated warnings from Eigen
-        set_property(SOURCE ${BICYCLE_SOURCE} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated")
-    endif()
-    if(USE_BICYCLE_SOURCE_)
-        add_definitions("-DBICYCLE_USE_DOUBLE_PRECISION_REAL=false")
+        set_property(SOURCE ${BICYCLE_SOURCE}
+            APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated")
     endif()
 endmacro(add_phobos_executable target_name)
 

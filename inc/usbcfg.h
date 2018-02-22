@@ -17,8 +17,19 @@
 #ifndef _USBCFG_H_
 #define _USBCFG_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+    const USBDescriptor *get_descriptor(USBDriver *usbp,
+                                        uint8_t dtype,
+                                        uint8_t dindex,
+                                        uint16_t lang);
+#ifdef __cplusplus
+}
+#endif
+
 extern const USBConfig usbcfg;
-extern SerialUSBConfig serusbcfg;
+extern const SerialUSBConfig serusbcfg;
 extern SerialUSBDriver SDU1;
 
 #endif  /* _USBCFG_H_ */

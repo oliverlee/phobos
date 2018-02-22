@@ -1,5 +1,5 @@
 #include "blink.h"
-#include "usbconfig.h"
+#include "usbcfg.h"
 
 namespace {
     THD_WORKING_AREA(wa_blink_thread, 128);
@@ -9,7 +9,7 @@ namespace {
         chRegSetThreadName("blink");
         while (true) {
             palToggleLine(LINE_LED); /* defined for OLIMEX STM32-H405 */
-            if (SDU1.config->usbp->state == USB_ACTIVE) {
+            if (serusbcfg.usbp->state == USB_ACTIVE) {
                 chThdSleepMilliseconds(100);
             } else {
                 chThdSleepMilliseconds(1000);

@@ -9,7 +9,7 @@
 	url = https://github.com/fnoble/gdb-regview.git
 [submodule "external/nanopb"]
 	path = external/nanopb
-	url = https://github.com/oliverlee/nanopb.git
+	url = https://github.com/nanopb/nanopb.git
 [submodule "external/asio"]
 	path = external/asio
 	url = https://github.com/chriskohlhoff/asio.git

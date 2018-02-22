@@ -1,7 +1,7 @@
 #include "hal.h"
 #include "chprintf.h"
 #include "memstreams.h"
-#include "usbconfig.h"
+#include "usbcfg.h"
 
 int chvsnprintf(char *str, size_t size, const char *fmt, va_list ap) {
     MemoryStream ms;

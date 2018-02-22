@@ -5,6 +5,11 @@
 
 namespace packet {
 namespace serialize {
+/**
+ The maximum encoded size of a varint which is prepended to the serialized
+ data when using pb_encode_delimited.
+ */
+constexpr size_t VARINT_MAX_SIZE = 64/7 + static_cast<size_t>(64%7 > 0);
 
 /*
  * This template struct maps a nanopb message to the corresponding field struct.

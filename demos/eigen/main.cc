@@ -19,7 +19,7 @@
 #include "hal.h"
 
 #include "blink.h"
-#include "usbconfig.h"
+#include "usbcfg.h"
 #include "printf.h"
 
 namespace {

@@ -1,8 +1,5 @@
 #include <cmath>
-#include <type_traits>
 #include <boost/math/special_functions/round.hpp>
-#include "bicycle/kinematic.h"
-#include "kalman.h"
 /*
  * Member function definitions of sim::Bicycle template class.
  * See simbicycle.h for template class declaration.
@@ -14,9 +11,7 @@ template <typename Model>
 Bicycle<Model>::Bicycle(real_t v, real_t dt) :
 m_model(v, dt),
 m_full_state(full_state_t::Zero()),
-m_pose(BicyclePoseMessage_init_zero),
-m_input(input_t::Zero()),
-m_measurement(measurement_t::Zero()) {
+m_input(input_t::Zero()) {
     chBSemObjectInit(&m_state_sem, false); // initialize to not taken
 }
 
@@ -29,14 +24,14 @@ void Bicycle<Model>::set_v(real_t v)  {
     real_t v_quantized = v_quantization_resolution *
         boost::math::round(v/v_quantization_resolution, policy);
     if (v_quantized != this->v()) {
-        m_model.set_v_dt(v_quantized, m_model.dt());
+        m_model.set_v(v_quantized);
     }
 }
 
 template <typename Model>
 void Bicycle<Model>::set_dt(real_t dt)  {
     if (dt != this->dt()) {
-        m_model.set_v_dt(m_model.v(), dt);
+        m_model.set_dt(dt);
     }
 }
 
@@ -46,35 +41,36 @@ void Bicycle<Model>::reset() {
 }
 
 template <typename Model>
-void Bicycle<Model>::update_dynamics(real_t roll_torque_input, real_t steer_torque_input,
-    real_t yaw_angle_measurement,
-    real_t steer_angle_measurement,
-    real_t rear_wheel_angle_measurement) {
-
-    //  While the rear wheel angle measurement can be used to determine velocity,
-    //  it is assumed that velocity is determined outside this class and passed as
-    //  an input. This allows the velocity resolution, and thus the model update
-    //  frequency, to be determined by a filter unrelated to the bicycle model.
-    //
-    //  This could also be used to determine the wheel angles, as we assume
-    //  no-slip conditions. However, we calculate the wheel angles during the
-    //  kinematic  update and solely from bicycle velocity.
-    (void)rear_wheel_angle_measurement;
-
+void Bicycle<Model>::update_dynamics(real_t roll_torque_input, real_t steer_torque_input) {
     input_t u = input_t::Zero();
     model_t::set_input_element(u, model_t::input_index_t::roll_torque, roll_torque_input);
     model_t::set_input_element(u, model_t::input_index_t::steer_torque, steer_torque_input);
-    measurement_t z = measurement_t::Zero();
-    model_t::set_output_element(z, model_t::output_index_t::yaw_angle, yaw_angle_measurement);
-    model_t::set_output_element(z, model_t::output_index_t::steer_angle, steer_angle_measurement);
 
-    update_dynamics(u, z);
+    update_dynamics(u);
 }
 
 template <typename Model>
-void Bicycle<Model>::update_dynamics(input_t u, measurement_t z) {
+void Bicycle<Model>::update_dynamics(const input_t& u) {
     m_input = u;
-    m_measurement = z;
+
+    // copy full state before performing state update
+    chBSemWait(&m_state_sem);
+    full_state_t full_state_copy = m_full_state;
+    chBSemSignal(&m_state_sem);
+
+    full_state_t full_state_next = m_model.integrate_full_state(
+            full_state_copy,
+            m_input,
+            m_model.dt());
+
+    chBSemWait(&m_state_sem);
+    m_full_state = full_state_next;
+    chBSemSignal(&m_state_sem);
+}
+
+template <typename Model>
+void Bicycle<Model>::update_dynamics(const input_t& u, const measurement_t& z) {
+    m_input = u;
 
     // copy full state before performing state update
     chBSemWait(&m_state_sem);
@@ -85,7 +81,7 @@ void Bicycle<Model>::update_dynamics(input_t u, measurement_t z) {
             full_state_copy,
             m_input,
             m_model.dt(),
-            m_measurement);
+            z);
 
     chBSemWait(&m_state_sem);
     m_full_state = full_state_next;
@@ -113,25 +109,26 @@ void Bicycle<Model>::update_kinematics() {
             std::fmod(model_t::get_full_state_element(full_state_copy, full_state_index_t::rear_wheel_angle),
                       constants::two_pi)),
     chBSemSignal(&m_state_sem);
-
-    m_pose.timestamp = chVTGetSystemTime();
-    m_pose.x = model_t::get_full_state_element(full_state_copy, full_state_index_t::x);
-    m_pose.y = model_t::get_full_state_element(full_state_copy, full_state_index_t::y);
-    m_pose.rear_wheel = model_t::get_full_state_element(full_state_copy, full_state_index_t::rear_wheel_angle);
-    m_pose.pitch = pitch;
-    m_pose.yaw = model_t::get_full_state_element(full_state_copy, full_state_index_t::yaw_angle);
-    m_pose.roll = roll;
-    m_pose.steer = steer;
-}
-
-template <typename Model>
-const BicyclePoseMessage& Bicycle<Model>::pose() const {
-    return m_pose;
 }
 
 template <typename Model>
 const typename Bicycle<Model>::input_t& Bicycle<Model>::input() const {
     return m_input;
+}
+
+template <typename Model>
+const typename Bicycle<Model>::full_state_t& Bicycle<Model>::full_state() const {
+    return m_full_state;
+}
+
+template <typename Model>
+typename Bicycle<Model>::state_t Bicycle<Model>::state() const {
+    return model::Bicycle::get_state_part(m_full_state);
+}
+
+template <typename Model>
+typename Bicycle<Model>::auxiliary_state_t Bicycle<Model>::auxiliary_state() const {
+    return model::Bicycle::get_auxiliary_state_part(m_full_state);
 }
 
 template <typename Model>
@@ -197,11 +194,6 @@ model::real_t Bicycle<Model>::v() const {
 template <typename Model>
 model::real_t Bicycle<Model>::dt() const {
     return m_model.dt();
-}
-
-template <typename Model>
-const typename Bicycle<Model>::full_state_t& Bicycle<Model>::full_state() const {
-    return m_full_state;
 }
 
 } // namespace sim

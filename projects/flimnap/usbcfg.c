@@ -14,17 +14,11 @@
     limitations under the License.
 */
 
+#include "usbconfig.h"
 #include "hal.h"
 
 /* Virtual serial port over USB.*/
 SerialUSBDriver SDU1;
-
-/*
- * Endpoints to be used for USBD1.
- */
-#define USBD1_DATA_REQUEST_EP           1
-#define USBD1_DATA_AVAILABLE_EP         1
-#define USBD1_INTERRUPT_REQUEST_EP      2
 
 /*
  * USB Device Descriptor.
@@ -194,10 +188,10 @@ static const USBDescriptor vcom_strings[] = {
  * Handles the GET_DESCRIPTOR callback. All required descriptors must be
  * handled here.
  */
-static const USBDescriptor *get_descriptor(USBDriver *usbp,
-                                           uint8_t dtype,
-                                           uint8_t dindex,
-                                           uint16_t lang) {
+const USBDescriptor *get_descriptor(USBDriver *usbp,
+                                    uint8_t dtype,
+                                    uint8_t dindex,
+                                    uint16_t lang) {
 
   (void)usbp;
   (void)lang;
@@ -228,8 +222,8 @@ static USBOutEndpointState ep1outstate;
  */
 static const USBEndpointConfig ep1config = {
   USB_EP_MODE_TYPE_BULK,
-  NULL,
-  sduDataTransmitted,
+  NULL, /* no setup callback */
+  NULL, /* no data transmitted callback */
   sduDataReceived,
   0x0040,
   0x0040,
@@ -247,7 +241,7 @@ static USBInEndpointState ep2instate;
 /**
  * @brief   EP2 initialization structure (IN only).
  */
-static const USBEndpointConfig ep2config = {
+const USBEndpointConfig ep2config = {
   USB_EP_MODE_TYPE_INTR,
   NULL,
   sduInterruptTransmitted,

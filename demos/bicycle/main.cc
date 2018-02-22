@@ -17,7 +17,7 @@
 #include "ch.h"
 #include "hal.h"
 
-#include "usbconfig.h"
+#include "usbcfg.h"
 #include "blink.h"
 #include "printf.h"
 

@@ -21,7 +21,7 @@
 
 #include "gitsha1.h"
 #include "blink.h"
-#include "usbconfig.h"
+#include "usbcfg.h"
 #include "saconfig.h"
 
 #include "parameters.h"

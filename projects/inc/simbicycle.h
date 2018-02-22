@@ -1,14 +1,11 @@
 #pragma once
 #include "ch.h"
-#include "pose.pb.h"
 #include "saconfig.h"
-#include "haptic.h"
 // bicycle submodule imports
 #include "bicycle/bicycle.h"
 #include "constants.h" // rad/deg constants, real_t
 #include "parameters.h"
 
-#include <cstddef>
 #include <type_traits>
 
 namespace sim {
@@ -46,18 +43,16 @@ class Bicycle {
         void set_v(real_t v);
         void set_dt(real_t dt);
         void reset();
-        void update_dynamics(real_t roll_torque_input, // update bicycle internal state
-                real_t steer_torque_input,
-                real_t yaw_angle_measurement,
-                real_t steer_angle_measurement,
-                real_t rear_wheel_angle_measurement);
-        void update_dynamics(input_t u, measurement_t z);
+        void update_dynamics(real_t roll_torque_input, real_t steer_torque_input); // update bicycle internal state
+        void update_dynamics(const input_t& u);
+        void update_dynamics(const input_t& u, const measurement_t& z);
         void update_kinematics(); // update bicycle pose
 
-        const BicyclePoseMessage& pose() const; // get most recently computed pose
-        real_t handlebar_feedback_torque() const; // get most recently computed feedback torque
-        const input_t& input() const; // get most recently computed input
-        const full_state_t& full_state() const; // get most recently computed full state
+        // get most recent state
+        const input_t& input() const;
+        const full_state_t& full_state() const;
+        state_t state() const;
+        auxiliary_state_t auxiliary_state() const;
 
         // common bicycle model member variables
         model_t& model();
@@ -77,9 +72,7 @@ class Bicycle {
     private:
         model_t m_model; // bicycle model object
         full_state_t m_full_state; // auxiliary + dynamic state
-        BicyclePoseMessage m_pose; // Unity visualization message
         input_t m_input; // bicycle model input vector
-        measurement_t m_measurement; // bicycle model measurement vector
         binary_semaphore_t m_state_sem; // bsem for synchronizing kinematics update
 };
 

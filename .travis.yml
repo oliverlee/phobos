@@ -41,6 +41,8 @@ env:
   - BUILD_TYPE="-DCMAKE_BUILD_TYPE=Debug -DPHOBOS_BUILD_DEMOS=0 -DPHOBOS_BUILD_PROJECTS=0 -DPHOBOS_BUILD_TOOLS=1 -DPHOBOS_BUILD_TESTS=1" CC_COMPILER="clang-3.9" CXX_COMPILER="clang++-3.9"
 
 install:
+  - export LD_LIBRARY_PATH=$HOME/protobuf/lib:$LD_LIBRARY_PATH
+  - pip install --user jinja2
   - bash travis/install-toolchain.sh
   - ls $HOME/toolchain
   - bash travis/install-protobuf.sh
