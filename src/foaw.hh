@@ -21,7 +21,6 @@ T estimate_velocity(const std::array<T, N>& circular_buffer, size_t oldest_index
 
     T velocity = 0.0;
     for (int n = 1; n < static_cast<int>(N); ++n) {
-        T bn = 0.0;
         for (int i = 0; i <= n; ++i) {
             T* xp = const_cast<T*>(&circular_buffer[(newest_index - i + N) % N]);
             /*
@@ -39,27 +38,30 @@ T estimate_velocity(const std::array<T, N>& circular_buffer, size_t oldest_index
                  * two adjacent samples. If so, the signal is not sampled fast
                  * enough.
                  */
-                T dx = x0 - *xp;
+                const T dx = x0 - *xp;
                 if (std::abs(dx) > (overflow_value/2)) {
                     *xp += std::copysign(overflow_value, dx);
                     overflow = true;
                 }
                 x0 = *xp;
             }
-            bn += (n - 2*i)*(*xp);
         }
-        bn /= sample_period*n*(n + 1)*(n + 2)/6;
+
+        // use end fit FOAW
+        const T yk = circular_buffer[newest_index];
+        const T ykn = circular_buffer[(newest_index - n + N) % N];
+        const T bn = (yk - ykn)/(n*sample_period);
 
         /*
          * The definition of 'an' in the paper doesn't make much sense so assume
          * line passes through last sampled position (which may not be the case
          * with a best fit line).
          */
-        T an = circular_buffer[newest_index];
+        const T an = circular_buffer[newest_index];
         for (int j = 1; j < n; ++j) {
-            T ykj = an - bn * j * sample_period;
-            T x = circular_buffer[(newest_index - j + N) % N];
-            T error = x - ykj;
+            const T ykj = an - bn*j*sample_period;
+            const T x = circular_buffer[(newest_index - j + N) % N];
+            const T error = x - ykj;
             if (std::abs(error) > allowed_error) {
                 done = true;
                 break;

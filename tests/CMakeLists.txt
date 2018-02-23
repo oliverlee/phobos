@@ -29,3 +29,10 @@ add_executable(test_cobs_random
 target_include_directories(test_cobs_random PRIVATE ../inc)
 target_link_libraries(test_cobs_random gtest_main)
 add_test(NAME test_cobs_random COMMAND test_cobs_random)
+
+add_executable(test_foaw
+  test_foaw.cc
+)
+target_include_directories(test_foaw PRIVATE ../inc ../src)
+target_link_libraries(test_foaw gtest_main)
+add_test(NAME test_foaw COMMAND test_foaw)
