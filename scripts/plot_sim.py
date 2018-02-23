@@ -298,20 +298,8 @@ class ProcessedRecord(object):
     def plot_torque_signals(self, **kwargs):
         fig, ax = plt.subplots(**kwargs)
 
-        k_p = 150
-        k_d = 3
-        feedback_torque = k_p*self.error + k_d*self.derror
-        feedforward_torque = self.kollmorgen_command_torque - feedback_torque
-
-        _, A, B = benchmark_state_space_vs_speed(*benchmark_matrices(), [5])
-        A = np.squeeze(A)
-        B = np.squeeze(B)
-
-        steer_accel = (np.dot(A, self.states.T) +
-                       np.dot(B, self.records.input.T))[3, :].T
-        mass_upper = sa.UPPER_ASSEMBLY_INERTIA
-        mass_lower = sa.LOWER_ASSEMBLY_INERTIA
-        feedforward_torque_calculated = (mass_upper + mass_lower)*steer_accel
+        feedback_torque = self.records.controller.feedback.torque
+        feedforward_torque = self.records.controller.feedforward.torque
 
         self._plot_line(ax, 'steer torque')
         ax.plot(self.t,
@@ -329,11 +317,6 @@ class ProcessedRecord(object):
         ax.plot(self.t,
                 feedforward_torque,
                 label='feedforward torque', color=self.colors[10], alpha=0.8)
-        ax.plot(self.t,
-                feedforward_torque_calculated,
-                linestyle='--',
-                label='feedforward torque calculated',
-                color=self.colors[1], alpha=0.8)
         ax.set_ylabel('torque [Nm]')
         ax.set_xlabel('time [s]')
         ax.axhline(0, color='black')
