@@ -189,9 +189,30 @@ class ProcessedRecord(object):
             scale = 1
             angle_unit = 'rad'
 
+        has_model = self.messages[0].model.HasField('v')
+        if has_model:
+            _, A, B = benchmark_state_space_vs_speed(*benchmark_matrices(),
+                                                     [v])
+            A = np.squeeze(A)
+            B = np.squeeze(B)
+            C = np.eye(4)
+            D = np.zeros((4, 2))
+            u = self.records.input.reshape((-1, 2, 1))
+            system = scipy.signal.lti(A, B, C, D)
+            _, _, lsim_state = scipy.signal.lsim(system, u, self.t)
+
         # plot angles
         self._plot_line(ax[0], 'roll angle', scale)
         self._plot_line(ax[0], 'steer angle', scale)
+        if has_model:
+            ax[0].plot(self.t, scale*lsim_state[:, 0],
+                       label='roll angle (lsim)',
+                       color=self._color('roll angle'),
+                       alpha=0.8, linestyle='--')
+            ax[0].plot(self.t, scale*lsim_state[:, 1],
+                       label='steer angle (lsim)',
+                       color=self._color('steer angle'),
+                       alpha=0.8, linestyle='--')
         ax[0].set_ylabel('angle [{}]'.format(angle_unit))
         ax[0].set_xlabel('time [s]')
         #ax[0].axhline(0, color='black')
@@ -200,6 +221,15 @@ class ProcessedRecord(object):
         # plot angular rates
         self._plot_line(ax[1], 'roll rate', scale)
         self._plot_line(ax[1], 'steer rate', scale)
+        if has_model:
+            ax[1].plot(self.t, scale*lsim_state[:, 2],
+                       label='roll rate (lsim)',
+                       color=self._color('roll rate'),
+                       alpha=0.8, linestyle='--')
+            ax[3].plot(self.t, scale*lsim_state[:, 3],
+                       label='steer rate (lsim)',
+                       color=self._color('steer rate'),
+                       alpha=0.8, linestyle='--')
         ax[1].set_ylabel('rate [{}/s]'.format(angle_unit))
         ax[1].set_xlabel('time [s]')
         #ax[1].axhline(0, color='black')
