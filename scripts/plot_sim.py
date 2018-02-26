@@ -140,10 +140,6 @@ class ProcessedRecord(object):
         encoder_angle[np.where(encoder_angle > np.pi)[0]] -= 2*np.pi
         self.measured_steer_angle = encoder_angle
 
-        self.error = self._signal('steer angle') - self.measured_steer_angle
-        derror = np.diff(self.error) / 0.001
-        self.derror = np.squeeze(np.insert(derror, 0, 0))
-
         self.kollmorgen_command_torque = convert_kollmorgen_command_dac(
                 self.records.actuators.kollmorgen_command_torque)
         self.kollmorgen_applied_torque = convert_kollmorgen_applied_adc(
@@ -267,7 +263,7 @@ class ProcessedRecord(object):
         ax[0].legend()
 
         # plot angle error
-        ax[1].plot(self.t, scale*self.error,
+        ax[1].plot(self.t, scale*self.records.controller.feedback.error,
                    label='steer angle error',
                    color=self.colors[5], alpha=0.8)
         ax[1].set_ylabel('angle [{}]'.format(angle_unit))
@@ -276,7 +272,8 @@ class ProcessedRecord(object):
         ax[1].legend()
 
         # plot angle error derivative
-        ax[2].plot(self.t, scale*self.derror,
+        ax[2].plot(self.t,
+                   scale*self.records.controller.feedback.error_derivative,
                    label='steer angle error derivative',
                    color=self.colors[7], alpha=0.8)
         ax[2].set_ylabel('angular rate [{}/s]'.format(angle_unit))
