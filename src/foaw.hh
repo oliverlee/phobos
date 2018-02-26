@@ -21,29 +21,31 @@ T estimate_velocity(const std::array<T, N>& circular_buffer, size_t oldest_index
 
     T velocity = 0.0;
     for (int n = 1; n < static_cast<int>(N); ++n) {
-        for (int i = 0; i <= n; ++i) {
-            T* xp = const_cast<T*>(&circular_buffer[(newest_index - i + N) % N]);
-            /*
-             * If overflow value is greater than 0, account for position
-             * being able to overflow or underflow. Check each new sample
-             * to determine if overflow/underflow has occurred and modify the
-             * buffer accordingly.
-             *
-             * This check only occurs to the last element in the inner loop to
-             * avoid checking a specific index multiple times.
-             */
-            if ((i == n) && (overflow_value > static_cast<T>(0))) {
+        if (overflow_value > static_cast<T>(0)) {
+            for (int i = 1; i <= n; ++i) {
+                T* xp = const_cast<T*>(&circular_buffer[(newest_index - i + N) % N]);
                 /*
-                 * Assume a difference of 'overflow_value' cannot occurs between
-                 * two adjacent samples. If so, the signal is not sampled fast
-                 * enough.
+                 * If overflow value is greater than 0, account for position
+                 * being able to overflow or underflow. Check each new sample
+                 * to determine if overflow/underflow has occurred and modify the
+                 * buffer accordingly.
+                 *
+                 * This check only occurs to the last element in the inner loop to
+                 * avoid checking a specific index multiple times.
                  */
-                const T dx = x0 - *xp;
-                if (std::abs(dx) > (overflow_value/2)) {
-                    *xp += std::copysign(overflow_value, dx);
-                    overflow = true;
+                if (i == n) {
+                    /*
+                     * Assume a difference of 'overflow_value' cannot occurs between
+                     * two adjacent samples. If so, the signal is not sampled fast
+                     * enough.
+                     */
+                    const T dx = x0 - *xp;
+                    if (std::abs(dx) > (overflow_value/2)) {
+                        *xp += std::copysign(overflow_value, dx);
+                        overflow = true;
+                    }
+                    x0 = *xp;
                 }
-                x0 = *xp;
             }
         }
 
@@ -57,8 +59,8 @@ T estimate_velocity(const std::array<T, N>& circular_buffer, size_t oldest_index
          * line passes through last sampled position (which may not be the case
          * with a best fit line).
          */
-        const T an = circular_buffer[newest_index];
-        for (int j = 1; j < n; ++j) {
+        const T an = yk;
+        for (int j = 1; j <= n; ++j) {
             const T ykj = an - bn*j*sample_period;
             const T x = circular_buffer[(newest_index - j + N) % N];
             const T error = x - ykj;
