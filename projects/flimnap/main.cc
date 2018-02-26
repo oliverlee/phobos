@@ -65,7 +65,7 @@ namespace {
 #if defined(USE_BICYCLE_KINEMATIC_MODEL)
     filter::MovingAverage<float, 5> velocity_filter;
 #else
-    constexpr float fixed_v = 6.0f; // fixed bicycle velocity
+    constexpr float fixed_v = 5.0f; // fixed bicycle velocity
 #endif
 
     // pose calculation loop
@@ -78,11 +78,11 @@ namespace {
 Verify 'dynamics_loop_period is greater than 1 ms.");
 
     // feedback and feedforward parameters
-    constexpr float k_p = 150.0f;
-    constexpr float k_d = k_p*0.15f;
+    constexpr float k_p = 120.0f;
+    constexpr float k_d = 0.0f;
     constexpr float m = sa::ASSEMBLY_INERTIA;
 
-    Foaw<float, 8> error_filter(dynamics_loop_period, 3.0f);
+    Foaw<float, 8> error_filter(dt, 0.05f);
 
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
@@ -286,6 +286,9 @@ int main(void) {
         constexpr float v = fixed_v;
         bicycle.set_v(v);
 
+        // save a copy of the state before update
+        const model_t::state_t state = model_t::get_state_part(bicycle.full_state());
+
         // Measurements are ignored in state update. Instead, state is stored
         // in sim::bicycle object.
         bicycle.update_dynamics(
@@ -307,9 +310,10 @@ int main(void) {
 
         const float feedback_torque = k_p*error + k_d*error_derivative;
 
+        // calculate feedforwad
         const model_t& model = bicycle.model();
         const model_t::state_t state_deriv =
-            model.A()*model_t::get_state_part(bicycle.full_state()) +
+            model.A()*state;
             model.B()*bicycle.input();
         const float steer_accel = model_t::get_state_element(
                 state_deriv,
