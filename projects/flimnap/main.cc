@@ -79,10 +79,10 @@ Verify 'dynamics_loop_period is greater than 1 ms.");
 
     // feedback and feedforward parameters
     constexpr float k_p = 120.0f;
-    constexpr float k_d = 0.0f;
+    constexpr float k_d = 12.0f;
     constexpr float m = sa::ASSEMBLY_INERTIA;
 
-    Foaw<float, 8> error_filter(dt, 0.05f);
+    Foaw<float, 100> error_filter(dt, 0.05f);
 
     // Suspends the invoking thread until the system time arrives to the
     // specified value.
@@ -234,8 +234,8 @@ int main(void) {
 
     // Start running pose calculation thread
     pose_thread_arg a{bicycle, transmitter};
-    chThdCreateStatic(wa_pose_thread, sizeof(wa_pose_thread),
-            NORMALPRIO - 1, pose_thread, static_cast<void*>(&a));
+    //chThdCreateStatic(wa_pose_thread, sizeof(wa_pose_thread),
+    //        NORMALPRIO - 1, pose_thread, static_cast<void*>(&a));
 
     // Normal main() thread activity. This is the dynamics simulation loop.
     systime_t deadline = chVTGetSystemTime();
@@ -306,19 +306,22 @@ int main(void) {
         const float error = desired_position - steer_angle;
 
         error_filter.add_position(error);
-        const float error_derivative = error_filter.estimate_velocity();
+        //const float error_derivative = error_filter.estimate_velocity();
+        const float error_derivative = (error - error_filter.oldest_value())/(100*dt);
 
         const float feedback_torque = k_p*error + k_d*error_derivative;
 
-        // calculate feedforwad
-        const model_t& model = bicycle.model();
-        const model_t::state_t state_deriv =
-            model.A()*state;
-            model.B()*bicycle.input();
-        const float steer_accel = model_t::get_state_element(
-                state_deriv,
-                model_t::state_index_t::steer_rate);
-        const float feedforward_torque = m*steer_accel;
+        //// calculate feedforwad
+        //const model_t& model = bicycle.model();
+        //const model_t::state_t state_deriv =
+        //    model.A()*state;
+        //    model.B()*bicycle.input();
+        //const float steer_accel = model_t::get_state_element(
+        //        state_deriv,
+        //        model_t::state_index_t::steer_rate);
+        //const float feedforward_torque = m*steer_accel;
+        constexpr float steer_accel = 0.0f;
+        constexpr float feedforward_torque = 0.0f;
 
         const dacsample_t handlebar_reference_dac =
             sa::set_kollmorgen_torque(feedback_torque + feedforward_torque);
@@ -357,10 +360,11 @@ int main(void) {
                         feedforward_torque,
                         steer_accel);
 #endif
-                if (transmitter.transmit_async(msg) != MSG_OK) {
-                    // Discard simulation message if it cannot be processed quickly enough.
-                    transmitter.free_message(msg);
-                }
+                //if (transmitter.transmit_async(msg) != MSG_OK) {
+                //    // Discard simulation message if it cannot be processed quickly enough.
+                //    transmitter.free_message(msg);
+                //}
+                transmitter.free_message(msg);
             }
         }
         deadline = chThdSleepUntilWindowedOrYield(

@@ -34,6 +34,7 @@ class Foaw {
         T estimate_velocity();
         T sample_period() const;
         T allowed_error() const;
+        T oldest_value() const;
 
     private:
         std::array<T, N> m_positions; /* circular buffer for sampled positions */

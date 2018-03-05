@@ -58,7 +58,7 @@ T estimate_velocity(const std::array<T, N>& circular_buffer, size_t oldest_index
          * with a best fit line).
          */
         const T an = circular_buffer[newest_index];
-        for (int j = 1; j < n; ++j) {
+        for (int j = 0; j <= n; ++j) {
             const T ykj = an - bn*j*sample_period;
             const T x = circular_buffer[(newest_index - j + N) % N];
             const T error = x - ykj;
@@ -129,4 +129,9 @@ T Foaw<T, N>::sample_period() const {
 template <typename T, size_t N>
 T Foaw<T, N>::allowed_error() const {
     return m_d;
+}
+
+template <typename T, size_t N>
+T Foaw<T, N>::oldest_value() const {
+    return m_positions[m_position_index];
 }
