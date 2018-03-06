@@ -2,6 +2,12 @@ import numpy as np
 import scipy.signal
 
 
+import io
+import contextlib
+import matlab.engine
+_engine = matlab.engine.start_matlab() # global matlab engine
+
+
 def _get_signal(log, label):
     if label == 'u':
         return  log.records.input[:, 1], 'steer torque'
@@ -108,3 +114,104 @@ def coherence(x, y,
     Syx = power_spectrum(x, y, window_size, noverlap)
     Syy = power_spectrum(y, y, window_size, noverlap)
     return np.power(np.abs(Syx), 2)/(Sxx*Syy)
+
+
+class MatlabWorkspaceObject(object):
+    def __init__(self, name, value=None, command=None, engine=_engine):
+        self.name = name
+        self.engine = engine
+
+        errstr = 'can\'t set a MatlabWorkspaceObject with value and command'
+        assert not (value is not None and command is not None), errstr
+
+        if value is not None:
+            engine.workspace[name] = value
+        if command is not None:
+            _matlab_eval('{} = {}'.format(name, command), engine=engine)
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            _matlab_eval(str(self), verbose=True, engine=self.engine)
+        output = f.getvalue()
+        f.close()
+        return output
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.delete()
+
+    def delete(self):
+        return _matlab_eval('clear {}'.format(self), engine=self.engine)
+
+def _matlab_eval(command, verbose=False, engine=_engine):
+    if verbose:
+        engine_io = io.StringIO()
+    else:
+        engine_io = None
+
+    engine.eval(command, nargout=0, stdout=engine_io)
+
+    if verbose:
+        print(engine_io.getvalue())
+        engine_io.close()
+
+def iddata(u, y, dt, matlab_name, engine=_engine):
+    _u = matlab.double(u.tolist())
+    _u.reshape((len(u), 1))
+    _y = matlab.double(y.tolist())
+    _y.reshape((len(y), 1))
+
+    mwo_u = MatlabWorkspaceObject('py_iddata_u', value=_u, engine=engine)
+    mwo_y = MatlabWorkspaceObject('py_iddata_y', value=_y, engine=engine)
+    with mwo_u, mwo_y:
+        mwo_data = MatlabWorkspaceObject(matlab_name,
+                command='iddata({}, {}, {})'.format(mwo_y, mwo_u, dt),
+                engine=engine)
+
+    return mwo_data
+
+def armax(mwo_iddata, na, nb, nc, nk=0):
+    engine = mwo_iddata.engine
+
+    mwo_model = MatlabWorkspaceObject('py_armax_model',
+            command='armax({}, [{} {} {} {}])'.format(
+                mwo_iddata, na, nb, nc, nk),
+            engine=engine)
+
+    mwo_b = MatlabWorkspaceObject('py_armax_b', engine=engine)
+    mwo_a = MatlabWorkspaceObject('py_armax_a', engine=engine)
+
+    with mwo_model, mwo_b, mwo_a:
+        engine.eval("[{}, {}] = tfdata(tf({}), 'v')".format(
+            mwo_b, mwo_a, mwo_model), nargout=0)
+
+        b = np.array(engine.workspace[str(mwo_b)])
+        a = np.array(engine.workspace[str(mwo_a)])
+
+    return b, a
+
+def bj(mwo_iddata, nb, nc, nd, nf, nk=0):
+    engine = mwo_iddata.engine
+
+    mwo_model = MatlabWorkspaceObject('py_bj_model',
+            command='bj({}, [{} {} {} {} {}])'.format(
+                mwo_iddata, nb, nb, nd, nf, nk),
+            engine=engine)
+
+    mwo_b = MatlabWorkspaceObject('py_bj_b', engine=engine)
+    mwo_a = MatlabWorkspaceObject('py_bj_a', engine=engine)
+
+    with mwo_model, mwo_b, mwo_a:
+        engine.eval("[{}, {}] = tfdata(tf({}), 'v')".format(
+            mwo_b, mwo_a, mwo_model), nargout=0)
+
+        b = np.array(engine.workspace[str(mwo_b)])
+        a = np.array(engine.workspace[str(mwo_a)])
+
+    return b, a
