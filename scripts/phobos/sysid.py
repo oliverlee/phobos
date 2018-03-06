@@ -5,9 +5,9 @@ import scipy.signal
 def _get_signal(log, label):
     if label == 'u':
         return  log.records.input[:, 1], 'steer torque'
-    elif label == 'w':
+    elif label == 'u1':
         return log.kollmorgen_command_torque, 'command motor torque'
-    elif label == 'v':
+    elif label == 'u2':
         return log.kollmorgen_applied_torque, 'applied motor torque'
     elif label == 'r':
         return log.states[:, 1], 'reference steer angle'
