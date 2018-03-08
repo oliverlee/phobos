@@ -161,6 +161,9 @@ def _matlab_eval(command, verbose=False, engine=_engine):
         print(engine_io.getvalue())
         engine_io.close()
 
+def help(command):
+    _matlab_eval('help {}'.format(command), verbose=True)
+
 def iddata(u, y, dt, matlab_name, engine=_engine):
     _u = matlab.double(u.tolist())
     _u.reshape((len(u), 1))
@@ -176,7 +179,7 @@ def iddata(u, y, dt, matlab_name, engine=_engine):
 
     return mwo_data
 
-def armax(mwo_iddata, na, nb, nc, nk=0):
+def armax(mwo_iddata, na, nb, nc, nk=0, nrmse=False):
     engine = mwo_iddata.engine
 
     mwo_model = MatlabWorkspaceObject('py_armax_model',
@@ -184,34 +187,30 @@ def armax(mwo_iddata, na, nb, nc, nk=0):
                 mwo_iddata, na, nb, nc, nk),
             engine=engine)
 
-    mwo_b = MatlabWorkspaceObject('py_armax_b', engine=engine)
-    mwo_a = MatlabWorkspaceObject('py_armax_a', engine=engine)
+    with mwo_model:
+        b = np.array(engine.eval('{}.B'.format(mwo_model))).reshape((-1,))
+        a = np.array(engine.eval('{}.A'.format(mwo_model))).reshape((-1,))
 
-    with mwo_model, mwo_b, mwo_a:
-        engine.eval("[{}, {}] = tfdata(tf({}), 'v')".format(
-            mwo_b, mwo_a, mwo_model), nargout=0)
-
-        b = np.array(engine.workspace[str(mwo_b)])
-        a = np.array(engine.workspace[str(mwo_a)])
-
+        if nrmse:
+            nrmse_value = engine.eval('{}.Report.Fit.FitPercent'.format(
+                mwo_model))
+            return b, a, nrmse_value
     return b, a
 
-def bj(mwo_iddata, nb, nc, nd, nf, nk=0):
+def bj(mwo_iddata, nb, nc, nd, nf, nk=0, nrmse=False):
     engine = mwo_iddata.engine
 
     mwo_model = MatlabWorkspaceObject('py_bj_model',
             command='bj({}, [{} {} {} {} {}])'.format(
-                mwo_iddata, nb, nb, nd, nf, nk),
+                mwo_iddata, nb, nc, nd, nf, nk),
             engine=engine)
 
-    mwo_b = MatlabWorkspaceObject('py_bj_b', engine=engine)
-    mwo_a = MatlabWorkspaceObject('py_bj_a', engine=engine)
+    with mwo_model:
+        b = np.array(engine.eval('{}.B'.format(mwo_model))).reshape((-1,))
+        a = np.array(engine.eval('{}.F'.format(mwo_model))).reshape((-1,))
 
-    with mwo_model, mwo_b, mwo_a:
-        engine.eval("[{}, {}] = tfdata(tf({}), 'v')".format(
-            mwo_b, mwo_a, mwo_model), nargout=0)
-
-        b = np.array(engine.workspace[str(mwo_b)])
-        a = np.array(engine.workspace[str(mwo_a)])
-
+        if nrmse:
+            nrmse_value = engine.eval('{}.Report.Fit.FitPercent'.format(
+                mwo_model))
+            return b, a, nrmse_value
     return b, a
