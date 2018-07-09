@@ -3,9 +3,18 @@
 #include <iomanip>
 #include <iostream>
 #include <vector>
+
 #include <asio.hpp>
 #include <asio/serial_port.hpp>
 #include <asio/signal_set.hpp>
+
+#if defined(PBPRINT_USE_BOOST)
+#include <boost/filesystem.hpp>
+#include <boost/iostreams/device/file.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
+#endif
+
 #include <google/protobuf/io/coded_stream.h>
 #include "cobs.h"
 #include "pose.pb.h"
@@ -17,7 +26,7 @@ namespace {
 
     asio::io_service io_service;
     asio::serial_port port(io_service);
-    std::ifstream* input_file = nullptr;
+    std::istream* input_file = nullptr;
 
     // serial port
     //   --[read]--> serial_buffer
@@ -38,9 +47,12 @@ namespace {
         );
     }
 
-    void start_read(std::ifstream* ifs) {
+    void start_read(std::istream* ifs) {
         const size_t serial_buffer_remaining = serial_buffer_end - serial_buffer_write;
-        const size_t bytes_read = ifs->readsome(reinterpret_cast<char*>(serial_buffer_write), serial_buffer_remaining);
+
+        ifs->read(reinterpret_cast<char*>(serial_buffer_write), serial_buffer_remaining);
+        const size_t bytes_read = ifs->gcount();
+
         if (bytes_read > 0) {
             asio::error_code error;
             handle_read(error, bytes_read);
@@ -189,8 +201,24 @@ int main(int argc, char* argv[]) {
         port.open(devname);
     } catch (const std::system_error& e) {
         // assume we have a file
+#if defined(PBPRINT_USE_BOOST)
+        std::string file_extension = boost::filesystem::extension(devname);
+        boost::iostreams::filtering_istream boost_ifs;
+
+        std::cout << "filename " << devname << std::endl;
+
+        if (file_extension == ".gz") {
+            boost_ifs.push(boost::iostreams::gzip_decompressor());
+            boost_ifs.push(boost::iostreams::file_source(devname));
+            input_file = dynamic_cast<std::istream*>(&boost_ifs);
+        } else {
+            boost_ifs.push(boost::iostreams::file_source(devname));
+            input_file = dynamic_cast<std::istream*>(&boost_ifs);
+        }
+#else
         std::ifstream ifs(devname, std::ios::binary);
-        input_file = &ifs;
+        input_file = dynamic_cast<std::istream*>(&ifs);
+#endif
         start_read(input_file);
         return EXIT_SUCCESS;
     }
