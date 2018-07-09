@@ -21,7 +21,7 @@ option(PBPRINT_WITH_GZIP
     "Build pbprint with gzip support. Requires a system installation of Boost." TRUE)
 
 if (PBPRINT_WITH_GZIP)
-    find_package(Boost 1.67.0 REQUIRED COMPONENTS system filesystem iostreams)
+    find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem iostreams)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra")
