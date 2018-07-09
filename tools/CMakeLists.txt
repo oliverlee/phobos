@@ -17,6 +17,13 @@ include_directories(../inc)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
+option(PBPRINT_WITH_GZIP
+    "Build pbprint with gzip support. Requires a system installation of Boost." TRUE)
+
+if (PBPRINT_WITH_GZIP)
+    find_package(Boost 1.67.0 REQUIRED COMPONENTS system filesystem iostreams)
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra")
 
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS
@@ -33,4 +40,9 @@ if (NOT APPLE)
     find_package(Threads)
     target_link_libraries(seriallog ${CMAKE_THREAD_LIBS_INIT})
     target_link_libraries(pbprint ${CMAKE_THREAD_LIBS_INIT})
+endif()
+
+if (PBPRINT_WITH_GZIP)
+    target_link_libraries(pbprint Boost::filesystem Boost::iostreams)
+    target_compile_definitions(pbprint PRIVATE PBPRINT_USE_BOOST)
 endif()
