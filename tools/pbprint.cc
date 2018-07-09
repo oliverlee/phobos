@@ -40,7 +40,10 @@ namespace {
 
     void start_read(std::ifstream* ifs) {
         const size_t serial_buffer_remaining = serial_buffer_end - serial_buffer_write;
-        const size_t bytes_read = ifs->readsome(reinterpret_cast<char*>(serial_buffer_write), serial_buffer_remaining);
+
+        ifs->read(reinterpret_cast<char*>(serial_buffer_write), serial_buffer_remaining);
+        const size_t bytes_read = ifs->gcount();
+
         if (bytes_read > 0) {
             asio::error_code error;
             handle_read(error, bytes_read);
