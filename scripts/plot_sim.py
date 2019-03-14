@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import os
 import sys
 import numpy as np
 import scipy.signal
@@ -120,6 +121,7 @@ def plot_entries(t, entries, n, m):
 
 class ProcessedRecord(object):
     def __init__(self, filename):
+        self.basename = os.path.basename(filename)
         self.messages = load_messages(filename)
 
         # messages with gitsha1 are transmitted before the simulation loop
